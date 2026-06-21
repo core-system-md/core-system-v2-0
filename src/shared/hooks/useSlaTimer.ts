@@ -2,8 +2,8 @@
 // Interval-based SLA countdown with color states
 
 import { useState, useEffect } from 'react';
-import { computeSlaStatus, getSlaColorToken, getSlaLabel } from '../../rules/sla/SlaThresholds';
-import type { SlaStatus } from '../../rules/sla/SlaThresholds';
+import { computeSlaStatus, getSlaColorToken, getSlaLabel } from '../../core/rules/sla/SlaThresholds';
+import type { SlaStatus } from '../../core/rules/sla/SlaThresholds';
 
 export function useSlaTimer(checkInAt: string | null) {
   const [waitMinutes, setWaitMinutes] = useState(0);

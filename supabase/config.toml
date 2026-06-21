@@ -1,0 +1,12 @@
+[functions]
+[functions.auto-lock-release]
+verify_jwt = false
+
+[functions.leakage-detector]
+verify_jwt = false
+
+[functions.analytics-snapshot]
+verify_jwt = false
+
+[functions.notification-processor]
+verify_jwt = false

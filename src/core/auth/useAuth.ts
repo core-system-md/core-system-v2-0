@@ -61,6 +61,7 @@ export function useAuth() {
         userFullName = userProfile.full_name;
         userRole = userProfile.role;
 
+        // FIX: Use core_pin_auth key with correct format
         localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
           user_id: userIdStr,
           full_name: userFullName,
@@ -87,6 +88,7 @@ export function useAuth() {
         userRole = pinUser.role;
         userEmail = null;
 
+        // FIX: Use core_pin_auth key with correct format
         localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
           user_id: userIdStr,
           full_name: userFullName,

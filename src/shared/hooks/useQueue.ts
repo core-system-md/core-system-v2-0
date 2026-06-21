@@ -1,5 +1,3 @@
-// Live queue with realtime subscription
-
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
@@ -10,10 +8,26 @@ import { useAuthContext } from '../../core/auth/AuthProvider';
 const QUEUE_KEY = 'live-queue';
 
 export function useQueue() {
-  const { tenantId } = useAuthContext();
+  const { tenantId: authTenantId } = useAuthContext();
+  
+  let tenantId = authTenantId;
+  if (!tenantId) {
+    try {
+      const pinAuth = localStorage.getItem('pin_auth');
+      if (pinAuth) {
+        const parsed = JSON.parse(pinAuth);
+        if (parsed.tenantId && Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
+          tenantId = parsed.tenantId;
+        }
+      }
+    } catch { /* ignore */ }
+  }
+  
   const { setItems, setLoading } = useQueueStore();
 
-  useQueueChannel(tenantId || "");
+  console.log('DEBUG: tenantId =', tenantId);
+
+  useQueueChannel(tenantId || '');
 
   const query = useQuery({
     queryKey: [QUEUE_KEY, tenantId],
@@ -21,26 +35,13 @@ export function useQueue() {
       if (!tenantId) throw new Error('MISSING_TENANT_ID');
 
       const { data, error } = await supabase
-        .from('clinic_visit_sessions')
-        .select(`
-          id,
-          patient_id,
-          session_status,
-          actual_check_in,
-          actual_start,
-          lock_holder_id,
-          wait_time_minutes,
-          core_score_display,
-          is_insured,
-          clinic_patients!inner(full_name),
-          clinic_users!inner(full_name),
-          clinic_procedures(name)
-        `)
-        .eq('tenant_id', tenantId)
-        .in('session_status', ['waiting', 'in_consultation'])
-        .order('actual_check_in', { ascending: true });
+        .rpc('get_queue_for_tenant', { p_tenant_id: tenantId });
 
-      if (error) throw error;
+      if (error) {
+        console.error('DEBUG: Supabase error:', error);
+        throw error;
+      }
+      console.log('DEBUG: fetched', data?.length, 'rows');
 
       return (data || []).map((row: Record<string, unknown>) => {
         const waitMinutes = row.wait_time_minutes as number ?? 0;
@@ -59,20 +60,22 @@ export function useQueue() {
         if (waitMinutes >= 25) slaStatus = 'red';
         else if (waitMinutes >= 15) slaStatus = 'yellow';
 
-        const lockHolder = row.clinic_users as Record<string, string> | null;
+        const patients = row.clinic_patients as Record<string, string> | null;
+        const users = row.clinic_users as Record<string, string> | null;
+        const procedures = row.clinic_procedures as Record<string, string> | null;
 
         return {
           sessionId: row.id as string,
           patientId: row.patient_id as string,
-          patientName: (row.clinic_patients as Record<string, string>)?.full_name ?? 'Unknown',
+          patientName: patients?.full_name ?? 'Unknown',
           priority,
           slaStatus,
           waitMinutes,
           lockHolderId: row.lock_holder_id as string | null,
-          lockHolderName: lockHolder?.full_name ?? null,
+          lockHolderName: users?.full_name ?? null,
           roomId: null,
           doctorId: null,
-          procedureName: (row.clinic_procedures as Record<string, string>)?.name ?? null,
+          procedureName: procedures?.name ?? null,
           coreScoreDisplay: score,
         };
       });

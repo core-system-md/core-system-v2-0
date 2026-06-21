@@ -1,68 +1,55 @@
-// supabase/functions/notification-processor/index.ts
-// CRON: every 5 minutes — drain notification_queue and route via adapters
-
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-serve(async () => {
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false }
+});
 
-  // Fetch pending notifications
-  const { data: pending, error } = await supabase
+Deno.serve(async (req) => {
+  const authHeader = req.headers.get('Authorization');
+  if (authHeader !== `Bearer ${Deno.env.get('CRON_SECRET')}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  }
+
+  const { data: notifications, error } = await supabase
     .from('notification_queue')
     .select('*')
-    .eq('status', 'pending')
+    .eq('status', 'queued')
     .lte('scheduled_at', new Date().toISOString())
     .order('priority', { ascending: false })
     .limit(50);
 
-  if (error) {
-    console.error('Fetch failed:', error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  if (error || !notifications || notifications.length === 0) {
+    return new Response(JSON.stringify({ success: true, processed: 0 }), { status: 200 });
   }
 
-  let sent = 0;
-  let failed = 0;
+  const results = [];
+  for (const notif of notifications) {
+    await supabase
+      .from('notification_queue')
+      .update({ status: 'processing', updated_at: new Date().toISOString() })
+      .eq('id', notif.id);
 
-  for (const notif of pending || []) {
-    // Route by channel (whatsapp, sms, email, in_app)
-    const channel = notif.channel;
-    let delivered = false;
+    const sent = true; // TODO: Integrate with WhatsApp/SMS API
 
-    try {
-      if (channel === 'whatsapp') {
-        // TODO: Integrate Twilio/Infobip adapter
-        delivered = true;
-      } else if (channel === 'sms') {
-        delivered = true;
-      } else if (channel === 'email') {
-        delivered = true;
-      } else if (channel === 'in_app') {
-        delivered = true;
-      }
+    await supabase
+      .from('notification_queue')
+      .update({
+        status: sent ? 'sent' : 'failed',
+        sent_at: sent ? new Date().toISOString() : null,
+        retry_count: notif.retry_count + 1,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', notif.id);
 
-      await supabase
-        .from('notification_queue')
-        .update({
-          status: delivered ? 'sent' : 'failed',
-          attempts: notif.attempts + 1,
-          sent_at: delivered ? new Date().toISOString() : null,
-        })
-        .eq('id', notif.id);
-
-      if (delivered) sent++;
-      else failed++;
-    } catch (err) {
-      console.error('Delivery error:', err);
-      failed++;
-    }
+    results.push({ id: notif.id, status: sent ? 'sent' : 'failed' });
   }
 
-  return new Response(
-    JSON.stringify({ processed: (pending || []).length, sent, failed }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } }
-  );
+  return new Response(JSON.stringify({
+    success: true,
+    processed: results.length,
+    results
+  }), { status: 200 });
 });

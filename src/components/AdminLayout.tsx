@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useAuthContext } from "@/core/auth/AuthProvider";
 import { Outlet, useLocation, Link } from "react-router-dom";
 import { LayoutDashboard, Users, User, Building2, BarChart3, Settings, Menu, LogOut, Bell } from "lucide-react";
 
 export function AdminLayout() {
+  const { logout } = useAuthContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
@@ -40,7 +42,7 @@ export function AdminLayout() {
           })}
         </nav>
         <div className="p-4 border-t border-white/10">
-          <button className="flex items-center gap-3 px-4 py-3 text-white/60 hover:text-red-400 transition-colors w-full rounded-lg hover:bg-white/5">
+          <button onClick={logout} className="flex items-center gap-3 px-4 py-3 text-white/60 hover:text-red-400 transition-colors w-full rounded-lg hover:bg-white/5">
             <LogOut className="w-5 h-5" />
             <span className="font-medium">Sign Out</span>
           </button>

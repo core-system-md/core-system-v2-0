@@ -9,6 +9,8 @@ import { SuperAdminLayout } from "@/components/SuperAdminLayout";
 import { SurveyRouter } from "@/components/SurveyRouter";
 import { LiveQueueBoard } from "@/components/LiveQueueBoard";
 import CoreScoreWidget from "@/components/CoreScoreWidget";
+import { DoctorPatientList } from "@/components/doctor/DoctorPatientList";
+import { DoctorSessionView } from "@/components/doctor/DoctorSessionView";
 
 function PagePlaceholder({ title }: { title: string }) {
   return (
@@ -22,7 +24,7 @@ function PagePlaceholder({ title }: { title: string }) {
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/login" replace /> },
-  { path: "/login", element: <AuthScreen onSuccess={() => window.location.href = "/reception"} /> },
+  { path: "/login", element: <AuthScreen /> },
   { path: "/kiosk", element: <AmbientKioskView /> },
   {
     path: "/kiosk-pin",
@@ -65,13 +67,9 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: (
-          <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-white">Doctor Dashboard</h1>
-            <p className="text-white/60">Patient sessions will appear here</p>
-          </div>
-        ),
+        element: <DoctorPatientList />,
       },
+      { path: "session/:id", element: <DoctorSessionView /> },
       { path: "patients", element: <PagePlaceholder title="Doctor - Patients" /> },
       { path: "procedures", element: <PagePlaceholder title="Procedures" /> },
       { path: "prescriptions", element: <PagePlaceholder title="Prescriptions" /> },

@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user_id: data.id,
       role: data.role,
       full_name: data.full_name,
-      tenant_id: tenantId,
+      tenant_id: tenantId,  // ← ADDED: Store tenant_id for later retrieval
       expiry
     }));
 

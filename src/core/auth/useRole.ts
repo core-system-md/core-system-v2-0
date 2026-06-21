@@ -1,11 +1,11 @@
 // src/core/auth/useRole.ts
-// Role-based permission check
+// Blueprint: src/core/auth/useRole.ts
+// Purpose: Role-based permission check
 
-import { useAuthContext } from './AuthProvider';
-import type { UserRole } from '../../shared/types/database';
+import { useAuth } from './AuthProvider';
 
 export function useRole() {
-  const { role } = useAuthContext();
+  const { role } = useAuth();
   
   return {
     role,
@@ -13,6 +13,6 @@ export function useRole() {
     isClinicAdmin: role === 'clinic_admin',
     isDoctor: role === 'doctor',
     isReceptionist: role === 'receptionist',
-    hasRole: (roles: UserRole[]) => roles.includes(role ?? 'receptionist'),
+    hasRole: (roles: string[]) => roles.includes(role ?? 'receptionist'),
   };
 }
