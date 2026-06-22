@@ -1,11 +1,9 @@
 import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/core/auth/useAuth";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { Wifi, WifiOff, Shield, Mail, Lock, KeyRound, Eye, EyeOff, AlertCircle, ArrowRight, Building2 } from "lucide-react";
 
 export default function AuthScreen() {
-  const navigate = useNavigate();
   const { login, isPending } = useAuth();
   const { isOnline } = useNetworkStatus();
 
@@ -19,6 +17,7 @@ export default function AuthScreen() {
   const [shake, setShake] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
+  // Constitution §6: Role-based routing
   const getRoleRoute = (role: string | null) => {
     const routes: Record<string, string> = {
       receptionist: '/reception',
@@ -38,18 +37,16 @@ export default function AuthScreen() {
     try {
       const result = await login.mutateAsync({ email, password, licenseKey });
       const userRole = result?.role || 'receptionist';
-      console.log("Navigating to:", getRoleRoute(userRole));
-      setTimeout(() => { window.location.href = getRoleRoute(userRole); }, 100);
+      // Constitution §6: Clean redirect using replace
+      window.location.replace(getRoleRoute(userRole));
     } catch (err: any) {
-    console.error("Login error:", err);
       setLocalError(err.message || "Invalid credentials or license");
       setShake(true);
       setTimeout(() => setShake(false), 500);
     }
-  }, [email, password, licenseKey, login, navigate]);
+  }, [email, password, licenseKey, login]);
 
   const handlePinLogin = async (enteredPin: string) => {
-    console.log("PIN entered:", enteredPin, "License:", licenseKey);
     if (!licenseKey) {
       setLocalError("License key required for PIN login");
       setShake(true);
@@ -60,12 +57,10 @@ export default function AuthScreen() {
     }
     try {
       const result = await login.mutateAsync({ pinCode: enteredPin, licenseKey });
-    console.log("Login result:", result);
       const userRole = result?.role || 'receptionist';
-      console.log("Navigating to:", getRoleRoute(userRole));
-      setTimeout(() => { window.location.href = getRoleRoute(userRole); }, 100);
+      // Constitution §6: Clean redirect using replace
+      window.location.replace(getRoleRoute(userRole));
     } catch (err: any) {
-    console.error("Login error:", err);
       setLocalError(err.message || "Invalid PIN");
       setShake(true);
       setTimeout(() => setShake(false), 500);
