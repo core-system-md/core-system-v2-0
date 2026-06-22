@@ -180,7 +180,7 @@ export default function AuthScreen() {
             )}
             {/* Constitution §1.3: Test Mode */}
             <div className="mt-6 pt-4 border-t border-white/10">
-              <button onClick={handleTestMode} className="w-full py-3 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg flex items-center justify-center gap-2 hover:bg-amber-500/30 transition">
+              <button onClick={() => handleTestMode()} className="w-full py-3 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg flex items-center justify-center gap-2 hover:bg-amber-500/30 transition">
                 <TestTube className="w-4 h-4" />
                 <span className="text-sm font-medium">Test Mode (Constitution §1.3)</span>
               </button>
