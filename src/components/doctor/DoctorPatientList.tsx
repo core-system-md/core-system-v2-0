@@ -70,6 +70,7 @@ export function DoctorPatientList() {
         const { data: patientsData } = await supabase
           .from('clinic_patients')
           .select('id, full_name, phone_primary')
+          .eq('tenant_id', tenantId)
           .in('id', patientIds);
         
         patientsMap = new Map((patientsData || []).map((p: any) => [p.id, p]));
