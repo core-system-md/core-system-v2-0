@@ -58,7 +58,6 @@ export default function AuthScreen() {
       setPinIndex(0);
       return;
     }
-    setLocalError(null);
     try {
       const result = await login.mutateAsync({ pinCode: enteredPin, licenseKey });
     console.log("Login result:", result);
