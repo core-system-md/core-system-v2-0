@@ -40,6 +40,7 @@ export default function AuthScreen() {
       const userRole = result?.role || 'receptionist';
       navigate(getRoleRoute(userRole));
     } catch (err: any) {
+    console.error("Login error:", err);
       setLocalError(err.message || "Invalid credentials or license");
       setShake(true);
       setTimeout(() => setShake(false), 500);
@@ -47,6 +48,7 @@ export default function AuthScreen() {
   }, [email, password, licenseKey, login, navigate]);
 
   const handlePinLogin = async (enteredPin: string) => {
+    console.log("PIN entered:", enteredPin, "License:", licenseKey);
     if (!licenseKey) {
       setLocalError("License key required for PIN login");
       setShake(true);
@@ -58,9 +60,11 @@ export default function AuthScreen() {
     setLocalError(null);
     try {
       const result = await login.mutateAsync({ pinCode: enteredPin, licenseKey });
+    console.log("Login result:", result);
       const userRole = result?.role || 'receptionist';
       navigate(getRoleRoute(userRole));
     } catch (err: any) {
+    console.error("Login error:", err);
       setLocalError(err.message || "Invalid PIN");
       setShake(true);
       setTimeout(() => setShake(false), 500);
