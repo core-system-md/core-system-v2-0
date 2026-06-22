@@ -49,7 +49,7 @@ export default function AuthScreen() {
     try {
       const result = await login.mutateAsync({ email, password, licenseKey });
       const userRole = result?.role || 'receptionist';
-      window.location.replace(getRoleRoute(userRole));
+      window.location.href = getRoleRoute(userRole);
     } catch (err: any) {
       setLocalError(err.message || "Invalid credentials or license");
       setShake(true);
@@ -69,7 +69,7 @@ export default function AuthScreen() {
     try {
       const result = await login.mutateAsync({ pinCode: enteredPin, licenseKey });
       const userRole = result?.role || 'receptionist';
-      window.location.replace(getRoleRoute(userRole));
+      window.location.href = getRoleRoute(userRole);
     } catch (err: any) {
       setLocalError(err.message || "Invalid PIN");
       setShake(true);
