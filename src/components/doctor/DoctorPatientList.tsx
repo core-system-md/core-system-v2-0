@@ -1,7 +1,6 @@
 // ============================================================
 // CORE SYSTEM v2.1 — DoctorPatientList
 // Constitution §2.6 (tenant_id), §4.2 (Core Score), §5 (SLA)
-// Displays patients with CoreScore + SLA + click navigation
 // ============================================================
 
 import { useEffect, useState } from 'react';
@@ -11,7 +10,6 @@ import { supabase } from '@/infrastructure/supabase/client';
 import { CoreScoreMeter } from '@/shared/components/ui/CoreScoreMeter';
 import { SlaTimer } from '@/shared/components/ui/SlaTimer';
 
-// ── Types ───────────────────────────────────────────────────
 interface Patient {
   id: string;
   full_name: string;
@@ -32,13 +30,11 @@ interface PatientWithSession extends Patient {
   active_session: SessionInfo | null;
 }
 
-// ── Component ───────────────────────────────────────────────
 export default function DoctorPatientList() {
   const navigate = useNavigate();
   const [patients, setPatients] = useState<PatientWithSession[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ── Fetch Patients with Active Sessions ───────────────────
   useEffect(() => {
     const fetchPatients = async () => {
       const tenant_id = localStorage.getItem('tenant_id');
@@ -50,7 +46,6 @@ export default function DoctorPatientList() {
 
       setLoading(true);
       try {
-        // Fetch patients with their active sessions
         const { data, error } = await supabase
           .from('clinic_patients')
           .select(`
@@ -67,13 +62,12 @@ export default function DoctorPatientList() {
               patient_id
             )
           `)
-          .eq('tenant_id', tenant_id)              // Constitution §2.6
-          .is('deleted_at', null)                   // Constitution §2.4
+          .eq('tenant_id', tenant_id)
+          .is('deleted_at', null)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        // Map patients with their active (non-closed) sessions
         const mappedPatients: PatientWithSession[] = (data || []).map((p: any) => {
           const sessions = p.clinic_visit_sessions as SessionInfo[] | null;
           const activeSession = sessions?.find(s => s.status !== 'closed') || null;
@@ -87,7 +81,7 @@ export default function DoctorPatientList() {
             tenant_id: p.tenant_id,
             active_session: activeSession
           };
-        }).filter((p: PatientWithSession) => p.active_session !== null); // Only show patients with open sessions
+        }).filter((p: PatientWithSession) => p.active_session !== null);
 
         setPatients(mappedPatients);
 
@@ -102,8 +96,6 @@ export default function DoctorPatientList() {
     fetchPatients();
   }, [navigate]);
 
-  // ── Handle Patient Click ──────────────────────────────────
-  // CRITICAL: Must pass session.id, NOT patient.id
   const handlePatientClick = (patient: PatientWithSession) => {
     if (!patient.active_session) {
       toast.error('لا توجد جلسة نشطة لهذا المريض');
@@ -111,13 +103,11 @@ export default function DoctorPatientList() {
     }
 
     const sessionId = patient.active_session.id;
-    console.log('Navigating to session:', sessionId); // Debug log
+    console.log('Navigating to session:', sessionId);
     
-    // Constitution: route is /doctor/session/:id where :id = session UUID
     navigate(`/doctor/session/${sessionId}`);
   };
 
-  // ── Loading Skeleton ──────────────────────────────────────
   if (loading) {
     return (
       <div className="p-6 space-y-4" dir="rtl">
@@ -129,7 +119,6 @@ export default function DoctorPatientList() {
     );
   }
 
-  // ── Render ────────────────────────────────────────────────
   return (
     <div className="p-6 max-w-4xl mx-auto" dir="rtl">
       <h1 className="text-2xl font-bold text-[#1B2A4A] mb-6">
@@ -171,13 +160,12 @@ export default function DoctorPatientList() {
                   />
                   {patient.active_session && (
                     <SlaTimer 
-                      createdAt={patient.active_session.created_at} 
+                      created_at={patient.active_session.created_at} 
                     />
                   )}
                 </div>
               </div>
               
-              {/* Session status badge */}
               {patient.active_session && (
                 <div className="mt-3 flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full ${

@@ -7,11 +7,9 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/infrastructure/supabase/client';
 
-// ── Lazy-loaded Feature Components ────────────────────────
 import DoctorPatientList from '@/components/doctor/DoctorPatientList';
 import DecisionCard from '@/features/doctor/DecisionCard';
 
-// ── Auth Guard ────────────────────────────────────────────
 function AuthGuard({ children, allowedRoles }: { 
   children: React.ReactNode; 
   allowedRoles: string[] 
@@ -61,7 +59,6 @@ function AuthGuard({ children, allowedRoles }: {
   return <>{children}</>;
 }
 
-// ── DecisionCard Wrapper ────────────────────────────────────
 function DecisionCardWrapper() {
   const [valid, setValid] = useState<boolean | null>(null);
 
@@ -78,7 +75,6 @@ function DecisionCardWrapper() {
   return <DecisionCard />;
 }
 
-// ── Router Definition ───────────────────────────────────────
 export const router = createBrowserRouter([
   {
     path: '/',

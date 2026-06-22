@@ -1,11 +1,11 @@
 // ============================================================
-// CORE SYSTEM v2.1 — DecisionCard
-// Constitution §4.2 (Core Score), §5 (SLA), §7 (Roles), §9 (RLS)
-// Doctor role: sessions + patients + clinical notes — NO invoices
+// CORE SYSTEM v2.1 — DoctorPatientList
+// Constitution §2.6 (tenant_id), §4.2 (Core Score), §5 (SLA)
+// Displays patients with CoreScore + SLA + click navigation
 // ============================================================
 
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import { CoreScoreMeter } from '@/shared/components/ui/CoreScoreMeter';
@@ -16,329 +16,185 @@ interface Patient {
   id: string;
   full_name: string;
   phone: string | null;
+  core_score_display: number | null;
   disc_profile: string | null;
   tenant_id: string;
 }
 
-interface Procedure {
-  id: string;
-  name: string;
-  price_subunits: number;
-  duration_minutes: number;
-}
-
-interface SessionData {
+interface SessionInfo {
   id: string;
   status: string;
-  patient_id: string;
   created_at: string;
-  clinic_patients: Patient;
+  patient_id: string;
 }
 
-interface InvoiceItem {
-  procedure_id: string;
-  quantity: number;
-  price_subunits: number;
+interface PatientWithSession extends Patient {
+  active_session: SessionInfo | null;
 }
 
 // ── Component ───────────────────────────────────────────────
-export default function DecisionCard() {
-  const { id: sessionId } = useParams<{ id: string }>();
+export default function DoctorPatientList() {
   const navigate = useNavigate();
-  
-  const [session, setSession] = useState<SessionData | null>(null);
-  const [procedures, setProcedures] = useState<Procedure[]>([]);
-  const [selectedProcedures, setSelectedProcedures] = useState<InvoiceItem[]>([]);
+  const [patients, setPatients] = useState<PatientWithSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
-  // ── Helpers ───────────────────────────────────────────────
-  const getTenantId = (): string | null => {
-    return localStorage.getItem('tenant_id');
-  };
-
-  const formatJOD = (subunits: number): string => {
-    return `${(subunits / 1000).toFixed(3)} JOD`;
-  };
-
-  // ── Fetch Session + Patient + Procedures ──────────────────
+  // ── Fetch Patients with Active Sessions ───────────────────
   useEffect(() => {
-    if (!sessionId) {
-      toast.error('معرف الجلسة مفقود');
-      navigate('/doctor');
-      return;
-    }
+    const fetchPatients = async () => {
+      const tenant_id = localStorage.getItem('tenant_id');
+      if (!tenant_id) {
+        toast.error('معرف المستأجر مفقود — أعد تسجيل الدخول');
+        navigate('/login');
+        return;
+      }
 
-    const tenant_id = getTenantId();
-    if (!tenant_id) {
-      toast.error('معرف المستأجر مفقود — أعد تسجيل الدخول');
-      navigate('/login');
-      return;
-    }
-
-    const fetchData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch session with patient data
-        const { data: sessionData, error: sessionError } = await supabase
-          .from('clinic_visit_sessions')
+        // Fetch patients with their active sessions
+        const { data, error } = await supabase
+          .from('clinic_patients')
           .select(`
             id,
-            status,
-            patient_id,
-            created_at,
-            clinic_patients (
+            full_name,
+            phone,
+            core_score_display,
+            disc_profile,
+            tenant_id,
+            clinic_visit_sessions (
               id,
-              full_name,
-              phone,
-              disc_profile,
-              tenant_id
+              status,
+              created_at,
+              patient_id
             )
           `)
-          .eq('id', sessionId)
           .eq('tenant_id', tenant_id)
           .is('deleted_at', null)
-          .single();
+          .order('created_at', { ascending: false });
 
-        if (sessionError) throw sessionError;
-        if (!sessionData) throw new Error('الجلسة غير موجودة');
+        if (error) throw error;
 
-        const patient = sessionData.clinic_patients as unknown as Patient;
-        if (patient.tenant_id !== tenant_id) {
-          throw new Error('بيانات المريض لا تنتمي لهذا المستأجر');
-        }
+        // Map patients with their active (non-closed) sessions
+        const mappedPatients: PatientWithSession[] = (data || []).map((p: any) => {
+          const sessions = p.clinic_visit_sessions as SessionInfo[] | null;
+          const activeSession = sessions?.find(s => s.status !== 'closed') || null;
+          
+          return {
+            id: p.id,
+            full_name: p.full_name,
+            phone: p.phone,
+            core_score_display: p.core_score_display,
+            disc_profile: p.disc_profile,
+            tenant_id: p.tenant_id,
+            active_session: activeSession
+          };
+        }).filter((p: PatientWithSession) => p.active_session !== null);
 
-        setSession(sessionData as unknown as SessionData);
-
-        // 2. Fetch procedures catalog
-        const { data: procData, error: procError } = await supabase
-          .from('clinic_procedures')
-          .select('id, name, price_subunits, duration_minutes')
-          .eq('tenant_id', tenant_id)
-          .is('deleted_at', null)
-          .order('name', { ascending: true });
-
-        if (procError) throw procError;
-        setProcedures(procData || []);
+        setPatients(mappedPatients);
 
       } catch (err: any) {
-        console.error('DecisionCard fetch error:', err);
-        toast.error(err.message || 'فشل في تحميل بيانات الجلسة');
-        navigate('/doctor');
+        console.error('Patient list fetch error:', err);
+        toast.error(err.message || 'فشل في تحميل قائمة المرضى');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [sessionId, navigate]);
+    fetchPatients();
+  }, [navigate]);
 
-  // ── Add Procedure ─────────────────────────────────────────
-  const addProcedure = (procedure: Procedure) => {
-    setSelectedProcedures(prev => {
-      const existing = prev.find(p => p.procedure_id === procedure.id);
-      if (existing) {
-        return prev.map(p =>
-          p.procedure_id === procedure.id
-            ? { ...p, quantity: p.quantity + 1 }
-            : p
-        );
-      }
-      return [...prev, {
-        procedure_id: procedure.id,
-        quantity: 1,
-        price_subunits: procedure.price_subunits
-      }];
-    });
-    toast.success(`تمت إضافة: ${procedure.name}`);
-  };
-
-  // ── Calculate Total ───────────────────────────────────────
-  const totalSubunits = selectedProcedures.reduce(
-    (sum, item) => sum + (item.price_subunits * item.quantity),
-    0
-  );
-
-  // ── Save Draft Invoice ────────────────────────────────────
-  const saveDraft = async () => {
-    if (!session || selectedProcedures.length === 0) {
-      toast.error('أضف إجراءً على الأقل');
+  // ── Handle Patient Click ──────────────────────────────────
+  // CRITICAL: Must pass session.id, NOT patient.id
+  const handlePatientClick = (patient: PatientWithSession) => {
+    if (!patient.active_session) {
+      toast.error('لا توجد جلسة نشطة لهذا المريض');
       return;
     }
 
-    const tenant_id = getTenantId();
-    if (!tenant_id) {
-      toast.error('معرف المستأجر مفقود');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      
-      const { error: invoiceError } = await supabase
-        .from('clinic_invoices')
-        .insert({
-          session_id: session.id,
-          patient_id: session.patient_id,
-          tenant_id: tenant_id,
-          total_subunits: totalSubunits,
-          status: 'draft',
-          items: selectedProcedures,
-          created_by: userData.user?.id
-        });
-
-      if (invoiceError) throw invoiceError;
-      toast.success('تم حفظ المسودة');
-
-    } catch (err: any) {
-      console.error('Save draft error:', err);
-      toast.error(err.message || 'فشل في حفظ المسودة');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ── Close Session ─────────────────────────────────────────
-  const closeSession = async () => {
-    if (!session) return;
-
-    const tenant_id = getTenantId();
-    if (!tenant_id) {
-      toast.error('معرف المستأجر مفقود');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('clinic_visit_sessions')
-        .update({
-          status: 'closed',
-          closed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', session.id)
-        .eq('tenant_id', tenant_id);
-
-      if (error) throw error;
-
-      toast.success('تم إغلاق الجلسة');
-      navigate('/doctor');
-
-    } catch (err: any) {
-      console.error('Close session error:', err);
-      toast.error(err.message || 'فشل في إغلاق الجلسة');
-    } finally {
-      setSaving(false);
-    }
+    const sessionId = patient.active_session.id;
+    console.log('Navigating to session:', sessionId);
+    
+    navigate(`/doctor/session/${sessionId}`);
   };
 
   // ── Loading Skeleton ──────────────────────────────────────
   if (loading) {
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-4" dir="rtl">
-        <div className="h-8 bg-gray-200 rounded w-1/3 animate-pulse" />
-        <div className="h-32 bg-gray-200 rounded animate-pulse" />
-        <div className="h-48 bg-gray-200 rounded animate-pulse" />
+      <div className="p-6 space-y-4" dir="rtl">
+        <div className="h-8 bg-gray-200 rounded w-1/4 animate-pulse" />
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-24 bg-gray-200 rounded animate-pulse" />
+        ))}
       </div>
     );
   }
 
-  if (!session) return null;
-
-  const patient = session.clinic_patients;
-
   // ── Render ────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1B2A4A]">
-            {patient.full_name}
-          </h1>
-          <p className="text-gray-500 mt-1">
-            {patient.phone || 'لا يوجد هاتف'}
-          </p>
-          {patient.disc_profile && (
-            <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-              DISC: {patient.disc_profile}
-            </span>
-          )}
-        </div>
-        <div className="text-left">
-          <CoreScoreMeter score={85.5} />
-          <SlaTimer createdAt={session.created_at} />
-        </div>
-      </div>
+    <div className="p-6 max-w-4xl mx-auto" dir="rtl">
+      <h1 className="text-2xl font-bold text-[#1B2A4A] mb-6">
+        قائمة المرضى
+      </h1>
 
-      {/* Procedures Catalog */}
-      <div className="border rounded-lg p-4">
-        <h2 className="text-lg font-semibold mb-4 text-[#1B2A4A]">
-          الإجراءات المتاحة
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {procedures.map(proc => (
-            <button
-              key={proc.id}
-              onClick={() => addProcedure(proc)}
-              className="p-3 border rounded-lg hover:bg-gray-50 transition text-right"
+      {patients.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg">لا يوجد مرضى في الانتظار</p>
+          <p className="text-sm mt-2">سيتم تحديث القائمة تلقائياً</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {patients.map(patient => (
+            <div
+              key={patient.id}
+              onClick={() => handlePatientClick(patient)}
+              className="border rounded-lg p-4 hover:shadow-md transition cursor-pointer
+                         bg-white hover:bg-gray-50"
             >
-              <div className="font-medium">{proc.name}</div>
-              <div className="text-sm text-gray-500 mt-1">
-                {formatJOD(proc.price_subunits)} · {proc.duration_minutes} دقيقة
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-lg font-semibold text-[#1B2A4A]">
+                    {patient.full_name}
+                  </h2>
+                  <p className="text-gray-500 text-sm mt-1">
+                    {patient.phone || 'لا يوجد هاتف'}
+                  </p>
+                  {patient.disc_profile && (
+                    <span className="inline-block mt-2 px-2 py-0.5 bg-blue-100 text-blue-800 
+                                     rounded text-xs">
+                      {patient.disc_profile}
+                    </span>
+                  )}
+                </div>
+                <div className="text-left space-y-2">
+                  <CoreScoreMeter 
+                    score={patient.core_score_display ?? 0} 
+                  />
+                  {patient.active_session && (
+                    <SlaTimer 
+                      created_at={patient.active_session.created_at} 
+                    />
+                  )}
+                </div>
               </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Selected Procedures */}
-      {selectedProcedures.length > 0 && (
-        <div className="border rounded-lg p-4 bg-gray-50">
-          <h2 className="text-lg font-semibold mb-3">الإجراءات المختارة</h2>
-          <div className="space-y-2">
-            {selectedProcedures.map(item => {
-              const proc = procedures.find(p => p.id === item.procedure_id);
-              return (
-                <div key={item.procedure_id} className="flex justify-between">
-                  <span>
-                    {proc?.name} × {item.quantity}
-                  </span>
-                  <span className="font-mono">
-                    {formatJOD(item.price_subunits * item.quantity)}
+              
+              {/* Session status badge */}
+              {patient.active_session && (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${
+                    patient.active_session.status === 'waiting' ? 'bg-yellow-400' :
+                    patient.active_session.status === 'in_progress' ? 'bg-green-500' :
+                    'bg-gray-400'
+                  }`} />
+                  <span className="text-xs text-gray-500">
+                    {patient.active_session.status === 'waiting' ? 'في الانتظار' :
+                     patient.active_session.status === 'in_progress' ? 'جارية' :
+                     patient.active_session.status}
                   </span>
                 </div>
-              );
-            })}
-            <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg">
-              <span>الإجمالي</span>
-              <span className="text-[#1B2A4A]">{formatJOD(totalSubunits)}</span>
+              )}
             </div>
-          </div>
+          ))}
         </div>
       )}
-
-      {/* Actions */}
-      <div className="flex gap-3">
-        <button
-          onClick={saveDraft}
-          disabled={saving || selectedProcedures.length === 0}
-          className="flex-1 py-3 bg-[#1B2A4A] text-white rounded-lg font-medium
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {saving ? 'جاري الحفظ...' : '💾 حفظ المسودة'}
-        </button>
-        <button
-          onClick={closeSession}
-          disabled={saving}
-          className="flex-1 py-3 border-2 border-red-500 text-red-500 rounded-lg font-medium
-                     hover:bg-red-50 disabled:opacity-50"
-        >
-          {saving ? 'جاري الإغلاق...' : '🔒 إغلاق الجلسة'}
-        </button>
-      </div>
     </div>
   );
 }

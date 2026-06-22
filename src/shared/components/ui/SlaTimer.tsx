@@ -1,81 +1,47 @@
-// ============================================
-// SlaTimer.tsx
-// Sacred: Displays SLA wait time with color coding per Constitution §5
-// Green: <15min | Yellow: 15-24min | Red: >=25min (Breach)
-// ============================================
-import React, { useEffect, useState } from 'react';
+// ============================================================
+// CORE SYSTEM v2.1 — SlaTimer
+// Constitution §5 (SLA): Green <15min, Yellow 15-24min, Red >=25min
+// ============================================================
+
+import { useEffect, useState } from 'react';
 
 interface SlaTimerProps {
-  scheduledStart: string;
-  size?: 'sm' | 'md' | 'lg';
-  showLabel?: boolean;
+  created_at: string;
 }
 
-const SLA_THRESHOLDS = {
-  GREEN: 15,
-  YELLOW: 24,
-  RED: 25,
-};
-
-function getSlaConfig(minutes: number) {
-  if (minutes < SLA_THRESHOLDS.GREEN) {
-    return { color: '#22c55e', label: 'آمن', bg: 'bg-green-50', border: 'border-green-200' };
-  }
-  if (minutes <= SLA_THRESHOLDS.YELLOW) {
-    return { color: '#eab308', label: 'تحذير', bg: 'bg-yellow-50', border: 'border-yellow-200' };
-  }
-  return { color: '#ef4444', label: 'تجاوز', bg: 'bg-red-50', border: 'border-red-200' };
-}
-
-function formatDuration(minutes: number): string {
-  const hrs = Math.floor(minutes / 60);
-  const mins = Math.floor(minutes % 60);
-  if (hrs > 0) return `${hrs}س ${mins}د`;
-  return `${mins}د`;
-}
-
-export const SlaTimer: React.FC<SlaTimerProps> = ({
-  scheduledStart,
-  size = 'md',
-  showLabel = true,
-}) => {
-  const [elapsedMinutes, setElapsedMinutes] = useState(0);
+export function SlaTimer({ created_at }: SlaTimerProps) {
+  const [elapsed, setElapsed] = useState('');
 
   useEffect(() => {
-    const startTime = new Date(scheduledStart).getTime();
-    const updateTimer = () => {
+    const start = new Date(created_at).getTime();
+    
+    const update = () => {
       const now = Date.now();
-      const diffMs = now - startTime;
-      const diffMins = Math.max(0, Math.floor(diffMs / 60000));
-      setElapsedMinutes(diffMins);
+      const diffMinutes = Math.floor((now - start) / 60000);
+      
+      let label = 'آمن';
+      
+      if (diffMinutes >= 25) {
+        label = 'تجاوز';
+      } else if (diffMinutes >= 15) {
+        label = 'تحذير';
+      }
+      
+      setElapsed(`${diffMinutes}د ${label}`);
     };
-    updateTimer();
-    const interval = setInterval(updateTimer, 60000);
+
+    update();
+    const interval = setInterval(update, 60000);
     return () => clearInterval(interval);
-  }, [scheduledStart]);
-
-  const config = getSlaConfig(elapsedMinutes);
-
-  const sizeClasses = {
-    sm: 'px-2 py-1 text-xs gap-1',
-    md: 'px-3 py-1.5 text-sm gap-2',
-    lg: 'px-4 py-2 text-base gap-2',
-  };
+  }, [created_at]);
 
   return (
-    <div 
-      className={`inline-flex items-center rounded-lg border ${config.border} ${config.bg} ${sizeClasses[size]}`}
-      dir="rtl"
-    >
-      <div className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: config.color }} />
-      <span className="font-mono font-semibold" style={{ color: config.color }}>
-        {formatDuration(elapsedMinutes)}
-      </span>
-      {showLabel && (
-        <span className="text-xs opacity-75" style={{ color: config.color }}>
-          {config.label}
-        </span>
-      )}
-    </div>
+    <span className={`inline-flex items-center px-2 py-1 rounded text-sm font-medium ${
+      elapsed.includes('تجاوز') ? 'bg-red-100 text-red-800' :
+      elapsed.includes('تحذير') ? 'bg-yellow-100 text-yellow-800' :
+      'bg-green-100 text-green-800'
+    }`}>
+      ⏱️ {elapsed}
+    </span>
   );
-};
+}
