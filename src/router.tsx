@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useParams } from "react-router-dom";
 import AuthScreen from "@/components/AuthScreen";
 import AmbientKioskView from "@/components/AmbientKioskView";
 import PinPad from "@/components/PinPad";
@@ -10,7 +10,7 @@ import { SurveyRouter } from "@/components/SurveyRouter";
 import { LiveQueueBoard } from "@/components/LiveQueueBoard";
 import CoreScoreWidget from "@/components/CoreScoreWidget";
 import { DoctorPatientList } from "@/components/doctor/DoctorPatientList";
-import { DoctorSessionView } from "@/components/doctor/DoctorSessionView";
+import { DecisionCard } from "@/features/doctor/DecisionCard";
 
 function PagePlaceholder({ title }: { title: string }) {
   return (
@@ -20,6 +20,13 @@ function PagePlaceholder({ title }: { title: string }) {
       <p className="text-sm mt-2">سيتم إضافة هذه الصفحة قريباً</p>
     </div>
   );
+}
+
+function DecisionCardWrapper() {
+  const { id } = useParams<{ id: string }>();
+  const tenantId = localStorage.getItem("tenant_id") || "";
+  if (!id) return <Navigate to="/doctor" replace />;
+  return <DecisionCard sessionId={id} tenantId={tenantId} />;
 }
 
 export const router = createBrowserRouter([
@@ -65,11 +72,8 @@ export const router = createBrowserRouter([
     path: "/doctor",
     element: <DoctorLayout />,
     children: [
-      {
-        index: true,
-        element: <DoctorPatientList />,
-      },
-      { path: "session/:id", element: <DoctorSessionView /> },
+      { index: true, element: <DoctorPatientList /> },
+      { path: "session/:id", element: <DecisionCardWrapper /> },
       { path: "patients", element: <PagePlaceholder title="Doctor - Patients" /> },
       { path: "procedures", element: <PagePlaceholder title="Procedures" /> },
       { path: "prescriptions", element: <PagePlaceholder title="Prescriptions" /> },

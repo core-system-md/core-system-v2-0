@@ -6,17 +6,17 @@
 import React from 'react';
 
 interface CoreScoreMeterProps {
-  score: number; // Display scale: 0.0 to 100.0
+  score: number;
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
 }
 
 const scoreConfig = {
-  hot_lead: { min: 90.0, color: '#22c55e', label: 'VIP' },       // Green
-  qualified: { min: 80.0, color: '#3b82f6', label: 'مؤهل' },      // Blue
-  high_priority: { min: 60.0, color: '#eab308', label: 'أولوية' }, // Yellow
-  medium_priority: { min: 40.0, color: '#f97316', label: 'متوسط' }, // Orange
-  low_priority: { min: 0.0, color: '#ef4444', label: 'عادي' },     // Red
+  hot_lead: { min: 90.0, color: '#22c55e', label: 'VIP' },
+  qualified: { min: 80.0, color: '#3b82f6', label: 'مؤهل' },
+  high_priority: { min: 60.0, color: '#eab308', label: 'أولوية' },
+  medium_priority: { min: 40.0, color: '#f97316', label: 'متوسط' },
+  low_priority: { min: 0.0, color: '#ef4444', label: 'عادي' },
 };
 
 function getScoreClass(score: number): keyof typeof scoreConfig {
@@ -47,19 +47,9 @@ export const CoreScoreMeter: React.FC<CoreScoreMeterProps> = ({
     <div className="flex flex-col items-center gap-2" dir="rtl">
       <div className={`relative ${sizeClasses[size]} flex items-center justify-center`}>
         <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="8" />
           <circle
-            cx="50"
-            cy="50"
-            r="40"
-            fill="none"
-            stroke="#e5e7eb"
-            strokeWidth="8"
-          />
-          <circle
-            cx="50"
-            cy="50"
-            r="40"
-            fill="none"
+            cx="50" cy="50" r="40" fill="none"
             stroke={config.color}
             strokeWidth="8"
             strokeDasharray={`${progress} ${circumference}`}

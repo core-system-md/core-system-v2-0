@@ -6,15 +6,15 @@
 import React, { useEffect, useState } from 'react';
 
 interface SlaTimerProps {
-  scheduledStart: string; // ISO timestamp
+  scheduledStart: string;
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
 }
 
 const SLA_THRESHOLDS = {
-  GREEN: 15,  // < 15 min
-  YELLOW: 24, // 15-24 min
-  RED: 25,    // >= 25 min (Breach)
+  GREEN: 15,
+  YELLOW: 24,
+  RED: 25,
 };
 
 function getSlaConfig(minutes: number) {
@@ -30,9 +30,7 @@ function getSlaConfig(minutes: number) {
 function formatDuration(minutes: number): string {
   const hrs = Math.floor(minutes / 60);
   const mins = Math.floor(minutes % 60);
-  if (hrs > 0) {
-    return `${hrs}س ${mins}د`;
-  }
+  if (hrs > 0) return `${hrs}س ${mins}د`;
   return `${mins}د`;
 }
 
@@ -45,17 +43,14 @@ export const SlaTimer: React.FC<SlaTimerProps> = ({
 
   useEffect(() => {
     const startTime = new Date(scheduledStart).getTime();
-    
     const updateTimer = () => {
       const now = Date.now();
       const diffMs = now - startTime;
       const diffMins = Math.max(0, Math.floor(diffMs / 60000));
       setElapsedMinutes(diffMins);
     };
-
     updateTimer();
-    const interval = setInterval(updateTimer, 60000); // Update every minute
-
+    const interval = setInterval(updateTimer, 60000);
     return () => clearInterval(interval);
   }, [scheduledStart]);
 
@@ -72,10 +67,7 @@ export const SlaTimer: React.FC<SlaTimerProps> = ({
       className={`inline-flex items-center rounded-lg border ${config.border} ${config.bg} ${sizeClasses[size]}`}
       dir="rtl"
     >
-      <div 
-        className="w-2.5 h-2.5 rounded-full animate-pulse"
-        style={{ backgroundColor: config.color }}
-      />
+      <div className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: config.color }} />
       <span className="font-mono font-semibold" style={{ color: config.color }}>
         {formatDuration(elapsedMinutes)}
       </span>

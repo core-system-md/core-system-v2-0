@@ -7,7 +7,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/infrastructure/supabase/client';
 import { CoreScoreMeter } from '@/shared/components/ui/CoreScoreMeter';
 import { SlaTimer } from '@/shared/components/ui/SlaTimer';
-import { useAuthStore } from '@/shared/store/authStore';
 import { toast } from 'sonner';
 
 interface PatientSession {
@@ -22,12 +21,18 @@ interface PatientSession {
 
 export const DoctorPatientList: React.FC = () => {
   const navigate = useNavigate();
-  const { tenantId } = useAuthStore();
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<PatientSession[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Get tenantId from localStorage or Zustand store
   useEffect(() => {
-    fetchTodaySessions();
+    const stored = localStorage.getItem('tenant_id');
+    if (stored) setTenantId(stored);
+  }, []);
+
+  useEffect(() => {
+    if (tenantId) fetchTodaySessions();
   }, [tenantId]);
 
   const fetchTodaySessions = async () => {
@@ -59,7 +64,7 @@ export const DoctorPatientList: React.FC = () => {
       }
 
       const sessionList = sessionsData || [];
-      const patientIds = sessionList.map(s => s.patient_id).filter(Boolean);
+      const patientIds = sessionList.map((s: any) => s.patient_id).filter(Boolean);
 
       // Step 2: Fetch patients separately with tenant_id filter (Constitution §2.6)
       let patientMap: Record<string, { full_name: string; phone_primary: string }> = {};
@@ -74,7 +79,7 @@ export const DoctorPatientList: React.FC = () => {
           toast.error('خطأ في جلب بيانات المرضى');
           console.error(patientsError);
         } else {
-          patientMap = (patientsData || []).reduce((acc, p) => {
+          patientMap = (patientsData || []).reduce((acc: any, p: any) => {
             acc[p.id] = { full_name: p.full_name, phone_primary: p.phone_primary };
             return acc;
           }, {} as Record<string, { full_name: string; phone_primary: string }>);
@@ -82,7 +87,7 @@ export const DoctorPatientList: React.FC = () => {
       }
 
       // Merge session + patient data
-      const merged: PatientSession[] = sessionList.map(s => ({
+      const merged: PatientSession[] = sessionList.map((s: any) => ({
         id: s.id,
         patient_id: s.patient_id,
         full_name: patientMap[s.patient_id]?.full_name || 'غير معروف',
@@ -107,7 +112,7 @@ export const DoctorPatientList: React.FC = () => {
       scheduled: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'مجدول' },
       in_progress: { bg: 'bg-green-100', text: 'text-green-800', label: 'جاري' },
     };
-    const config = configs[status] || configs.waiting;
+    const config = configs[status] || { bg: 'bg-gray-100', text: 'text-gray-800', label: 'غير معروف' };
     return (
       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
         {config.label}
@@ -116,7 +121,6 @@ export const DoctorPatientList: React.FC = () => {
   };
 
   const handlePatientClick = (sessionId: string) => {
-    // Navigate to session detail page
     navigate(`/doctor/session/${sessionId}`);
   };
 

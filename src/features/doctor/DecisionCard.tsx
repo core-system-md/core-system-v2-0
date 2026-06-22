@@ -1,7 +1,6 @@
 // ============================================
 // DecisionCard.tsx
 // Sacred: Doctor's clinical decision interface per Constitution §4 + §6
-// Shows: Core Score, DISC, Patient Info, Procedure Selection, Notes, Close Session
 // ============================================
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -55,7 +54,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
   const fetchSessionData = async () => {
     setLoading(true);
     try {
-      // Step 1: Fetch session with tenant_id filter (Constitution §2.6)
       const { data: sessionData, error: sessionError } = await supabase
         .from('clinic_visit_sessions')
         .select('id, patient_id, core_score_display, session_status, scheduled_start, created_at')
@@ -71,7 +69,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
 
       setSession(sessionData);
 
-      // Step 2: Fetch patient with tenant_id filter
       const { data: patientData, error: patientError } = await supabase
         .from('clinic_patients')
         .select('id, full_name, phone_primary, dominant_disc_profile')
@@ -85,7 +82,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
         setPatient(patientData);
       }
 
-      // Step 3: Fetch procedures for this tenant
       const { data: proceduresData } = await supabase
         .from('clinic_procedures')
         .select('id, name_ar, price_subunits, category')
@@ -115,7 +111,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
     setSaving(true);
 
     try {
-      // Update session with notes and selected procedures
       const { error } = await supabase
         .from('clinic_visit_sessions')
         .update({
@@ -144,7 +139,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
     setSaving(true);
 
     try {
-      // Step 1: Create invoice (receptionist will see it, doctor cannot — Constitution §6)
       const selectedProcs = procedures.filter(p => selectedProcedures.includes(p.id));
       const totalSubunits = selectedProcs.reduce((sum, p) => sum + p.price_subunits, 0);
 
@@ -167,7 +161,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
         }
       }
 
-      // Step 2: Close session
       const { error: closeError } = await supabase
         .from('clinic_visit_sessions')
         .update({
@@ -210,7 +203,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6" dir="rtl">
-      {/* Header: Patient Info + SLA + Core Score */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex-1">
@@ -222,7 +214,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
               </span>
             )}
           </div>
-          
           <div className="flex items-center gap-4">
             <SlaTimer scheduledStart={session.scheduled_start} size="lg" />
             <CoreScoreMeter score={session.core_score_display} size="lg" />
@@ -230,7 +221,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
         </div>
       </div>
 
-      {/* Procedures Selection */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold mb-4 text-gray-900">الإجراءات الطبية</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -256,7 +246,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
         )}
       </div>
 
-      {/* Clinical Notes */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold mb-4 text-gray-900">ملاحظات سريرية</h3>
         <textarea
@@ -268,7 +257,6 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({ sessionId, tenantId 
         />
       </div>
 
-      {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3">
         <button
           onClick={handleSave}
