@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "@/core/auth/useAuth";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
-import { Wifi, WifiOff, Shield, Mail, Lock, KeyRound, Eye, EyeOff, AlertCircle, ArrowRight, Building2 } from "lucide-react";
+import { Wifi, WifiOff, Shield, Mail, Lock, KeyRound, Eye, EyeOff, AlertCircle, ArrowRight, Building2, TestTube } from "lucide-react";
 
 export default function AuthScreen() {
   const { login, isPending } = useAuth();
@@ -28,6 +28,18 @@ export default function AuthScreen() {
     return routes[role || ''] || '/reception';
   };
 
+  // Constitution §1.3: Test Mode for development
+  const handleTestMode = () => {
+    localStorage.setItem('core_pin_auth', JSON.stringify({
+      user_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+      full_name: 'Dr. Sara',
+      role: 'doctor',
+      tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      expiry: Date.now() + 24 * 60 * 60 * 1000
+    }));
+    window.location.replace('/doctor');
+  };
+
   const handleEmailLogin = useCallback(async () => {
     if (!email || !password || !licenseKey) {
       setLocalError("Please enter email, password, and license key");
@@ -37,7 +49,6 @@ export default function AuthScreen() {
     try {
       const result = await login.mutateAsync({ email, password, licenseKey });
       const userRole = result?.role || 'receptionist';
-      // Constitution §6: Clean redirect using replace
       window.location.replace(getRoleRoute(userRole));
     } catch (err: any) {
       setLocalError(err.message || "Invalid credentials or license");
@@ -58,7 +69,6 @@ export default function AuthScreen() {
     try {
       const result = await login.mutateAsync({ pinCode: enteredPin, licenseKey });
       const userRole = result?.role || 'receptionist';
-      // Constitution §6: Clean redirect using replace
       window.location.replace(getRoleRoute(userRole));
     } catch (err: any) {
       setLocalError(err.message || "Invalid PIN");
@@ -168,6 +178,14 @@ export default function AuthScreen() {
                 </div>
               </div>
             )}
+            {/* Constitution §1.3: Test Mode */}
+            <div className="mt-6 pt-4 border-t border-white/10">
+              <button onClick={handleTestMode} className="w-full py-3 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg flex items-center justify-center gap-2 hover:bg-amber-500/30 transition">
+                <TestTube className="w-4 h-4" />
+                <span className="text-sm font-medium">Test Mode (Constitution §1.3)</span>
+              </button>
+              <p className="text-xs text-white/30 text-center mt-2">Bypass authentication for development testing</p>
+            </div>
           </div>
         </div>
         <div className="mt-8 text-center">
