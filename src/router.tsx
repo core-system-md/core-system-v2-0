@@ -5,6 +5,7 @@
 
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import AuthScreen from '@/components/AuthScreen';
 import { supabase } from '@/infrastructure/supabase/client';
 
 import DoctorPatientList from '@/components/doctor/DoctorPatientList';
@@ -82,7 +83,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/login',
-    element: <div>Login Page</div>
+    element: <AuthScreen />
   },
   {
     path: '/doctor',
