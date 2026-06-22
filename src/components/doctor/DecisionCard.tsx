@@ -1,169 +1,344 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/infrastructure/supabase/client';
-import { Activity, Brain, Target, TrendingUp, AlertTriangle } from 'lucide-react';
+// ============================================================
+// CORE SYSTEM v2.1 — DecisionCard
+// Constitution §4.2 (Core Score), §5 (SLA), §7 (Roles), §9 (RLS)
+// Doctor role: sessions + patients + clinical notes — NO invoices
+// ============================================================
 
-interface DecisionCardProps {
-  sessionId: string;
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { supabase } from '@/infrastructure/supabase/client';
+import { CoreScoreMeter } from '@/shared/components/ui/CoreScoreMeter';
+import { SlaTimer } from '@/shared/components/ui/SlaTimer';
+
+// ── Types ───────────────────────────────────────────────────
+interface Patient {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  disc_profile: string | null;
+  tenant_id: string;
+}
+
+interface Procedure {
+  id: string;
+  name: string;
+  price_subunits: number;
+  duration_minutes: number;
 }
 
 interface SessionData {
   id: string;
+  status: string;
   patient_id: string;
-  core_score_display: number | null;
-  patient_class: string | null;
-  patient: {
-    full_name: string;
-    phone_primary: string;
-    date_of_birth: string | null;
-  } | null;
+  created_at: string;
+  clinic_patients: Patient;
 }
 
-type DiscType = 'driver' | 'influencer' | 'analytical' | 'emotional';
-
-const discConfig: Record<DiscType, { label: string; color: string; icon: typeof Activity; desc: string }> = {
-  driver: { label: 'قائد', color: 'text-red-600', icon: Target, desc: 'يحب القرارات السريعة والنتائج' },
-  influencer: { label: 'مؤثر', color: 'text-yellow-600', icon: TrendingUp, desc: 'اجتماعي، يحب التفاعل والإقناع' },
-  analytical: { label: 'تحليلي', color: 'text-blue-600', icon: Brain, desc: 'يتأنى، يحب التفاصيل والأرقام' },
-  emotional: { label: 'عاطفي', color: 'text-green-600', icon: Activity, desc: 'يتعاطف، يحب الأمان والعلاقات' },
-};
-
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <div className={`bg-white rounded-lg border border-gray-200 shadow-sm ${className}`}>{children}</div>;
+interface InvoiceItem {
+  procedure_id: string;
+  quantity: number;
+  price_subunits: number;
 }
 
-function CardContent({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <div className={className}>{children}</div>;
-}
-
-function Badge({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <span className={`px-2 py-1 rounded text-white text-xs font-medium ${className}`}>{children}</span>;
-}
-
-function Progress({ value, className = '' }: { value: number; className?: string }) {
-  return (
-    <div className={`w-full bg-gray-200 rounded-full h-2 ${className}`}>
-      <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${value}%` }} />
-    </div>
-  );
-}
-
-export function DecisionCard({ sessionId }: DecisionCardProps) {
+// ── Component ───────────────────────────────────────────────
+export default function DecisionCard() {
+  const { id: sessionId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  
   const [session, setSession] = useState<SessionData | null>(null);
+  const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [selectedProcedures, setSelectedProcedures] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
+  // ── Helpers ───────────────────────────────────────────────
+  const getTenantId = (): string | null => {
+    return localStorage.getItem('tenant_id');
+  };
+
+  const formatJOD = (subunits: number): string => {
+    return `${(subunits / 1000).toFixed(3)} JOD`;
+  };
+
+  // ── Fetch Session + Patient + Procedures ──────────────────
   useEffect(() => {
-    const fetch = async () => {
+    if (!sessionId) {
+      toast.error('معرف الجلسة مفقود');
+      navigate('/doctor');
+      return;
+    }
+
+    const tenant_id = getTenantId();
+    if (!tenant_id) {
+      toast.error('معرف المستأجر مفقود — أعد تسجيل الدخول');
+      navigate('/login');
+      return;
+    }
+
+    const fetchData = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('clinic_visit_sessions')
-        .select('id, patient_id, core_score_display, patient_class, patient:clinic_patients(full_name, phone_primary, date_of_birth)')
-        .eq('id', sessionId)
-        .eq('is_abandoned', false)
-        .single();
-      if (error) {
-        setError(error.message);
-      } else if (data) {
-        const rawPatient = Array.isArray(data.patient) ? data.patient[0] : data.patient;
-        const patient = rawPatient === undefined ? null : rawPatient;
-        setSession({ ...data, patient });
+      try {
+        // 1. Fetch session with patient data
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('clinic_visit_sessions')
+          .select(`
+            id,
+            status,
+            patient_id,
+            created_at,
+            clinic_patients (
+              id,
+              full_name,
+              phone,
+              disc_profile,
+              tenant_id
+            )
+          `)
+          .eq('id', sessionId)
+          .eq('tenant_id', tenant_id)
+          .is('deleted_at', null)
+          .single();
+
+        if (sessionError) throw sessionError;
+        if (!sessionData) throw new Error('الجلسة غير موجودة');
+
+        const patient = sessionData.clinic_patients as unknown as Patient;
+        if (patient.tenant_id !== tenant_id) {
+          throw new Error('بيانات المريض لا تنتمي لهذا المستأجر');
+        }
+
+        setSession(sessionData as unknown as SessionData);
+
+        // 2. Fetch procedures catalog
+        const { data: procData, error: procError } = await supabase
+          .from('clinic_procedures')
+          .select('id, name, price_subunits, duration_minutes')
+          .eq('tenant_id', tenant_id)
+          .is('deleted_at', null)
+          .order('name', { ascending: true });
+
+        if (procError) throw procError;
+        setProcedures(procData || []);
+
+      } catch (err: any) {
+        console.error('DecisionCard fetch error:', err);
+        toast.error(err.message || 'فشل في تحميل بيانات الجلسة');
+        navigate('/doctor');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
-    fetch();
-  }, [sessionId]);
 
-  const getScoreRecommendation = (score: number | null) => {
-    if (score === null) return { label: 'غير محسوب', color: 'bg-gray-500', action: '—' };
-    if (score >= 90) return { label: 'hot_lead', color: 'bg-red-600', action: 'اعرض الخطة الكاملة فوراً' };
-    if (score >= 80) return { label: 'مؤهل', color: 'bg-orange-500', action: 'اعرض التفاصيل والخيارات' };
-    if (score >= 60) return { label: 'مرتفع', color: 'bg-yellow-600', action: 'يحتاج إقناع — اعرض القيمة' };
-    if (score >= 40) return { label: 'متوسط', color: 'bg-blue-500', action: 'لا تضغط — ابدأ بالتعريف' };
-    return { label: 'منخفض', color: 'bg-gray-600', action: 'ابدأ بأساسيات وبناء الثقة' };
+    fetchData();
+  }, [sessionId, navigate]);
+
+  // ── Add Procedure ─────────────────────────────────────────
+  const addProcedure = (procedure: Procedure) => {
+    setSelectedProcedures(prev => {
+      const existing = prev.find(p => p.procedure_id === procedure.id);
+      if (existing) {
+        return prev.map(p =>
+          p.procedure_id === procedure.id
+            ? { ...p, quantity: p.quantity + 1 }
+            : p
+        );
+      }
+      return [...prev, {
+        procedure_id: procedure.id,
+        quantity: 1,
+        price_subunits: procedure.price_subunits
+      }];
+    });
+    toast.success(`تمت إضافة: ${procedure.name}`);
   };
 
-  const getDiscType = (profile: string | null): DiscType => {
-    if (!profile) return 'emotional';
-    const p = profile.toLowerCase();
-    if (p.includes('driver') || p.includes('d')) return 'driver';
-    if (p.includes('influencer') || p.includes('i')) return 'influencer';
-    if (p.includes('analytical') || p.includes('c')) return 'analytical';
-    return 'emotional';
+  // ── Calculate Total ───────────────────────────────────────
+  const totalSubunits = selectedProcedures.reduce(
+    (sum, item) => sum + (item.price_subunits * item.quantity),
+    0
+  );
+
+  // ── Save Draft Invoice ────────────────────────────────────
+  const saveDraft = async () => {
+    if (!session || selectedProcedures.length === 0) {
+      toast.error('أضف إجراءً على الأقل');
+      return;
+    }
+
+    const tenant_id = getTenantId();
+    if (!tenant_id) {
+      toast.error('معرف المستأجر مفقود');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      const { error: invoiceError } = await supabase
+        .from('clinic_invoices')
+        .insert({
+          session_id: session.id,
+          patient_id: session.patient_id,
+          tenant_id: tenant_id,
+          total_subunits: totalSubunits,
+          status: 'draft',
+          items: selectedProcedures,
+          created_by: userData.user?.id
+        });
+
+      if (invoiceError) throw invoiceError;
+      toast.success('تم حفظ المسودة');
+
+    } catch (err: any) {
+      console.error('Save draft error:', err);
+      toast.error(err.message || 'فشل في حفظ المسودة');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (loading) return <div className="p-6 text-center text-gray-500">جاري التحميل...</div>;
-  if (error) return <div className="p-6 flex items-center gap-2 text-red-600"><AlertTriangle size={20} /><span>خطأ: {error}</span></div>;
-  if (!session) return <div className="p-6 text-center text-gray-500">لا توجد بيانات</div>;
+  // ── Close Session ─────────────────────────────────────────
+  const closeSession = async () => {
+    if (!session) return;
 
-  const score = session.core_score_display;
-  const rec = getScoreRecommendation(score);
-  const discType = getDiscType(session.patient_class);
-  const disc = discConfig[discType];
-  const DiscIcon = disc.icon;
+    const tenant_id = getTenantId();
+    if (!tenant_id) {
+      toast.error('معرف المستأجر مفقود');
+      return;
+    }
 
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('clinic_visit_sessions')
+        .update({
+          status: 'closed',
+          closed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', session.id)
+        .eq('tenant_id', tenant_id);
+
+      if (error) throw error;
+
+      toast.success('تم إغلاق الجلسة');
+      navigate('/doctor');
+
+    } catch (err: any) {
+      console.error('Close session error:', err);
+      toast.error(err.message || 'فشل في إغلاق الجلسة');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Loading Skeleton ──────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto space-y-4" dir="rtl">
+        <div className="h-8 bg-gray-200 rounded w-1/3 animate-pulse" />
+        <div className="h-32 bg-gray-200 rounded animate-pulse" />
+        <div className="h-48 bg-gray-200 rounded animate-pulse" />
+      </div>
+    );
+  }
+
+  if (!session) return null;
+
+  const patient = session.clinic_patients;
+
+  // ── Render ────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
-      <Card className="overflow-hidden">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-700">Core Score</h2>
-              <p className="text-sm text-gray-500">{session.patient?.full_name || 'مريض غير معروف'}</p>
-            </div>
-            <div className="text-right">
-              <div className="text-5xl font-bold text-primary">{score !== null ? score.toFixed(1) : '—'}</div>
-              <div className="text-xs text-gray-400">من 100</div>
-            </div>
-          </div>
-          <Progress value={score !== null ? score : 0} />
-          <div className="flex items-center justify-between mt-4">
-            <Badge className={rec.color}>{rec.label}</Badge>
-            <span className="text-sm text-gray-600">{rec.action}</span>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="p-6 max-w-4xl mx-auto space-y-6" dir="rtl">
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1B2A4A]">
+            {patient.full_name}
+          </h1>
+          <p className="text-gray-500 mt-1">
+            {patient.phone || 'لا يوجد هاتف'}
+          </p>
+          {patient.disc_profile && (
+            <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+              DISC: {patient.disc_profile}
+            </span>
+          )}
+        </div>
+        <div className="text-left">
+          <CoreScoreMeter score={85.5} />
+          <SlaTimer createdAt={session.created_at} />
+        </div>
+      </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100">
-              <DiscIcon className={disc.color} size={20} />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-800">DISC Profile</h3>
-              <p className={`text-sm font-medium ${disc.color}`}>{disc.label}</p>
-            </div>
-          </div>
-          <p className="text-sm text-gray-600 leading-relaxed">{disc.desc}</p>
-          <div className="mt-4 p-3 bg-gray-50 rounded text-sm text-gray-700">
-            <strong>نصيحة التواصل:</strong>{' '}
-            {discType === 'driver' && 'كن مباشراً، اعرض النتائج والفوائد السريعة'}
-            {discType === 'influencer' && 'كن متحمساً، اعرض قصص النجاح والتأثير الاجتماعي'}
-            {discType === 'analytical' && 'قدم بيانات وأرقام، امنحه وقت للتفكير'}
-            {discType === 'emotional' && 'كن دافئاً، اعرض الأمان والدعم المستمر'}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Procedures Catalog */}
+      <div className="border rounded-lg p-4">
+        <h2 className="text-lg font-semibold mb-4 text-[#1B2A4A]">
+          الإجراءات المتاحة
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {procedures.map(proc => (
+            <button
+              key={proc.id}
+              onClick={() => addProcedure(proc)}
+              className="p-3 border rounded-lg hover:bg-gray-50 transition text-right"
+            >
+              <div className="font-medium">{proc.name}</div>
+              <div className="text-sm text-gray-500 mt-1">
+                {formatJOD(proc.price_subunits)} · {proc.duration_minutes} دقيقة
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <h3 className="font-semibold text-gray-800 mb-4">إجراءات سريعة</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <button className="p-3 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition">
-              كتابة ملاحظات
-            </button>
-            <button className="p-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition">
-              إصدار فاتورة
-            </button>
-            <button className="p-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition">
-              طلب أشعة
-            </button>
-            <button className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition">
-              إغلاق الجلسة
-            </button>
+      {/* Selected Procedures */}
+      {selectedProcedures.length > 0 && (
+        <div className="border rounded-lg p-4 bg-gray-50">
+          <h2 className="text-lg font-semibold mb-3">الإجراءات المختارة</h2>
+          <div className="space-y-2">
+            {selectedProcedures.map(item => {
+              const proc = procedures.find(p => p.id === item.procedure_id);
+              return (
+                <div key={item.procedure_id} className="flex justify-between">
+                  <span>
+                    {proc?.name} × {item.quantity}
+                  </span>
+                  <span className="font-mono">
+                    {formatJOD(item.price_subunits * item.quantity)}
+                  </span>
+                </div>
+              );
+            })}
+            <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg">
+              <span>الإجمالي</span>
+              <span className="text-[#1B2A4A]">{formatJOD(totalSubunits)}</span>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <button
+          onClick={saveDraft}
+          disabled={saving || selectedProcedures.length === 0}
+          className="flex-1 py-3 bg-[#1B2A4A] text-white rounded-lg font-medium
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'جاري الحفظ...' : '💾 حفظ المسودة'}
+        </button>
+        <button
+          onClick={closeSession}
+          disabled={saving}
+          className="flex-1 py-3 border-2 border-red-500 text-red-500 rounded-lg font-medium
+                     hover:bg-red-50 disabled:opacity-50"
+        >
+          {saving ? 'جاري الإغلاق...' : '🔒 إغلاق الجلسة'}
+        </button>
+      </div>
     </div>
   );
 }

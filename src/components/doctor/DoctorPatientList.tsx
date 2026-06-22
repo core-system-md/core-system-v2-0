@@ -1,170 +1,201 @@
-// ============================================
-// DoctorPatientList.tsx
-// Modified: Added click-to-open DecisionCard per Constitution §4
-// ============================================
-import React, { useEffect, useState } from 'react';
+// ============================================================
+// CORE SYSTEM v2.1 — DoctorPatientList
+// Constitution §2.6 (tenant_id), §4.2 (Core Score), §5 (SLA)
+// Displays patients with CoreScore + SLA + click navigation
+// ============================================================
+
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import { CoreScoreMeter } from '@/shared/components/ui/CoreScoreMeter';
 import { SlaTimer } from '@/shared/components/ui/SlaTimer';
-import { toast } from 'sonner';
 
-interface PatientSession {
+// ── Types ───────────────────────────────────────────────────
+interface Patient {
   id: string;
-  patient_id: string;
   full_name: string;
-  phone_primary: string;
-  core_score_display: number;
-  session_status: string;
-  scheduled_start: string;
+  phone: string | null;
+  core_score_display: number | null;
+  disc_profile: string | null;
+  tenant_id: string;
 }
 
-export const DoctorPatientList: React.FC = () => {
+interface SessionInfo {
+  id: string;
+  status: string;
+  created_at: string;
+  patient_id: string;
+}
+
+interface PatientWithSession extends Patient {
+  active_session: SessionInfo | null;
+}
+
+// ── Component ───────────────────────────────────────────────
+export default function DoctorPatientList() {
   const navigate = useNavigate();
-  const [tenantId, setTenantId] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<PatientSession[]>([]);
+  const [patients, setPatients] = useState<PatientWithSession[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Get tenantId from localStorage or Zustand store
+  // ── Fetch Patients with Active Sessions ───────────────────
   useEffect(() => {
-    const pinAuth = JSON.parse(localStorage.getItem("core_pin_auth") || "{}"); const stored = pinAuth.tenant_id;
-    if (stored) setTenantId(stored);
-  }, []);
-
-  useEffect(() => {
-    if (tenantId) fetchTodaySessions();
-  }, [tenantId]);
-
-  const fetchTodaySessions = async () => {
-    if (!tenantId) {
-      toast.error('معرف العيادة غير متوفر');
-      return;
-    }
-
-    setLoading(true);
-    const today = new Date().toISOString().split('T')[0];
-
-    try {
-      // Step 1: Fetch sessions with tenant_id filter (Constitution §2.6)
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('clinic_visit_sessions')
-        .select('id, patient_id, core_score_display, session_status, scheduled_start')
-        .eq('tenant_id', tenantId)
-        .in('session_status', ['waiting', 'scheduled', 'in_progress'])
-        .gte('scheduled_start', `${today}T00:00:00`)
-        .lte('scheduled_start', `${today}T23:59:59`)
-        .eq('is_abandoned', false)
-        .order('scheduled_start', { ascending: true });
-
-      if (sessionsError) {
-        toast.error('خطأ في جلب الجلسات');
-        console.error(sessionsError);
-        setLoading(false);
+    const fetchPatients = async () => {
+      const tenant_id = localStorage.getItem('tenant_id');
+      if (!tenant_id) {
+        toast.error('معرف المستأجر مفقود — أعد تسجيل الدخول');
+        navigate('/login');
         return;
       }
 
-      const sessionList = sessionsData || [];
-      const patientIds = sessionList.map((s: any) => s.patient_id).filter(Boolean);
-
-      // Step 2: Fetch patients separately with tenant_id filter (Constitution §2.6)
-      let patientMap: Record<string, { full_name: string; phone_primary: string }> = {};
-      if (patientIds.length > 0) {
-        const { data: patientsData, error: patientsError } = await supabase
+      setLoading(true);
+      try {
+        // Fetch patients with their active sessions
+        const { data, error } = await supabase
           .from('clinic_patients')
-          .select('id, full_name, phone_primary')
-          .eq('tenant_id', tenantId)
-          .in('id', patientIds);
+          .select(`
+            id,
+            full_name,
+            phone,
+            core_score_display,
+            disc_profile,
+            tenant_id,
+            clinic_visit_sessions (
+              id,
+              status,
+              created_at,
+              patient_id
+            )
+          `)
+          .eq('tenant_id', tenant_id)              // Constitution §2.6
+          .is('deleted_at', null)                   // Constitution §2.4
+          .order('created_at', { ascending: false });
 
-        if (patientsError) {
-          toast.error('خطأ في جلب بيانات المرضى');
-          console.error(patientsError);
-        } else {
-          patientMap = (patientsData || []).reduce((acc: any, p: any) => {
-            acc[p.id] = { full_name: p.full_name, phone_primary: p.phone_primary };
-            return acc;
-          }, {} as Record<string, { full_name: string; phone_primary: string }>);
-        }
+        if (error) throw error;
+
+        // Map patients with their active (non-closed) sessions
+        const mappedPatients: PatientWithSession[] = (data || []).map((p: any) => {
+          const sessions = p.clinic_visit_sessions as SessionInfo[] | null;
+          const activeSession = sessions?.find(s => s.status !== 'closed') || null;
+          
+          return {
+            id: p.id,
+            full_name: p.full_name,
+            phone: p.phone,
+            core_score_display: p.core_score_display,
+            disc_profile: p.disc_profile,
+            tenant_id: p.tenant_id,
+            active_session: activeSession
+          };
+        }).filter((p: PatientWithSession) => p.active_session !== null); // Only show patients with open sessions
+
+        setPatients(mappedPatients);
+
+      } catch (err: any) {
+        console.error('Patient list fetch error:', err);
+        toast.error(err.message || 'فشل في تحميل قائمة المرضى');
+      } finally {
+        setLoading(false);
       }
-
-      // Merge session + patient data
-      const merged: PatientSession[] = sessionList.map((s: any) => ({
-        id: s.id,
-        patient_id: s.patient_id,
-        full_name: patientMap[s.patient_id]?.full_name || 'غير معروف',
-        phone_primary: patientMap[s.patient_id]?.phone_primary || '',
-        core_score_display: s.core_score_display || 0,
-        session_status: s.session_status,
-        scheduled_start: s.scheduled_start,
-      }));
-
-      setSessions(merged);
-    } catch (err) {
-      toast.error('خطأ غير متوقع');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const configs: Record<string, { bg: string; text: string; label: string }> = {
-      waiting: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'في الانتظار' },
-      scheduled: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'مجدول' },
-      in_progress: { bg: 'bg-green-100', text: 'text-green-800', label: 'جاري' },
     };
-    const config = configs[status] || { bg: 'bg-gray-100', text: 'text-gray-800', label: 'غير معروف' };
-    return (
-      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-        {config.label}
-      </span>
-    );
-  };
 
-  const handlePatientClick = (sessionId: string) => {
+    fetchPatients();
+  }, [navigate]);
+
+  // ── Handle Patient Click ──────────────────────────────────
+  // CRITICAL: Must pass session.id, NOT patient.id
+  const handlePatientClick = (patient: PatientWithSession) => {
+    if (!patient.active_session) {
+      toast.error('لا توجد جلسة نشطة لهذا المريض');
+      return;
+    }
+
+    const sessionId = patient.active_session.id;
+    console.log('Navigating to session:', sessionId); // Debug log
+    
+    // Constitution: route is /doctor/session/:id where :id = session UUID
     navigate(`/doctor/session/${sessionId}`);
   };
 
+  // ── Loading Skeleton ──────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+      <div className="p-6 space-y-4" dir="rtl">
+        <div className="h-8 bg-gray-200 rounded w-1/4 animate-pulse" />
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-24 bg-gray-200 rounded animate-pulse" />
+        ))}
       </div>
     );
   }
 
-  if (sessions.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-        <p className="text-lg">لا يوجد مرضى مجدولون لهذا اليوم</p>
-      </div>
-    );
-  }
-
+  // ── Render ────────────────────────────────────────────────
   return (
-    <div className="space-y-4 p-4" dir="rtl">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">مرضى اليوم</h2>
-      {sessions.map(session => (
-        <div
-          key={session.id}
-          onClick={() => handlePatientClick(session.id)}
-          className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer"
-        >
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                <h3 className="text-lg font-semibold text-gray-900">{session.full_name}</h3>
-                {getStatusBadge(session.session_status)}
-              </div>
-              <p className="text-sm text-gray-500 mt-1">{session.phone_primary}</p>
-            </div>
+    <div className="p-6 max-w-4xl mx-auto" dir="rtl">
+      <h1 className="text-2xl font-bold text-[#1B2A4A] mb-6">
+        قائمة المرضى
+      </h1>
 
-            <div className="flex items-center gap-4">
-              <SlaTimer scheduledStart={session.scheduled_start} size="sm" />
-              <CoreScoreMeter score={session.core_score_display} size="sm" />
-            </div>
-          </div>
+      {patients.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg">لا يوجد مرضى في الانتظار</p>
+          <p className="text-sm mt-2">سيتم تحديث القائمة تلقائياً</p>
         </div>
-      ))}
+      ) : (
+        <div className="space-y-4">
+          {patients.map(patient => (
+            <div
+              key={patient.id}
+              onClick={() => handlePatientClick(patient)}
+              className="border rounded-lg p-4 hover:shadow-md transition cursor-pointer
+                         bg-white hover:bg-gray-50"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-lg font-semibold text-[#1B2A4A]">
+                    {patient.full_name}
+                  </h2>
+                  <p className="text-gray-500 text-sm mt-1">
+                    {patient.phone || 'لا يوجد هاتف'}
+                  </p>
+                  {patient.disc_profile && (
+                    <span className="inline-block mt-2 px-2 py-0.5 bg-blue-100 text-blue-800 
+                                     rounded text-xs">
+                      {patient.disc_profile}
+                    </span>
+                  )}
+                </div>
+                <div className="text-left space-y-2">
+                  <CoreScoreMeter 
+                    score={patient.core_score_display ?? 0} 
+                  />
+                  {patient.active_session && (
+                    <SlaTimer 
+                      createdAt={patient.active_session.created_at} 
+                    />
+                  )}
+                </div>
+              </div>
+              
+              {/* Session status badge */}
+              {patient.active_session && (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${
+                    patient.active_session.status === 'waiting' ? 'bg-yellow-400' :
+                    patient.active_session.status === 'in_progress' ? 'bg-green-500' :
+                    'bg-gray-400'
+                  }`} />
+                  <span className="text-xs text-gray-500">
+                    {patient.active_session.status === 'waiting' ? 'في الانتظار' :
+                     patient.active_session.status === 'in_progress' ? 'جارية' :
+                     patient.active_session.status}
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
-};
+}
