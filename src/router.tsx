@@ -11,6 +11,29 @@ import AuthScreen from '@/components/AuthScreen';
 import DoctorPatientList from '@/components/doctor/DoctorPatientList';
 import DecisionCard from '@/features/doctor/DecisionCard';
 
+// ── Helper: Read PIN auth from localStorage ─────────────────
+function getPinAuth(): { role: string | null; tenant_id: string | null } {
+  try {
+    const pinData = localStorage.getItem('core_pin_auth');
+    if (pinData) {
+      const parsed = JSON.parse(pinData);
+      // Check expiry
+      if (parsed.expiry && Date.now() > parsed.expiry) {
+        localStorage.removeItem('core_pin_auth');
+        return { role: null, tenant_id: null };
+      }
+      return {
+        role: parsed.role || null,
+        tenant_id: parsed.tenant_id || null
+      };
+    }
+  } catch {
+    // Invalid JSON
+  }
+  return { role: null, tenant_id: null };
+}
+
+// ── Auth Guard ────────────────────────────────────────────
 function AuthGuard({ children, allowedRoles }: { 
   children: React.ReactNode; 
   allowedRoles: string[] 
@@ -19,14 +42,14 @@ function AuthGuard({ children, allowedRoles }: {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const pinRole = localStorage.getItem('pin_role');
-      const tenant_id = localStorage.getItem('tenant_id');
-
+      // 1. Check PIN auth first (core_pin_auth JSON)
+      const { role: pinRole, tenant_id } = getPinAuth();
       if (pinRole && tenant_id) {
         setAuthorized(allowedRoles.includes(pinRole));
         return;
       }
 
+      // 2. Fallback to Supabase Auth
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setAuthorized(false);
@@ -60,13 +83,13 @@ function AuthGuard({ children, allowedRoles }: {
   return <>{children}</>;
 }
 
+// ── DecisionCard Wrapper ────────────────────────────────────
 function DecisionCardWrapper() {
   const [valid, setValid] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const tenant_id = localStorage.getItem('tenant_id');
-    const pin_role = localStorage.getItem('pin_role');
-    const isValid = !!tenant_id && (pin_role === 'doctor' || pin_role === 'receptionist');
+    const { role: pinRole, tenant_id } = getPinAuth();
+    const isValid = !!tenant_id && (pinRole === 'doctor' || pinRole === 'receptionist' || pinRole === 'clinic_admin' || pinRole === 'super_admin');
     setValid(isValid);
   }, []);
 
@@ -76,6 +99,7 @@ function DecisionCardWrapper() {
   return <DecisionCard />;
 }
 
+// ── Router Definition ───────────────────────────────────────
 export const router = createBrowserRouter([
   {
     path: '/',
