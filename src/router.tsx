@@ -5,8 +5,8 @@
 
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import AuthScreen from '@/components/AuthScreen';
 import { supabase } from '@/infrastructure/supabase/client';
+import AuthScreen from '@/components/AuthScreen';
 
 import DoctorPatientList from '@/components/doctor/DoctorPatientList';
 import DecisionCard from '@/features/doctor/DecisionCard';
@@ -79,7 +79,7 @@ function DecisionCardWrapper() {
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <Navigate to="/doctor" replace />
+    element: <Navigate to="/login" replace />
   },
   {
     path: '/login',
@@ -103,7 +103,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    element: <Navigate to="/doctor" replace />
+    element: <Navigate to="/login" replace />
   }
 ]);
 
