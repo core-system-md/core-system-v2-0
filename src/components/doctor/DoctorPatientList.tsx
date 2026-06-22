@@ -27,7 +27,7 @@ export const DoctorPatientList: React.FC = () => {
 
   // Get tenantId from localStorage or Zustand store
   useEffect(() => {
-    const stored = localStorage.getItem('tenant_id');
+    const pinAuth = JSON.parse(localStorage.getItem("core_pin_auth") || "{}"); const stored = pinAuth.tenant_id;
     if (stored) setTenantId(stored);
   }, []);
 

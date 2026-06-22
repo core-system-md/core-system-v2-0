@@ -24,7 +24,7 @@ function PagePlaceholder({ title }: { title: string }) {
 
 function DecisionCardWrapper() {
   const { id } = useParams<{ id: string }>();
-  const tenantId = localStorage.getItem("tenant_id") || "";
+  const pinAuth = JSON.parse(localStorage.getItem("core_pin_auth") || "{}"); const tenantId = pinAuth.tenant_id || "";
   if (!id) return <Navigate to="/doctor" replace />;
   return <DecisionCard sessionId={id} tenantId={tenantId} />;
 }
