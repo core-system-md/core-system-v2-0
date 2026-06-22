@@ -36,7 +36,6 @@ export function DoctorPatientList() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // FIX: Read tenant_id from core_pin_auth (set by AuthProvider.tsx during login)
     const pinData = localStorage.getItem("core_pin_auth");
     const tid = pinData ? JSON.parse(pinData).tenant_id : null;
     setTenantId(tid || null);
@@ -47,17 +46,40 @@ export function DoctorPatientList() {
     const fetch = async () => {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
+      
+      const { data: sessionsData, error: sessionsError } = await supabase
         .from('clinic_visit_sessions')
-        .select('id, patient_id, session_status, core_score_display, scheduled_start, patient:clinic_patients(full_name, phone_primary)')
+        .select('id, patient_id, session_status, core_score_display, scheduled_start')
         .eq('tenant_id', tenantId)
         .in('session_status', ['waiting', 'scheduled', 'in_progress'])
         .gte('scheduled_start', `${today}T00:00:00`)
         .lte('scheduled_start', `${today}T23:59:59`)
         .eq('is_abandoned', false)
         .order('scheduled_start', { ascending: true });
-      if (error) setError(error.message);
-      else setSessions((data || []).map((s: any) => ({ ...s, patient: Array.isArray(s.patient) ? s.patient[0] : s.patient })));
+      
+      if (sessionsError) {
+        setError(sessionsError.message);
+        setLoading(false);
+        return;
+      }
+      
+      const patientIds = (sessionsData || []).map((s: any) => s.patient_id).filter(Boolean);
+      let patientsMap = new Map();
+      
+      if (patientIds.length > 0) {
+        const { data: patientsData } = await supabase
+          .from('clinic_patients')
+          .select('id, full_name, phone_primary')
+          .in('id', patientIds);
+        
+        patientsMap = new Map((patientsData || []).map((p: any) => [p.id, p]));
+      }
+      
+      setSessions((sessionsData || []).map((s: any) => ({
+        ...s,
+        patient: patientsMap.get(s.patient_id) || null
+      })));
+      
       setLoading(false);
     };
     fetch();
