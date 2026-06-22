@@ -14,3 +14,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
   },
 });
+
+export async function getCurrentUserWithClaims() {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.app_metadata?.user_role || null,
+    tenantId: user.app_metadata?.tenant_id || null,
+    fullName: user.app_metadata?.full_name || null,
+  };
+}
