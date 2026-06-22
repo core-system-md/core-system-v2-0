@@ -38,6 +38,7 @@ export default function AuthScreen() {
     try {
       const result = await login.mutateAsync({ email, password, licenseKey });
       const userRole = result?.role || 'receptionist';
+      console.log("Navigating to:", getRoleRoute(userRole));
       navigate(getRoleRoute(userRole));
     } catch (err: any) {
     console.error("Login error:", err);
@@ -62,6 +63,7 @@ export default function AuthScreen() {
       const result = await login.mutateAsync({ pinCode: enteredPin, licenseKey });
     console.log("Login result:", result);
       const userRole = result?.role || 'receptionist';
+      console.log("Navigating to:", getRoleRoute(userRole));
       navigate(getRoleRoute(userRole));
     } catch (err: any) {
     console.error("Login error:", err);
