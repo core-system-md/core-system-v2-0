@@ -6,6 +6,7 @@ interface AuthContextType {
   role: string | null;
   tenantId: string | null;
   isLoading: boolean;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -14,6 +15,7 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   tenantId: null,
   isLoading: true,
+  logout: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -23,6 +25,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: null,
     tenantId: null,
     isLoading: true,
+    logout: () => {
+      localStorage.removeItem('core_pin_auth');
+      window.location.href = '/login';
+    },
   });
 
   useEffect(() => {
@@ -31,22 +37,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const parsed = JSON.parse(pinData);
         if (parsed.expiry && Date.now() < parsed.expiry) {
-          setAuth({
+          setAuth(prev => ({
+            ...prev,
             userId: parsed.user_id || null,
             fullName: parsed.full_name || null,
             role: parsed.role || null,
             tenantId: parsed.tenant_id || null,
             isLoading: false,
-          });
+          }));
         } else {
           localStorage.removeItem('core_pin_auth');
-          setAuth({ ...auth, isLoading: false });
+          setAuth(prev => ({ ...prev, isLoading: false }));
         }
       } catch {
-        setAuth({ ...auth, isLoading: false });
+        setAuth(prev => ({ ...prev, isLoading: false }));
       }
     } else {
-      setAuth({ ...auth, isLoading: false });
+      setAuth(prev => ({ ...prev, isLoading: false }));
     }
   }, []);
 
@@ -55,4 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuthContext() {
   return useContext(AuthContext);
+}
+
+// FIX: Export useAuth for backward compatibility
+export function useAuth() {
+  return useAuthContext();
 }

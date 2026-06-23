@@ -2,10 +2,10 @@
 // Blueprint: src/core/auth/useRole.ts
 // Purpose: Role-based permission check
 
-import { useAuth } from './AuthProvider';
+import { useAuthContext } from './AuthProvider';
 
 export function useRole() {
-  const { role } = useAuth();
+  const { role } = useAuthContext();
   
   return {
     role,
