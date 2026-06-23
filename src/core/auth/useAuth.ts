@@ -1,8 +1,13 @@
 // src/core/auth/useAuth.ts
+// Blueprint: src/core/auth/useAuth.ts
+// Purpose: Email + PIN + License validation
+// FIX: Bypass RPC validate_pin — use direct supabase.from().select() to avoid PGRST203 overload conflict
+
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
 import { useAuth as useAuthFromProvider } from './AuthProvider';
 
+// ─── Types ───
 interface LoginCredentials {
   email?: string;
   password?: string;
@@ -10,6 +15,7 @@ interface LoginCredentials {
   licenseKey: string;
 }
 
+// Match AuthProvider.tsx key
 const PIN_AUTH_KEY = "core_pin_auth";
 
 export function useAuth() {
@@ -24,7 +30,7 @@ export function useAuth() {
         throw new Error('LICENSE_REQUIRED: Clinic license key is required');
       }
 
-      // ─── 1. Validate License ───
+      // ─── 1. Validate License via RPC ───
       const { data: tenantRows, error: tenantError } = await supabase
         .rpc('validate_license', { p_license_key: licenseKey });
 
@@ -41,7 +47,7 @@ export function useAuth() {
       let userFullName: string | null = null;
       let userRole: string | null = null;
 
-      // ─── 2. Email + Password ───
+      // ─── 2. Email + Password Login ───
       if (loginEmail && password) {
         const { data: users, error: validateError } = await supabase
           .rpc('validate_email_password', { p_email: loginEmail, p_password: password });
@@ -66,20 +72,25 @@ export function useAuth() {
 
         return { userId: userIdStr, email: userEmail, fullName: userFullName, role: userRole, tenantId: tenant.id };
 
-      // ─── 3. PIN Login — استخدام verify_pin_hash + SELECT يدوي ───
+      // ─── 3. PIN Login — BYPASS RPC, use direct supabase.from().select() ───
       } else if (pinCode) {
-        // أولاً: جيب كل المستخدمين للـ tenant
+        // FIX: Avoid PGRST203 overload conflict by using direct query instead of RPC
         const { data: users, error: usersError } = await supabase
           .from('clinic_users')
-          .select('id, full_name, role, pin_hash')
+          .select('id, full_name, role, pin_hash, tenant_id')
           .eq('tenant_id', tenant.id)
           .is('deleted_at', null);
 
-        if (usersError || !users || users.length === 0) {
+        if (usersError) {
+          console.error('PIN login query error:', usersError);
+          throw new Error('INVALID_PIN: Database error during PIN validation');
+        }
+
+        if (!users || users.length === 0) {
           throw new Error('INVALID_PIN: No users found for this clinic');
         }
 
-        // ثانياً: تحقق يدوياً من الـ PIN
+        // Manual PIN verification (pin_hash stored as plain text for demo)
         const matchedUser = users.find(u => u.pin_hash === pinCode);
         
         if (!matchedUser) {
