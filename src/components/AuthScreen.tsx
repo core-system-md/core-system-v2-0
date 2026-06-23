@@ -3,7 +3,7 @@ import { supabase } from '../infrastructure/supabase/client';
 
 const PIN_AUTH_KEY = "core_pin_auth";
 
-export function AuthScreen() {
+export default function AuthScreen() {
   const [licenseKey, setLicenseKey] = useState('DEMO-LICENSE-2024');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
