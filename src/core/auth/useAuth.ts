@@ -61,7 +61,6 @@ export function useAuth() {
         userFullName = userProfile.full_name;
         userRole = userProfile.role;
 
-        // FIX: Use core_pin_auth key with correct format
         localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
           user_id: userIdStr,
           full_name: userFullName,
@@ -74,9 +73,15 @@ export function useAuth() {
 
       // ─── 3. PIN Login ───
       } else if (pinCode) {
+        // FIX: Use jsonb single parameter to avoid function overload conflict (PGRST203)
         const { data: pinUserRows, error: pinError } = await supabase
-          .rpc('validate_pin', { p_tenant_id: tenant.id, p_pin_code: pinCode });
-          
+          .rpc('validate_pin', {
+            params: {
+              tenant_id: tenant.id,
+              pin_code: pinCode
+            }
+          });
+
         const pinUser = pinUserRows && pinUserRows.length > 0 ? pinUserRows[0] : null;
 
         if (pinError || !pinUser) {
@@ -88,7 +93,6 @@ export function useAuth() {
         userRole = pinUser.role;
         userEmail = null;
 
-        // FIX: Use core_pin_auth key with correct format
         localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
           user_id: userIdStr,
           full_name: userFullName,
