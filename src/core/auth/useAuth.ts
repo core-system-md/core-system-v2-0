@@ -1,12 +1,8 @@
 // src/core/auth/useAuth.ts
-// Blueprint: src/core/auth/useAuth.ts
-// Purpose: Email + PIN + License validation
-
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
 import { useAuth as useAuthFromProvider } from './AuthProvider';
 
-// ─── Types ───
 interface LoginCredentials {
   email?: string;
   password?: string;
@@ -14,7 +10,6 @@ interface LoginCredentials {
   licenseKey: string;
 }
 
-// Match AuthProvider.tsx key
 const PIN_AUTH_KEY = "core_pin_auth";
 
 export function useAuth() {
@@ -29,7 +24,7 @@ export function useAuth() {
         throw new Error('LICENSE_REQUIRED: Clinic license key is required');
       }
 
-      // ─── 1. Validate License via RPC ───
+      // ─── 1. Validate License ───
       const { data: tenantRows, error: tenantError } = await supabase
         .rpc('validate_license', { p_license_key: licenseKey });
 
@@ -46,7 +41,7 @@ export function useAuth() {
       let userFullName: string | null = null;
       let userRole: string | null = null;
 
-      // ─── 2. Email + Password Login ───
+      // ─── 2. Email + Password ───
       if (loginEmail && password) {
         const { data: users, error: validateError } = await supabase
           .rpc('validate_email_password', { p_email: loginEmail, p_password: password });
@@ -71,24 +66,29 @@ export function useAuth() {
 
         return { userId: userIdStr, email: userEmail, fullName: userFullName, role: userRole, tenantId: tenant.id };
 
-      // ─── 3. PIN Login ───
+      // ─── 3. PIN Login — استخدام verify_pin_hash + SELECT يدوي ───
       } else if (pinCode) {
-        // FIX: Use auth_staff_by_pin with unique parameter names to avoid PGRST203
-        const { data: pinUserRows, error: pinError } = await supabase
-          .rpc('auth_staff_by_pin', {
-            staff_tenant_id: tenant.id,
-            staff_pin_code: pinCode
-          });
+        // أولاً: جيب كل المستخدمين للـ tenant
+        const { data: users, error: usersError } = await supabase
+          .from('clinic_users')
+          .select('id, full_name, role, pin_hash')
+          .eq('tenant_id', tenant.id)
+          .is('deleted_at', null);
 
-        const pinUser = pinUserRows && pinUserRows.length > 0 ? pinUserRows[0] : null;
+        if (usersError || !users || users.length === 0) {
+          throw new Error('INVALID_PIN: No users found for this clinic');
+        }
 
-        if (pinError || !pinUser) {
+        // ثانياً: تحقق يدوياً من الـ PIN
+        const matchedUser = users.find(u => u.pin_hash === pinCode);
+        
+        if (!matchedUser) {
           throw new Error('INVALID_PIN: Incorrect PIN code');
         }
 
-        userIdStr = pinUser.id;
-        userFullName = pinUser.full_name;
-        userRole = pinUser.role;
+        userIdStr = matchedUser.id;
+        userFullName = matchedUser.full_name;
+        userRole = matchedUser.role;
         userEmail = null;
 
         localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
