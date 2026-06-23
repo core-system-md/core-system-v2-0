@@ -22,7 +22,6 @@ export function AuthScreen() {
       if (tenantError || !tenantRows || tenantRows.length === 0) {
         throw new Error('INVALID_LICENSE');
       }
-      const tenantId = tenantRows[0].id;
 
       // ─── الخطوة 2: login_by_pin ───
       const { data: users, error: pinError } = await supabase
