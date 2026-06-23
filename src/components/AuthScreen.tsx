@@ -1,9 +1,10 @@
+// الشاشة القديمة — Email + PIN + Test Mode
 import { useState } from 'react';
 import { supabase } from '../infrastructure/supabase/client';
 
 const PIN_AUTH_KEY = "core_pin_auth";
 
-export default function AuthScreen() {
+export function AuthScreen() {
   const [licenseKey, setLicenseKey] = useState('DEMO-LICENSE-2024');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -14,17 +15,29 @@ export default function AuthScreen() {
     setError('');
 
     try {
-      const { data, error } = await supabase.rpc('login_by_pin', {
-        clinic_license: licenseKey,
-        staff_secret: pin
-      });
+      // ─── الخطوة 1: validate_license ───
+      const { data: tenantRows, error: tenantError } = await supabase
+        .rpc('validate_license', { p_license_key: licenseKey });
 
-      if (error || !data || data.length === 0) {
-        throw new Error('INVALID_PIN: Incorrect PIN or License');
+      if (tenantError || !tenantRows || tenantRows.length === 0) {
+        throw new Error('INVALID_LICENSE');
+      }
+      const tenant = tenantRows[0];
+
+      // ─── الخطوة 2: login_by_pin ───
+      const { data: users, error: pinError } = await supabase
+        .rpc('login_by_pin', {
+          clinic_license: licenseKey,
+          staff_secret: pin
+        });
+
+      if (pinError || !users || users.length === 0) {
+        throw new Error('INVALID_PIN');
       }
 
-      const user = data[0];
+      const user = users[0];
 
+      // ─── الخطوة 3: تخزين ───
       localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
         user_id: user.user_id,
         full_name: user.user_full_name,
@@ -33,15 +46,11 @@ export default function AuthScreen() {
         expiry: Date.now() + 24 * 60 * 60 * 1000
       }));
 
-      if (user.user_role === 'doctor') {
-        window.location.href = '/doctor';
-      } else if (user.user_role === 'receptionist') {
-        window.location.href = '/reception';
-      } else if (user.user_role === 'clinic_admin') {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/';
-      }
+      // ─── توجيه ───
+      window.location.href = user.user_role === 'doctor' ? '/doctor' : 
+                             user.user_role === 'receptionist' ? '/reception' : 
+                             user.user_role === 'clinic_admin' ? '/admin' : 
+                             user.user_role === 'super_admin' ? '/super-admin' : '/';
 
     } catch (err: any) {
       setError(err.message);
@@ -68,13 +77,15 @@ export default function AuthScreen() {
         
         {error && (
           <div className="bg-red-500/20 border border-red-500 text-red-200 p-3 rounded mb-4">
-            {error}
+            {error === 'INVALID_LICENSE' ? 'License key not found' :
+             error === 'INVALID_PIN' ? 'Incorrect PIN code' :
+             error}
           </div>
         )}
 
         <div className="space-y-4">
           <div>
-            <label className="block text-slate-300 mb-2">Clinic License Key</label>
+            <label className="block text-slate-300 mb-2">License Key</label>
             <input
               type="text"
               value={licenseKey}
@@ -99,7 +110,7 @@ export default function AuthScreen() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded font-semibold disabled:opacity-50"
           >
-            {loading ? 'Loading...' : 'Login'}
+            {loading ? 'Loading...' : 'Login with PIN'}
           </button>
 
           <button
