@@ -1,13 +1,10 @@
 // src/core/auth/useAuth.ts
-// Blueprint: src/core/auth/useAuth.ts
-// Purpose: Email + PIN + License validation
-// FIX: Use get_staff_by_tenant RPC with SECURITY DEFINER to bypass RLS
+// FIX: Rebuild validate_pin from scratch — unique parameter names
 
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
 import { useAuth as useAuthFromProvider } from './AuthProvider';
 
-// ─── Types ───
 interface LoginCredentials {
   email?: string;
   password?: string;
@@ -15,7 +12,6 @@ interface LoginCredentials {
   licenseKey: string;
 }
 
-// Match AuthProvider.tsx key
 const PIN_AUTH_KEY = "core_pin_auth";
 
 export function useAuth() {
@@ -30,7 +26,7 @@ export function useAuth() {
         throw new Error('LICENSE_REQUIRED: Clinic license key is required');
       }
 
-      // ─── 1. Validate License via RPC ───
+      // ─── 1. Validate License ───
       const { data: tenantRows, error: tenantError } = await supabase
         .rpc('validate_license', { p_license_key: licenseKey });
 
@@ -47,7 +43,7 @@ export function useAuth() {
       let userFullName: string | null = null;
       let userRole: string | null = null;
 
-      // ─── 2. Email + Password Login ───
+      // ─── 2. Email + Password ───
       if (loginEmail && password) {
         const { data: users, error: validateError } = await supabase
           .rpc('validate_email_password', { p_email: loginEmail, p_password: password });
@@ -72,30 +68,27 @@ export function useAuth() {
 
         return { userId: userIdStr, email: userEmail, fullName: userFullName, role: userRole, tenantId: tenant.id };
 
-      // ─── 3. PIN Login — استخدام get_staff_by_tenant RPC ───
+      // ─── 3. PIN Login — validate_pin rebuilt from scratch ───
       } else if (pinCode) {
-        const { data: users, error: usersError } = await supabase
-          .rpc('get_staff_by_tenant', { p_tenant_id: tenant.id });
+        const { data: users, error: pinError } = await supabase
+          .rpc('validate_pin', {
+            clinic_tenant_id: tenant.id,
+            staff_pin_code: pinCode
+          });
 
-        if (usersError) {
-          console.error('PIN login RPC error:', usersError);
-          throw new Error('INVALID_PIN: Database error during PIN validation');
+        if (pinError) {
+          console.error('PIN login error:', pinError);
+          throw new Error('INVALID_PIN: ' + pinError.message);
         }
 
         if (!users || users.length === 0) {
-          throw new Error('INVALID_PIN: No users found for this clinic');
-        }
-
-        // Manual PIN verification (pin_hash stored as plain text for demo)
-        const matchedUser = users.find((u: any) => u.pin_hash === pinCode);
-        
-        if (!matchedUser) {
           throw new Error('INVALID_PIN: Incorrect PIN code');
         }
 
-        userIdStr = matchedUser.id;
-        userFullName = matchedUser.full_name;
-        userRole = matchedUser.role;
+        const pinUser = users[0];
+        userIdStr = pinUser.user_id;
+        userFullName = pinUser.user_name;
+        userRole = pinUser.user_role;
         userEmail = null;
 
         localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
