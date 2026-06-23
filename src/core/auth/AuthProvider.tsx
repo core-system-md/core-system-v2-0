@@ -129,8 +129,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!tenantId) return { success: false, error: "No tenant context" };
 
     const { data, error } = await supabase.rpc("validate_pin", {
-      p_tenant_id: tenantId,
-      p_pin_code: pin
+      clinic_tenant_id: tenantId,
+      staff_pin_code: pin
     });
 
     if (error || !data) return { success: false, error: error?.message || "Invalid PIN" };
