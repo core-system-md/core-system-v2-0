@@ -72,7 +72,7 @@ export function useAuth() {
 
         return { userId: userIdStr, email: userEmail, fullName: userFullName, role: userRole, tenantId: tenant.id };
 
-      // ─── 3. PIN Login — validate_pin rebuilt from scratch ───
+      // ─── 3. PIN Login ───
       } else if (pinCode) {
         const { data: users, error: pinError } = await supabase
           .rpc('validate_pin', {
