@@ -69,4 +69,14 @@ export const rpc = {
     if (error) throw error;
     return data as number;
   },
-};
+
+  // ─── PIN Validation ───
+  async checkStaffPin(tenantId: string, pinCode: string) {
+    const { data, error } = await supabase.rpc('check_staff_pin', {
+      p_tenant_id: tenantId,
+      p_pin_code: pinCode,
+    });
+    if (error) throw error;
+    return data as Array<{ id: string; full_name: string; role: string; tenant_id: string }>;
+  },
+}

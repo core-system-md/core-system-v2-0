@@ -74,8 +74,9 @@ export function useAuth() {
 
       // ─── 3. PIN Login ───
       } else if (pinCode) {
+        // FIX: Use check_staff_pin instead of validate_pin to resolve function overload conflict
         const { data: pinUserRows, error: pinError } = await supabase
-          .rpc('validate_pin', { p_tenant_id: tenant.id, p_pin_code: pinCode });
+          .rpc('check_staff_pin', { p_tenant_id: tenant.id, p_pin_code: pinCode });
           
         const pinUser = pinUserRows && pinUserRows.length > 0 ? pinUserRows[0] : null;
 
