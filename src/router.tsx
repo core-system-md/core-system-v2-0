@@ -6,7 +6,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/infrastructure/supabase/client';
-import { AuthScreen } from '@/components/AuthScreen';
+import AuthScreen from '@/components/AuthScreen';
 
 import DoctorPatientList from '@/components/doctor/DoctorPatientList';
 import DecisionCard from '@/features/doctor/DecisionCard';
