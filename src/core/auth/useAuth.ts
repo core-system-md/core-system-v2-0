@@ -1,7 +1,7 @@
 // src/core/auth/useAuth.ts
 // Blueprint: src/core/auth/useAuth.ts
 // Purpose: Email + PIN + License validation
-// FIX: Bypass RPC validate_pin — use direct supabase.from().select() to avoid PGRST203 overload conflict
+// FIX: Use get_staff_by_tenant RPC with SECURITY DEFINER to bypass RLS
 
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
@@ -72,17 +72,13 @@ export function useAuth() {
 
         return { userId: userIdStr, email: userEmail, fullName: userFullName, role: userRole, tenantId: tenant.id };
 
-      // ─── 3. PIN Login — BYPASS RPC, use direct supabase.from().select() ───
+      // ─── 3. PIN Login — استخدام get_staff_by_tenant RPC ───
       } else if (pinCode) {
-        // FIX: Avoid PGRST203 overload conflict by using direct query instead of RPC
         const { data: users, error: usersError } = await supabase
-          .from('clinic_users')
-          .select('id, full_name, role, pin_hash, tenant_id')
-          .eq('tenant_id', tenant.id)
-          .is('deleted_at', null);
+          .rpc('get_staff_by_tenant', { p_tenant_id: tenant.id });
 
         if (usersError) {
-          console.error('PIN login query error:', usersError);
+          console.error('PIN login RPC error:', usersError);
           throw new Error('INVALID_PIN: Database error during PIN validation');
         }
 
@@ -91,7 +87,7 @@ export function useAuth() {
         }
 
         // Manual PIN verification (pin_hash stored as plain text for demo)
-        const matchedUser = users.find(u => u.pin_hash === pinCode);
+        const matchedUser = users.find((u: any) => u.pin_hash === pinCode);
         
         if (!matchedUser) {
           throw new Error('INVALID_PIN: Incorrect PIN code');
