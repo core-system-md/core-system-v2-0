@@ -73,13 +73,11 @@ export function useAuth() {
 
       // ─── 3. PIN Login ───
       } else if (pinCode) {
-        // FIX: Use jsonb single parameter to avoid function overload conflict (PGRST203)
+        // FIX: Use auth_staff_by_pin with unique parameter names to avoid PGRST203
         const { data: pinUserRows, error: pinError } = await supabase
-          .rpc('validate_pin', {
-            params: {
-              tenant_id: tenant.id,
-              pin_code: pinCode
-            }
+          .rpc('auth_staff_by_pin', {
+            staff_tenant_id: tenant.id,
+            staff_pin_code: pinCode
           });
 
         const pinUser = pinUserRows && pinUserRows.length > 0 ? pinUserRows[0] : null;
