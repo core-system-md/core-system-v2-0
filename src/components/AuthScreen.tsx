@@ -1,5 +1,5 @@
 // src/components/AuthScreen.tsx
-// UPDATED: 2026-06-24 — Added role selection for PIN login
+// UPDATED: 2026-06-24 — Added diagnostic logs for handlePinLogin
 
 import { useState } from 'react';
 import { useAuth } from '../core/auth/useAuth';
@@ -21,47 +21,66 @@ export function AuthScreen() {
   const [selectedRole, setSelectedRole] = useState<ValidRole | ''>('');
 
   const handleEmailLogin = async () => {
+    console.log('🔍 === handleEmailLogin started ===');
+    
     if (!email.trim() || !password.trim()) {
+      console.log('🔍 ERROR: Email or password missing');
       toast.error('Email and password are required');
       return;
     }
 
     try {
+      console.log('🔍 Calling login.mutateAsync for email...');
       const result = await login.mutateAsync({ 
         email: email.trim(), 
         password, 
         licenseKey: licenseKey.trim() 
       });
       
+      console.log('🔍 Email login success:', result);
+      console.log('🔍 Navigating to:', `/${result.role}`);
+      
       navigate(`/${result.role}`);
+      console.log('🔍 Navigation called');
     } catch (error) {
+      console.error('🔍 Email login error:', error);
       toast.error(error instanceof Error ? error.message : 'Login failed');
     }
   };
 
   const handlePinLogin = async () => {
-    // Validate role selection
+    console.log('🔍 === handlePinLogin started ===');
+    console.log('🔍 selectedRole:', selectedRole);
+    console.log('🔍 enteredPin:', enteredPin);
+    console.log('🔍 licenseKey:', licenseKey);
+    
     if (!selectedRole) {
+      console.log('🔍 ERROR: Role missing');
       toast.error('Please select your role');
       return;
     }
-
-    // Validate PIN
+    
     if (!enteredPin || enteredPin.length !== 4 || !/^\d{4}$/.test(enteredPin)) {
+      console.log('🔍 ERROR: PIN invalid');
       toast.error('Please enter a valid 4-digit PIN');
       return;
     }
-
+    
     try {
+      console.log('🔍 Calling login.mutateAsync for PIN...');
       const result = await login.mutateAsync({ 
         pinCode: enteredPin, 
         licenseKey: licenseKey.trim(),
-        role: selectedRole, // ← REQUIRED: pass selected role
+        role: selectedRole,
       });
       
-      // Navigate based on returned role
+      console.log('🔍 PIN login success:', result);
+      console.log('🔍 Navigating to:', `/${result.role}`);
+      
       navigate(`/${result.role}`);
+      console.log('🔍 Navigation called');
     } catch (error) {
+      console.error('🔍 PIN login error:', error);
       toast.error(error instanceof Error ? error.message : 'Login failed');
     }
   };
@@ -175,7 +194,7 @@ export function AuthScreen() {
           {/* PIN Login Form */}
           {loginMode === 'pin' && (
             <div className="space-y-4">
-              {/* Role Selection - NEW */}
+              {/* Role Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Select Role
@@ -223,5 +242,6 @@ export function AuthScreen() {
     </div>
   );
 }
+
 // Default export for backward compatibility
 export default AuthScreen;
