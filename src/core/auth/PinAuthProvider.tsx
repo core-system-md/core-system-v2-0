@@ -1,5 +1,5 @@
 // src/core/auth/PinAuthProvider.tsx
-// UPDATED: 2026-06-24 — Fixed validate_pin params (p_pin + p_role, removed p_pin_code)
+// UPDATED: 2026-06-24 — Fixed validate_pin params (p_pin + p_role)
 
 import React, { createContext, useContext, useCallback, useState } from 'react';
 import { supabase } from '../../infrastructure/supabase/client';
@@ -11,15 +11,15 @@ interface PinAuthContextType {
   clearError: () => void;
 }
 
-interface PinVerificationParams {
+export interface PinVerificationParams {
   pinCode: string;
   tenantId: string;
   userId?: string;
   employeeCode?: string;
-  role: string; // ← REQUIRED
+  role: string;
 }
 
-interface PinVerificationResult {
+export interface PinVerificationResult {
   success: boolean;
   userId?: string;
   fullName?: string;
@@ -71,7 +71,7 @@ export function PinAuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const performPinVerification = useCallback(
-    async (pinCode: string, tenantId: string, userId: string | undefined, employeeCode: string | undefined, role: string): Promise<PinVerificationResult> => {
+    async (pinCode: string, tenantId: string, _userId: string | undefined, _employeeCode: string | undefined, role: string): Promise<PinVerificationResult> => {
       const isLocked = await checkRateLimit(tenantId, pinCode);
       if (isLocked) {
         await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, role });
