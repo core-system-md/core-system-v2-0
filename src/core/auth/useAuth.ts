@@ -4,7 +4,6 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
-import { useAuth as useAuthFromProvider } from './AuthProvider';
 
 // ─── Types ───
 interface LoginCredentials {
@@ -18,9 +17,6 @@ interface LoginCredentials {
 const PIN_AUTH_KEY = "core_pin_auth";
 
 export function useAuth() {
-  const auth = useAuthFromProvider();
-  const { logout } = auth;
-
   const login = useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
       const { licenseKey, email: loginEmail, password, pinCode } = credentials;
@@ -61,7 +57,6 @@ export function useAuth() {
         userFullName = userProfile.full_name;
         userRole = userProfile.role;
 
-        // FIX: Use core_pin_auth key with correct format
         localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
           user_id: userIdStr,
           full_name: userFullName,
@@ -88,7 +83,6 @@ export function useAuth() {
         userRole = pinUser.role;
         userEmail = null;
 
-        // FIX: Use core_pin_auth key with correct format
         localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
           user_id: userIdStr,
           full_name: userFullName,
@@ -106,14 +100,6 @@ export function useAuth() {
   });
 
   return {
-    isAuthenticated: auth.isAuthenticated,
-    isLoading: auth.isLoading,
-    userId: auth.userId,
-    email: auth.email,
-    fullName: auth.fullName,
-    role: auth.role,
-    tenantId: auth.tenantId,
-    logout,
     login,
     isPending: login.isPending,
   };
