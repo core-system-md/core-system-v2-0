@@ -223,3 +223,5 @@ export function AuthScreen() {
     </div>
   );
 }
+// Default export for backward compatibility
+export default AuthScreen;
