@@ -1,29 +1,27 @@
-// Types extracted from PinAuthProvider.tsx (TODO: re-enable when verify_pin_hash RPC exists)
-export interface PinVerifyParams {
+// src/core/auth/pinAuth.types.ts
+// UPDATED: 2026-06-24 — Added role as required field
+
+export interface PinVerificationParams {
   pinCode: string;
-  kioskRole: KioskRole;
+  tenantId: string;
+  userId?: string;
+  employeeCode?: string;
+  role: string; // ← REQUIRED: doctor, receptionist, clinic_admin, super_admin
 }
 
-export interface EmployeeCodeVerifyParams {
-  employeeCode: string;
-  kioskRole: KioskRole;
-}
-
-export type KioskRole = 'reception' | 'doctor' | 'admin';
-
-export interface PinValidationResult {
+export interface PinVerificationResult {
   success: boolean;
-  user?: {
-    id: string;
-    full_name: string;
-    role: string;
-  };
+  userId?: string;
+  fullName?: string;
+  role?: string;
+  employeeCode?: string;
   error?: string;
 }
 
-export type PinErrorCode = 
-  | 'INVALID_PIN'
-  | 'USER_NOT_FOUND'
-  | 'USER_INACTIVE'
-  | 'RATE_LIMITED'
-  | 'VERIFICATION_FAILED';
+export interface PinAttemptLog {
+  tenantId: string;
+  attemptedPin: string;
+  success: boolean;
+  userId?: string;
+  role?: string;
+}
