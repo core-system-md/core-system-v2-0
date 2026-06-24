@@ -1,199 +1,225 @@
-import { useState, useCallback } from "react";
-import { useAuth } from "@/core/auth/useAuth";
-import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
-import { Wifi, WifiOff, Shield, Mail, Lock, KeyRound, Eye, EyeOff, AlertCircle, ArrowRight, Building2, TestTube } from "lucide-react";
+// src/components/AuthScreen.tsx
+// UPDATED: 2026-06-24 — Added role selection for PIN login
 
-export default function AuthScreen() {
-  const { login, isPending } = useAuth();
-  const { isOnline } = useNetworkStatus();
+import { useState } from 'react';
+import { useAuth } from '../core/auth/useAuth';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
-  const [activeTab, setActiveTab] = useState<"email" | "pin">("email");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [licenseKey, setLicenseKey] = useState("");
-  const [pin, setPin] = useState<string[]>(["", "", "", ""]);
-  const [pinIndex, setPinIndex] = useState(0);
-  const [showPassword, setShowPassword] = useState(false);
-  const [shake, setShake] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
+const VALID_ROLES = ['doctor', 'receptionist', 'clinic_admin', 'super_admin'] as const;
+type ValidRole = typeof VALID_ROLES[number];
 
-  // Constitution §6: Role-based routing
-  const getRoleRoute = (role: string | null) => {
-    const routes: Record<string, string> = {
-      receptionist: '/reception',
-      doctor: '/doctor',
-      clinic_admin: '/admin',
-      super_admin: '/super-admin',
-    };
-    return routes[role || ''] || '/reception';
-  };
+export function AuthScreen() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  
+  const [licenseKey, setLicenseKey] = useState('DEMO-LICENSE-2024');
+  const [loginMode, setLoginMode] = useState<'email' | 'pin'>('pin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [enteredPin, setEnteredPin] = useState('');
+  const [selectedRole, setSelectedRole] = useState<ValidRole | ''>('');
 
-  // Constitution §1.3: Test Mode for development
-  const handleTestMode = () => {
-    localStorage.setItem('core_pin_auth', JSON.stringify({
-      user_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
-      full_name: 'Dr. Sara',
-      role: 'doctor',
-      tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      expiry: Date.now() + 24 * 60 * 60 * 1000
-    }));
-    window.location.replace('/doctor');
-  };
-
-  const handleEmailLogin = useCallback(async () => {
-    if (!email || !password || !licenseKey) {
-      setLocalError("Please enter email, password, and license key");
+  const handleEmailLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      toast.error('Email and password are required');
       return;
     }
-    setLocalError(null);
+
     try {
-      const result = await login.mutateAsync({ email, password, licenseKey });
-      const userRole = result?.role || 'receptionist';
-      window.location.href = getRoleRoute(userRole);
-    } catch (err: any) {
-      setLocalError(err.message || "Invalid credentials or license");
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
-    }
-  }, [email, password, licenseKey, login]);
-
-  const handlePinLogin = async (enteredPin: string) => {
-    if (!licenseKey) {
-      setLocalError("License key required for PIN login");
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
-      setPin(["", "", "", ""]);
-      setPinIndex(0);
-      return;
-    }
-    try {
-      const result = await login.mutateAsync({ pinCode: enteredPin, licenseKey });
-      const userRole = result?.role || 'receptionist';
-      window.location.href = getRoleRoute(userRole);
-    } catch (err: any) {
-      setLocalError(err.message || "Invalid PIN");
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
-      setPin(["", "", "", ""]);
-      setPinIndex(0);
+      const result = await login.mutateAsync({ 
+        email: email.trim(), 
+        password, 
+        licenseKey: licenseKey.trim() 
+      });
+      
+      navigate(`/${result.role}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Login failed');
     }
   };
 
-  const handlePinPress = useCallback((key: string) => {
-    if (isPending) return;
-    if (key === "backspace") {
-      if (pinIndex > 0) {
-        const newPin = [...pin];
-        newPin[pinIndex - 1] = "";
-        setPin(newPin);
-        setPinIndex(pinIndex - 1);
-      }
+  const handlePinLogin = async () => {
+    // Validate role selection
+    if (!selectedRole) {
+      toast.error('Please select your role');
       return;
     }
-    if (key === "clear") {
-      setPin(["", "", "", ""]);
-      setPinIndex(0);
-      return;
-    }
-    if (pinIndex < 4) {
-      const newPin = [...pin];
-      newPin[pinIndex] = key;
-      setPin(newPin);
-      setPinIndex(pinIndex + 1);
-      if (pinIndex === 3) handlePinLogin(newPin.join(""));
-    }
-  }, [pin, pinIndex, isPending]);
 
-  const keypadKeys = [["1","2","3"],["4","5","6"],["7","8","9"],["clear","0","backspace"]];
+    // Validate PIN
+    if (!enteredPin || enteredPin.length !== 4 || !/^\d{4}$/.test(enteredPin)) {
+      toast.error('Please enter a valid 4-digit PIN');
+      return;
+    }
+
+    try {
+      const result = await login.mutateAsync({ 
+        pinCode: enteredPin, 
+        licenseKey: licenseKey.trim(),
+        role: selectedRole, // ← REQUIRED: pass selected role
+      });
+      
+      // Navigate based on returned role
+      navigate(`/${result.role}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Login failed');
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1B2A4A] via-[#243656] to-[#1B2A4A] text-white flex flex-col items-center justify-center p-4 md:p-8">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-[#1B2A4A]">
+      <div className="w-full max-w-md p-8">
+        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-4 border border-white/20">
-            <Shield className="w-10 h-10 md:w-12 md:h-12 text-white/90" />
+          <div className="w-16 h-16 mx-auto mb-4 bg-white/10 rounded-2xl flex items-center justify-center">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">CORE SYSTEM</h1>
-          <p className="text-base md:text-lg text-white/60 mt-2">Clinic Management Portal</p>
+          <h1 className="text-3xl font-bold text-white mb-2">CORE SYSTEM</h1>
+          <p className="text-gray-400">Clinic Management Portal</p>
         </div>
+
+        {/* Online Mode Badge */}
         <div className="flex justify-center mb-6">
-          <span className={`text-sm px-3 py-1 rounded-full border ${isOnline ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" : "bg-red-500/20 text-red-300 border-red-500/30"}`}>
-            {isOnline ? <Wifi className="w-4 h-4 inline mr-1" /> : <WifiOff className="w-4 h-4 inline mr-1" />}
-            {isOnline ? "Online Mode" : "Offline Mode"}
+          <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm">
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z" />
+            </svg>
+            Online Mode
           </span>
         </div>
-        {localError && (
-          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-            <p className="text-red-300 text-sm">{localError}</p>
+
+        {/* Login Card */}
+        <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10">
+          <h2 className="text-xl font-semibold text-white text-center mb-6">Staff Login</h2>
+
+          {/* License Key */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Clinic License Key
+            </label>
+            <input
+              type="text"
+              value={licenseKey}
+              onChange={(e) => setLicenseKey(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter license key"
+            />
           </div>
-        )}
-        <div className={`bg-white/5 border border-white/10 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden ${shake ? "animate-shake" : ""}`}>
-          <div className="p-6">
-            <h2 className="text-xl md:text-2xl text-center text-white/90 font-semibold mb-6">Staff Login</h2>
-            <div className="mb-6 space-y-2">
-              <label className="text-sm font-medium text-white/70 flex items-center gap-2">
-                <Building2 className="w-4 h-4" /> Clinic License Key
-              </label>
-              <input type="text" placeholder="XXXX-XXXX-XXXX" value={licenseKey} onChange={(e) => setLicenseKey(e.target.value.toUpperCase())} className="w-full h-12 md:h-14 text-base md:text-lg bg-white/5 border border-white/20 text-white placeholder:text-white/30 rounded-lg px-4 focus:outline-none focus:border-white/40 uppercase tracking-widest" />
-            </div>
-            <div className="grid grid-cols-2 gap-2 bg-white/10 rounded-lg p-1 mb-6">
-              <button onClick={() => setActiveTab("email")} className={`py-2 px-4 rounded-md text-sm md:text-base font-medium transition-all ${activeTab === "email" ? "bg-white text-[#1B2A4A]" : "text-white/70 hover:text-white"}`}><Mail className="w-4 h-4 inline mr-2" />Email</button>
-              <button onClick={() => setActiveTab("pin")} className={`py-2 px-4 rounded-md text-sm md:text-base font-medium transition-all ${activeTab === "pin" ? "bg-white text-[#1B2A4A]" : "text-white/70 hover:text-white"}`}><KeyRound className="w-4 h-4 inline mr-2" />PIN</button>
-            </div>
-            {activeTab === "email" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-white/70 flex items-center gap-2"><Mail className="w-4 h-4" /> Email Address</label>
-                  <input type="email" placeholder="doctor@coresystem.io" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full h-12 md:h-14 text-base md:text-lg bg-white/5 border border-white/20 text-white placeholder:text-white/30 rounded-lg px-4 focus:outline-none focus:border-white/40" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-white/70 flex items-center gap-2"><Lock className="w-4 h-4" /> Password</label>
-                  <div className="relative">
-                    <input type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full h-12 md:h-14 text-base md:text-lg bg-white/5 border border-white/20 text-white placeholder:text-white/30 rounded-lg px-4 pr-12 focus:outline-none focus:border-white/40" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80">{showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button>
-                  </div>
-                </div>
-                <button onClick={handleEmailLogin} disabled={!email || !password || !licenseKey || isPending} className="w-full h-14 md:h-16 text-lg md:text-xl font-bold bg-white text-[#1B2A4A] hover:bg-white/90 disabled:opacity-50 rounded-xl flex items-center justify-center gap-2">
-                  {isPending ? <div className="w-6 h-6 border-4 border-[#1B2A4A]/20 border-t-[#1B2A4A] rounded-full animate-spin" /> : <><span>Sign In</span><ArrowRight className="w-5 h-5" /></>}
-                </button>
+
+          {/* Login Mode Toggle */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setLoginMode('email')}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                loginMode === 'email' 
+                  ? 'bg-white/10 text-white' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Email
+            </button>
+            <button
+              onClick={() => setLoginMode('pin')}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                loginMode === 'pin' 
+                  ? 'bg-white text-[#1B2A4A]' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              PIN
+            </button>
+          </div>
+
+          {/* Email Login Form */}
+          {loginMode === 'email' && (
+            <div className="space-y-4">
+              <div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Email address"
+                />
               </div>
-            )}
-            {activeTab === "pin" && (
-              <div className="space-y-4">
-                <p className="text-center text-white/60 text-sm md:text-base mb-2">Enter your 4-digit staff PIN</p>
-                <div className="flex justify-center gap-3 mb-4">
-                  {[0,1,2,3].map((i) => (
-                    <div key={i} className={`w-12 h-12 md:w-16 md:h-16 rounded-xl flex items-center justify-center transition-all duration-200 ${i === pinIndex ? "bg-white/20 border-2 border-white/40 shadow-lg" : pin[i] ? "bg-white/15 border-2 border-white/30" : "bg-white/5 border-2 border-white/10"}`}>
-                      {pin[i] ? <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-white" /> : <span className="text-white/20 text-lg">{i+1}</span>}
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-3 gap-2 md:gap-3">
-                  {keypadKeys.flat().map((key) => (
-                    <button key={key} onClick={() => handlePinPress(key)} disabled={isPending} className={`h-14 md:h-16 text-white font-bold rounded-xl transition-all active:scale-95 border border-white/20 ${key === "backspace" || key === "clear" ? "bg-white/10 hover:bg-white/20" : "bg-white/15 hover:bg-white/25 text-2xl"} disabled:opacity-30`}>
-                      {isPending && key === "0" ? <div className="w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto" /> : key === "backspace" ? <span className="text-lg md:text-xl font-bold">⌫</span> : key === "clear" ? <span className="text-xs md:text-sm font-bold">CLR</span> : <span className="text-2xl md:text-3xl font-bold">{key}</span>}
-                    </button>
-                  ))}
-                </div>
+              <div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Password"
+                />
               </div>
-            )}
-            {/* Constitution §1.3: Test Mode */}
-            <div className="mt-6 pt-4 border-t border-white/10">
-              <button onClick={() => handleTestMode()} className="w-full py-3 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg flex items-center justify-center gap-2 hover:bg-amber-500/30 transition">
-                <TestTube className="w-4 h-4" />
-                <span className="text-sm font-medium">Test Mode (Constitution §1.3)</span>
+              <button
+                onClick={handleEmailLogin}
+                disabled={login.isPending}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                {login.isPending ? 'Logging in...' : 'Login'}
               </button>
-              <p className="text-xs text-white/30 text-center mt-2">Bypass authentication for development testing</p>
             </div>
-          </div>
-        </div>
-        <div className="mt-8 text-center">
-          <p className="text-sm text-white/40">CORE SYSTEM v2.0 • Secure Authentication</p>
-          <p className="text-xs text-white/30 mt-1">{isOnline ? "Connected to cloud" : "Working offline — sync when connected"}</p>
+          )}
+
+          {/* PIN Login Form */}
+          {loginMode === 'pin' && (
+            <div className="space-y-4">
+              {/* Role Selection - NEW */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Select Role
+                </label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as ValidRole)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="" className="bg-[#1B2A4A]">Select your role</option>
+                  <option value="doctor" className="bg-[#1B2A4A]">Doctor</option>
+                  <option value="receptionist" className="bg-[#1B2A4A]">Receptionist</option>
+                  <option value="clinic_admin" className="bg-[#1B2A4A]">Clinic Admin</option>
+                  <option value="super_admin" className="bg-[#1B2A4A]">Super Admin</option>
+                </select>
+              </div>
+
+              {/* PIN Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2 text-center">
+                  Enter your 4-digit staff PIN
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={enteredPin}
+                  onChange={(e) => setEnteredPin(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-center text-2xl tracking-[0.5em] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="____"
+                />
+              </div>
+
+              <button
+                onClick={handlePinLogin}
+                disabled={login.isPending || !selectedRole || enteredPin.length !== 4}
+                className="w-full py-3 bg-white text-[#1B2A4A] hover:bg-gray-100 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {login.isPending ? 'Verifying...' : 'Login with PIN'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
-      <style>{`@keyframes shake { 0%,100% { transform: translateX(0); } 10%,30%,50%,70%,90% { transform: translateX(-6px); } 20%,40%,60%,80% { transform: translateX(6px); } } .animate-shake { animation: shake 0.4s ease-in-out; }`}</style>
     </div>
   );
 }
