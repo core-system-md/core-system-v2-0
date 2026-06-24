@@ -1,7 +1,7 @@
 // src/core/auth/useAuth.ts
 // Blueprint: src/core/auth/useAuth.ts
 // Purpose: Email + PIN + License validation
-// UPDATED: 2026-06-24 — Added diagnostic logs for validate_pin
+// UPDATED: 2026-06-24 — Fixed validate_license/validate_pin jsonb response + backward compatibility for tenant_id
 
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
@@ -52,9 +52,6 @@ export function useAuth() {
         },
       );
 
-      console.log('🔍 validate_license response:', licenseResult);
-      console.log('🔍 validate_license error:', licenseError);
-
       if (licenseError) {
         throw new Error(`INVALID_LICENSE: ${licenseError.message}`);
       }
@@ -68,14 +65,11 @@ export function useAuth() {
         throw new Error('INVALID_LICENSE: Unexpected response format');
       }
 
-      console.log('🔍 licenseData:', licenseData);
-
       if (!licenseData?.success) {
         throw new Error(`INVALID_LICENSE: ${licenseData?.message || 'License validation failed'}`);
       }
 
       const tenantId = String(licenseData.tenant_id);
-      console.log('🔍 tenantId:', tenantId);
 
       if (!tenantId || tenantId === 'null' || tenantId === 'undefined' || tenantId === '') {
         throw new Error('TENANT_MISSING: Tenant ID was not returned by license validation');
@@ -112,16 +106,20 @@ export function useAuth() {
           tenantId,
         };
 
+        // ✅ Write to core_pin_auth (new format)
         localStorage.setItem(
           PIN_AUTH_KEY,
           JSON.stringify({
             user_id: result.userId,
             full_name: result.fullName,
             role: result.role,
-            tenant_id: tenantId,
+            tenant_id: result.tenantId,
             expiry: Date.now() + PIN_SESSION_DURATION_MS,
           }),
         );
+
+        // ✅ Write tenant_id directly for backward compatibility (DecisionCard.tsx, etc.)
+        localStorage.setItem('tenant_id', result.tenantId);
 
         return result;
       }
@@ -131,11 +129,6 @@ export function useAuth() {
         if (!role?.trim()) {
           throw new Error('ROLE_REQUIRED: Role is required for PIN login (doctor, receptionist, clinic_admin, super_admin)');
         }
-
-        console.log('🔍 === validate_pin request ===');
-        console.log('🔍 tenantId:', tenantId);
-        console.log('🔍 pinCode:', pinCode.trim());
-        console.log('🔍 role:', role.trim());
 
         const { data: pinResult, error: pinError } = await supabase.rpc(
           'validate_pin',
@@ -148,13 +141,7 @@ export function useAuth() {
           },
         );
 
-        console.log('🔍 validate_pin response:', pinResult);
-        console.log('🔍 validate_pin error:', pinError);
-        console.log('🔍 typeof pinResult:', typeof pinResult);
-        console.log('🔍 isArray:', Array.isArray(pinResult));
-
         if (pinError) {
-          console.error('🔍 pinError details:', pinError);
           throw new Error(`INVALID_PIN: ${pinError.message}`);
         }
 
@@ -166,11 +153,6 @@ export function useAuth() {
         } else {
           throw new Error('INVALID_PIN: Unexpected response format');
         }
-
-        console.log('🔍 pinData:', pinData);
-        console.log('🔍 pinData.success:', pinData?.success);
-        console.log('🔍 pinData.user_id:', pinData?.user_id);
-        console.log('🔍 pinData.role:', pinData?.role);
 
         if (!pinData?.success) {
           throw new Error(`INVALID_PIN: ${pinData?.message || 'Incorrect PIN code'}`);
@@ -184,8 +166,7 @@ export function useAuth() {
           tenantId,
         };
 
-        console.log('🔍 LoginResult:', result);
-
+        // ✅ Write to core_pin_auth (new format)
         localStorage.setItem(
           PIN_AUTH_KEY,
           JSON.stringify({
@@ -196,6 +177,9 @@ export function useAuth() {
             expiry: Date.now() + PIN_SESSION_DURATION_MS,
           }),
         );
+
+        // ✅ Write tenant_id directly for backward compatibility (DecisionCard.tsx, DoctorPatientList.tsx, etc.)
+        localStorage.setItem('tenant_id', result.tenantId);
 
         return result;
       }
