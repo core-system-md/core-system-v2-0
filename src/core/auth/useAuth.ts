@@ -1,7 +1,7 @@
 // src/core/auth/useAuth.ts
 // Blueprint: src/core/auth/useAuth.ts
 // Purpose: Email + PIN + License validation
-// UPDATED: 2026-06-24 — Fixed validate_pin to use jsonb params (p_tenant_id, p_pin, p_role)
+// UPDATED: 2026-06-24 — Fixed validate_license to handle jsonb response (not array)
 
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
@@ -12,7 +12,7 @@ interface LoginCredentials {
   password?: string;
   pinCode?: string;
   licenseKey: string;
-  role?: string; // ← REQUIRED for PIN login (doctor, receptionist, clinic_admin, super_admin)
+  role?: string; // ← REQUIRED for PIN login
 }
 
 interface LoginResult {
@@ -42,6 +42,7 @@ export function useAuth() {
       }
 
       // 1. Validate the license and obtain the trusted tenant ID.
+      // validate_license returns jsonb (not rowset/array)
       const { data: licenseResult, error: licenseError } = await supabase.rpc(
         'validate_license',
         {
@@ -56,18 +57,18 @@ export function useAuth() {
         throw new Error(`INVALID_LICENSE: ${licenseError.message}`);
       }
 
-      // validate_license now returns jsonb, not a rowset
+      // licenseResult is jsonb directly (NOT an array)
       const licenseData = licenseResult as any;
 
       if (!licenseData?.success) {
         throw new Error(`INVALID_LICENSE: ${licenseData?.message || 'License key not found'}`);
       }
 
-      if (!licenseData.tenant_id) {
+      const tenantId = String(licenseData.tenant_id);
+
+      if (!tenantId) {
         throw new Error('TENANT_MISSING: Tenant ID was not returned by license validation');
       }
-
-      const tenantId = String(licenseData.tenant_id);
 
       // 2. Email + Password Login
       if (loginEmail?.trim() && password) {
@@ -169,9 +170,7 @@ export function useAuth() {
 
   return {
     login,
-    // New preferred name.
     isPending: login.isPending,
-    // Backward compatibility for existing components such as PinPad.tsx.
     isLoading: login.isPending,
   };
 }
