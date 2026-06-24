@@ -1,6 +1,7 @@
 // src/core/auth/useAuth.ts
 // Blueprint: src/core/auth/useAuth.ts
 // Purpose: Email + PIN + License validation
+// UPDATED: 2026-06-24 — Fixed validate_pin to use jsonb params (p_tenant_id, p_pin, p_role)
 
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
@@ -11,6 +12,7 @@ interface LoginCredentials {
   password?: string;
   pinCode?: string;
   licenseKey: string;
+  role?: string; // ← REQUIRED for PIN login (doctor, receptionist, clinic_admin, super_admin)
 }
 
 interface LoginResult {
@@ -32,6 +34,7 @@ export function useAuth() {
         email: loginEmail,
         password,
         pinCode,
+        role,
       } = credentials;
 
       if (!licenseKey?.trim()) {
@@ -39,38 +42,43 @@ export function useAuth() {
       }
 
       // 1. Validate the license and obtain the trusted tenant ID.
-      const { data: tenantRows, error: tenantError } = await supabase.rpc(
+      const { data: licenseResult, error: licenseError } = await supabase.rpc(
         'validate_license',
-        { p_license_key: licenseKey.trim() },
+        {
+          params: {
+            p_license_key: licenseKey.trim(),
+            p_device_fingerprint: null, // optional
+          },
+        },
       );
 
-      if (tenantError) {
-        throw new Error(`INVALID_LICENSE: ${tenantError.message}`);
+      if (licenseError) {
+        throw new Error(`INVALID_LICENSE: ${licenseError.message}`);
       }
 
-      const tenant = tenantRows?.[0];
+      // validate_license now returns jsonb, not a rowset
+      const licenseData = licenseResult as any;
 
-      if (!tenant) {
-        throw new Error('INVALID_LICENSE: License key not found');
+      if (!licenseData?.success) {
+        throw new Error(`INVALID_LICENSE: ${licenseData?.message || 'License key not found'}`);
       }
 
-      if (!tenant.is_active) {
-        throw new Error('TENANT_SUSPENDED: This clinic account is suspended');
-      }
-
-      const tenantId = String(tenant.id);
-
-      if (!tenantId) {
+      if (!licenseData.tenant_id) {
         throw new Error('TENANT_MISSING: Tenant ID was not returned by license validation');
       }
 
+      const tenantId = String(licenseData.tenant_id);
+
       // 2. Email + Password Login
       if (loginEmail?.trim() && password) {
-        const { data: users, error: validateError } = await supabase.rpc(
+        const { data: authResult, error: validateError } = await supabase.rpc(
           'validate_email_password',
           {
-            p_email: loginEmail.trim(),
-            p_password: password,
+            params: {
+              p_email: loginEmail.trim(),
+              p_password: password,
+              p_tenant_id: tenantId,
+            },
           },
         );
 
@@ -78,17 +86,17 @@ export function useAuth() {
           throw new Error(`AUTH_FAILED: ${validateError.message}`);
         }
 
-        const userProfile = users?.[0];
+        const authData = authResult as any;
 
-        if (!userProfile) {
-          throw new Error('AUTH_FAILED: Invalid email or password');
+        if (!authData?.success) {
+          throw new Error(`AUTH_FAILED: ${authData?.message || 'Invalid email or password'}`);
         }
 
         const result: LoginResult = {
-          userId: String(userProfile.id),
-          email: userProfile.email ?? null,
-          fullName: userProfile.full_name ?? null,
-          role: userProfile.role ?? null,
+          userId: String(authData.user_id),
+          email: loginEmail.trim(),
+          fullName: authData.full_name ?? null,
+          role: authData.role ?? null,
           tenantId,
         };
 
@@ -108,11 +116,18 @@ export function useAuth() {
 
       // 3. PIN Login
       if (pinCode?.trim()) {
-        const { data: pinUserRows, error: pinError } = await supabase.rpc(
+        if (!role?.trim()) {
+          throw new Error('ROLE_REQUIRED: Role is required for PIN login (doctor, receptionist, clinic_admin, super_admin)');
+        }
+
+        const { data: pinResult, error: pinError } = await supabase.rpc(
           'validate_pin',
           {
-            p_tenant_id: tenantId,
-            p_pin_code: pinCode.trim(),
+            params: {
+              p_tenant_id: tenantId,
+              p_pin: pinCode.trim(),
+              p_role: role.trim(),
+            },
           },
         );
 
@@ -120,19 +135,18 @@ export function useAuth() {
           throw new Error(`INVALID_PIN: ${pinError.message}`);
         }
 
-        const pinUser = pinUserRows?.[0];
+        const pinData = pinResult as any;
 
-        if (!pinUser) {
-          throw new Error('INVALID_PIN: Incorrect PIN code');
+        if (!pinData?.success) {
+          throw new Error(`INVALID_PIN: ${pinData?.message || 'Incorrect PIN code'}`);
         }
 
         const result: LoginResult = {
-          userId: String(pinUser.id),
+          userId: String(pinData.user_id),
           email: null,
-          fullName: pinUser.full_name ?? null,
-          role: pinUser.role ?? null,
-          // RPC result is authoritative after successful PIN validation.
-          tenantId: String(pinUser.tenant_id),
+          fullName: pinData.full_name ?? null,
+          role: pinData.role ?? null,
+          tenantId,
         };
 
         localStorage.setItem(
