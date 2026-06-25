@@ -2,11 +2,10 @@
 // dateTime.ts — CORE SYSTEM v2.1
 // Constitution §7: Asia/Amman, YYYY-MM-DD, 24-hour HH:mm
 // Purpose: All timezone-aware date formatting
+// FIXED: 2026-06-25 — Removed unused constants
 // ============================================================
 
 const TIMEZONE = 'Asia/Amman';
-const DATE_FORMAT = 'YYYY-MM-DD';
-const TIME_FORMAT = 'HH:mm';
 
 /**
  * Format date to YYYY-MM-DD (Amman timezone)

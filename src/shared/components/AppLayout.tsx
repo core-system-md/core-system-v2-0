@@ -1,7 +1,7 @@
 // ============================================================
 // AppLayout.tsx — CORE SYSTEM v2.1
 // Blueprint: Layout with sidebar, header, RTL, theme #1B2A4A
-// FIXED: 2026-06-25 — No external deps, uses lucide-react only
+// FIXED: 2026-06-25 — charAt(0) fix for TypeScript strict mode
 // ============================================================
 
 import { useState } from "react";
@@ -193,7 +193,7 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
         </div>
         <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
           <span className="text-sm font-bold">
-            {(fullName || "?")[0].toUpperCase()}
+            {(fullName || "?").charAt(0).toUpperCase()}
           </span>
         </div>
       </div>
