@@ -1,72 +1,99 @@
-// src/shared/utils/dateTime.ts
-// All timestamps formatted for Asia/Amman (UTC+3, DST-aware)
+// ============================================================
+// dateTime.ts — CORE SYSTEM v2.1
+// Constitution §7: Asia/Amman, YYYY-MM-DD, 24-hour HH:mm
+// Purpose: All timezone-aware date formatting
+// ============================================================
 
-export const DEFAULT_TIMEZONE = 'Asia/Amman';
+const TIMEZONE = 'Asia/Amman';
+const DATE_FORMAT = 'YYYY-MM-DD';
+const TIME_FORMAT = 'HH:mm';
 
 /**
- * Format ISO timestamp to Amman local display
+ * Format date to YYYY-MM-DD (Amman timezone)
  */
-export function formatToAmman(
-  isoTimestamp: string | Date,
-  options?: Intl.DateTimeFormatOptions
-): string {
-  const d = typeof isoTimestamp === 'string' ? new Date(isoTimestamp) : isoTimestamp;
-  
-  return d.toLocaleString('ar-JO', {
-    timeZone: DEFAULT_TIMEZONE,
+export function formatDate(date: Date | string | null): string {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('en-JO', {
+    timeZone: TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+  }).split('/').reverse().join('-');
+}
+
+/**
+ * Format time to HH:mm (24-hour, Amman timezone)
+ */
+export function formatTime(date: Date | string | null): string {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleTimeString('en-JO', {
+    timeZone: TIMEZONE,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-    ...options,
   });
 }
 
 /**
- * Format to compact date only (for invoices, reports)
+ * Format date + time together
  */
-export function formatDateAmman(isoTimestamp: string | Date): string {
-  return formatToAmman(isoTimestamp, {
-    hour: undefined,
-    minute: undefined,
-  });
+export function formatDateTime(date: Date | string | null): string {
+  if (!date) return '';
+  return `${formatDate(date)} ${formatTime(date)}`;
 }
 
 /**
- * Calculate SLA wait time in minutes from check-in to now
+ * Parse YYYY-MM-DD string to Date object (Amman timezone)
  */
-export function calculateWaitMinutes(checkInAt: string): number {
-  const checkIn = new Date(checkInAt);
+export function parseDate(dateStr: string): Date {
+  return new Date(dateStr + 'T00:00:00+03:00'); // +03:00 for Amman
+}
+
+/**
+ * Get current timestamp in Amman timezone
+ */
+export function nowAmman(): Date {
   const now = new Date();
-  return Math.floor((now.getTime() - checkIn.getTime()) / (1000 * 60));
+  return new Date(now.toLocaleString('en-US', { timeZone: TIMEZONE }));
 }
 
 /**
- * Check if a timestamp is within business hours (8AM–8PM Amman)
+ * Calculate difference in minutes between two dates
  */
-export function isWithinBusinessHours(isoTimestamp: string): boolean {
-  const d = new Date(isoTimestamp);
-  const hour = parseInt(d.toLocaleString('en-US', { timeZone: DEFAULT_TIMEZONE, hour: 'numeric', hour12: false }));
-  return hour >= 8 && hour < 20;
+export function diffMinutes(start: Date | string, end: Date | string): number {
+  const s = typeof start === 'string' ? new Date(start) : start;
+  const e = typeof end === 'string' ? new Date(end) : end;
+  return Math.round((e.getTime() - s.getTime()) / (1000 * 60));
 }
 
 /**
- * Add minutes to a timestamp, return ISO string
+ * Add minutes to a date
  */
-export function addMinutes(isoTimestamp: string, minutes: number): string {
-  const d = new Date(isoTimestamp);
-  d.setMinutes(d.getMinutes() + minutes);
-  return d.toISOString();
+export function addMinutes(date: Date, minutes: number): Date {
+  return new Date(date.getTime() + minutes * 60 * 1000);
 }
 
 /**
- * Format duration for display: "45 دقيقة"
+ * Check if date is today (Amman timezone)
  */
-export function formatDurationMinutes(minutes: number): string {
-  if (minutes < 60) return `${minutes} دقيقة`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h} ساعة ${m} دقيقة` : `${h} ساعة`;
+export function isToday(date: Date | string): boolean {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const today = nowAmman();
+  return formatDate(d) === formatDate(today);
+}
+
+/**
+ * Format for display in Arabic locale
+ */
+export function formatDateArabic(date: Date | string | null): string {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('ar-JO', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 }

@@ -1,45 +1,72 @@
-// src/shared/utils/scoreDisplay.ts
-// Backend (0–1000) to Display (0–100.0) conversion
+// ============================================================
+// scoreDisplay.ts — CORE SYSTEM v2.1
+// Constitution §4.3: Backend 0-1000 → Display 0.0-100.0
+// Purpose: Convert backend score to display format
+// ============================================================
 
 /**
- * Convert backend precision score to display value
- * backend 1000 → display 100.0
- * backend 750 → display 75.0
+ * Convert backend score (0-1000) to display score (0.0-100.0)
  */
 export function backendToDisplay(backend: number): number {
-  const clamped = Math.max(0, Math.min(1000, backend));
-  return Math.round((clamped / 10) * 10) / 10; // 1 decimal place
+  return Math.round((backend / 10.0) * 10) / 10; // Round to 1 decimal
 }
 
 /**
- * Convert display value back to backend (for form inputs)
+ * Convert display score (0.0-100.0) to backend score (0-1000)
  */
 export function displayToBackend(display: number): number {
-  const clamped = Math.max(0, Math.min(100, display));
-  return Math.round(clamped * 10);
+  return Math.round(display * 10);
 }
 
 /**
- * Get color class for SLA radar / score badges
+ * Get color class based on display score
+ * Constitution SLA: Green <15min, Yellow 15-24min, Red >=25min
+ * Score colors: Hot Lead (90+), Qualified (80+), High (60+), Medium (40+), Low (<40)
  */
 export function getScoreColorClass(display: number): string {
-  if (display >= 90) return 'text-emerald-600 bg-emerald-50'; // hot_lead
-  if (display >= 80) return 'text-green-600 bg-green-50';     // qualified
-  if (display >= 60) return 'text-blue-600 bg-blue-50';      // high_priority
-  if (display >= 40) return 'text-amber-600 bg-amber-50';    // medium_priority
-  return 'text-slate-500 bg-slate-50';                       // low_priority
+  if (display >= 90) return 'text-red-500';      // hot_lead
+  if (display >= 80) return 'text-orange-500';     // qualified
+  if (display >= 60) return 'text-yellow-500';     // high_priority
+  if (display >= 40) return 'text-blue-400';       // medium_priority
+  return 'text-gray-400';                          // low_priority
 }
 
 /**
- * Get Arabic label for patient class
+ * Get background color class based on display score
  */
-export function getPatientClassLabel(classType: string): string {
-  const labels: Record<string, string> = {
-    low_priority: 'أولوية منخفضة',
-    medium_priority: 'أولوية متوسطة',
-    high_priority: 'أولوية عالية',
-    qualified: 'مؤهل',
-    hot_lead: 'عميل ساخن',
+export function getScoreBgClass(display: number): string {
+  if (display >= 90) return 'bg-red-500/20 border-red-500/30';
+  if (display >= 80) return 'bg-orange-500/20 border-orange-500/30';
+  if (display >= 60) return 'bg-yellow-500/20 border-yellow-500/30';
+  if (display >= 40) return 'bg-blue-500/20 border-blue-500/30';
+  return 'bg-gray-500/20 border-gray-500/30';
+}
+
+/**
+ * Get patient class label in Arabic
+ */
+export function getPatientClassLabel(display: number): string {
+  if (display >= 90) return 'عميل ساخن';
+  if (display >= 80) return 'مؤهل';
+  if (display >= 60) return 'أولوية عالية';
+  if (display >= 40) return 'أولوية متوسطة';
+  return 'أولوية منخفضة';
+}
+
+/**
+ * Format display score with Arabic label
+ */
+export function formatScoreDisplay(backend: number): {
+  display: number;
+  label: string;
+  colorClass: string;
+  bgClass: string;
+} {
+  const display = backendToDisplay(backend);
+  return {
+    display,
+    label: getPatientClassLabel(display),
+    colorClass: getScoreColorClass(display),
+    bgClass: getScoreBgClass(display),
   };
-  return labels[classType] || classType;
 }

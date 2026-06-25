@@ -1,86 +1,62 @@
-// src/shared/utils/currency.ts
-// Currency conversion: INTEGER subunits ↔ human display
-// CRITICAL: Never use FLOAT for money. Always INTEGER.
+// ============================================================
+// currency.ts — CORE SYSTEM v2.1
+// Constitution §7: JOD (1 JOD = 1000 fils), NO FLOAT
+// Purpose: Convert between display (JOD) and storage (fils)
+// ============================================================
 
-import type { CurrencyReference } from '../types/database';
+const SUBUNIT_PER_JOD = 1000;
+const CURRENCY_SYMBOL = 'JOD';
 
 /**
- * Convert INTEGER subunits to human-readable display string
- * Example: 10000 subunits + JOD (1000) → "10.000"
- * Example: 10000 subunits + SAR (100) → "100.00"
+ * Convert fils (integer subunits) to display string
+ * Example: 25500 → "25.500 JOD"
  */
-export function subunitsToDisplay(
-  subunits: number,
-  currency: CurrencyReference
-): string {
-  const { subunit: divisor, decimal_places, symbol, code } = currency;
-  
-  const raw = subunits / divisor;
-  const formatted = raw.toFixed(decimal_places);
-  
-  // RTL-aware for Arabic currencies
-  const isArabic = ['JOD', 'SAR', 'EGP', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'TND', 'LBP', 'IQD', 'MAD', 'YER', 'SYP', 'SDG'].includes(code);
-  
-  if (isArabic && symbol) {
-    return `${formatted} ${symbol}`;
-  }
-  
-  return `${symbol || code}${formatted}`;
+export function subunitsToDisplay(subunits: number): string {
+  const jod = subunits / SUBUNIT_PER_JOD;
+  return `${jod.toFixed(3)} ${CURRENCY_SYMBOL}`;
 }
 
 /**
- * Convert human display input to INTEGER subunits
- * Example: "10.000" + JOD (1000) → 10000
- * Example: "100.50" + SAR (100) → 10050
+ * Convert display string to fils (integer subunits)
+ * Example: "25.500" → 25500
+ * SAFE: No floating point accumulation
  */
-export function displayToSubunits(
-  displayValue: string,
-  currency: CurrencyReference
-): number {
-  const { subunit: multiplier } = currency;
-  
-  // Remove currency symbols and whitespace
-  const clean = displayValue.replace(/[^\d.-]/g, '');
-  const floatVal = parseFloat(clean);
-  
-  if (isNaN(floatVal)) {
-    throw new Error(`Invalid currency value: ${displayValue}`);
-  }
-  
-  return Math.round(floatVal * multiplier);
+export function displayToSubunits(display: string | number): number {
+  const num = typeof display === 'string' ? parseFloat(display.replace(/[^0-9.]/g, '')) : display;
+  return Math.round(num * SUBUNIT_PER_JOD);
 }
 
 /**
- * Quick formatter for JOD (legacy fallback, not preferred)
- * Use subunitsToDisplay with full CurrencyReference instead
+ * Format subunits for input fields (3 decimal places)
  */
-export function filsToJod(fils: number): string {
-  return (fils / 1000).toFixed(3);
+export function subunitsToInputValue(subunits: number): string {
+  return (subunits / SUBUNIT_PER_JOD).toFixed(3);
 }
 
 /**
- * Calculate balance after payment
- * All inputs must be INTEGER subunits
+ * Add two monetary values in subunits (safe integer arithmetic)
  */
-export function calculateBalance(
-  totalSubunits: number,
-  paidSubunits: number
-): number {
-  return Math.max(0, totalSubunits - paidSubunits);
+export function addSubunits(a: number, b: number): number {
+  return a + b; // Integer addition is safe
 }
 
 /**
- * Verify triangulation: 80% minimum payment threshold
+ * Subtract two monetary values in subunits
  */
-export function isTriangulationMet(
-  paidSubunits: number,
-  totalSubunits: number,
-  doctorConfirmed: boolean,
-  receptionCollected: boolean
-): boolean {
-  return (
-    doctorConfirmed &&
-    receptionCollected &&
-    paidSubunits >= Math.round(totalSubunits * 0.80)
-  );
+export function subtractSubunits(a: number, b: number): number {
+  return a - b;
+}
+
+/**
+ * Multiply subunits by a factor (round to nearest fils)
+ */
+export function multiplySubunits(subunits: number, factor: number): number {
+  return Math.round(subunits * factor);
+}
+
+/**
+ * Calculate percentage of subunits (for discounts/tax)
+ */
+export function percentageOfSubunits(subunits: number, percent: number): number {
+  return Math.round(subunits * (percent / 100));
 }

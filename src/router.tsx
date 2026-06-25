@@ -1,134 +1,89 @@
-// ============================================================
-// CORE SYSTEM v2.1 — Router Configuration
-// Constitution §6 (Roles): super_admin, clinic_admin, doctor, receptionist
-// ============================================================
-
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/infrastructure/supabase/client';
+import { useAuth } from '@/core/auth/AuthProvider';
 import AuthScreen from '@/components/AuthScreen';
-
 import DoctorPatientList from '@/components/doctor/DoctorPatientList';
 import DecisionCard from '@/features/doctor/DecisionCard';
 
-// ── Helper: Read PIN auth from localStorage ─────────────────
-function getPinAuth(): { role: string | null; tenant_id: string | null } {
-  try {
-    const pinData = localStorage.getItem('core_pin_auth');
-    if (pinData) {
-      const parsed = JSON.parse(pinData);
-      // Check expiry
-      if (parsed.expiry && Date.now() > parsed.expiry) {
-        localStorage.removeItem('core_pin_auth');
-        return { role: null, tenant_id: null };
-      }
-      return {
-        role: parsed.role || null,
-        tenant_id: parsed.tenant_id || null
-      };
-    }
-  } catch {
-    // Invalid JSON
-  }
-  return { role: null, tenant_id: null };
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-[#0f172a]">
+      <div className="animate-spin h-8 w-8 border-4 border-white border-t-transparent rounded-full" />
+    </div>
+  );
 }
 
-// ── Auth Guard ────────────────────────────────────────────
-function AuthGuard({ children, allowedRoles }: { 
-  children: React.ReactNode; 
-  allowedRoles: string[] 
-}) {
+function AuthGuard({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) {
+  const { isLoading, isAuthenticated, isPinAuthenticated, userRole, role, tenantId } = useAuth();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      // 1. Check PIN auth first (core_pin_auth JSON)
-      const { role: pinRole, tenant_id } = getPinAuth();
-      if (pinRole && tenant_id) {
-        setAuthorized(allowedRoles.includes(pinRole));
-        return;
-      }
+    if (isLoading) return;
+    const isAuth = isAuthenticated || isPinAuthenticated;
+    if (!isAuth || !tenantId) { setAuthorized(false); return; }
+    setAuthorized(allowedRoles.includes((userRole || role) || ''));
+  }, [isLoading, isAuthenticated, isPinAuthenticated, userRole, role, tenantId, allowedRoles]);
 
-      // 2. Fallback to Supabase Auth
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setAuthorized(false);
-        return;
-      }
-
-      const { data: userData } = await supabase
-        .from('clinic_users')
-        .select('role')
-        .eq('auth_id', user.id)
-        .single();
-
-      setAuthorized(allowedRoles.includes(userData?.role || ''));
-    };
-
-    checkAuth();
-  }, [allowedRoles]);
-
-  if (authorized === null) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin h-8 w-8 border-4 border-[#1B2A4A] border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  if (!authorized) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (isLoading || authorized === null) return <LoadingSpinner />;
+  if (!authorized) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
-// ── DecisionCard Wrapper ────────────────────────────────────
-function DecisionCardWrapper() {
-  const [valid, setValid] = useState<boolean | null>(null);
-
+function LayoutWrapper() {
+  const [LayoutComponent, setLayoutComponent] = useState<any>(null);
   useEffect(() => {
-    const { role: pinRole, tenant_id } = getPinAuth();
-    const isValid = !!tenant_id && (pinRole === 'doctor' || pinRole === 'receptionist' || pinRole === 'clinic_admin' || pinRole === 'super_admin');
-    setValid(isValid);
+    import('@/shared/components/AppLayout').then((mod) => {
+      setLayoutComponent(() => mod.AppLayout);
+    }).catch(() => {
+      setLayoutComponent(() => ({ children }: { children: React.ReactNode }) => (
+        <div className="min-h-screen bg-[#0f172a] text-white" dir="rtl">{children}</div>
+      ));
+    });
   }, []);
-
-  if (valid === null) return null;
-  if (!valid) return <Navigate to="/login" replace />;
-  
-  return <DecisionCard />;
+  if (!LayoutComponent) return <LoadingSpinner />;
+  const Layout = LayoutComponent;
+  return <Layout><Outlet /></Layout>;
 }
 
-// ── Router Definition ───────────────────────────────────────
 export const router = createBrowserRouter([
+  { path: '/', element: <Navigate to="/login" replace /> },
+  { path: '/login', element: <AuthScreen /> },
   {
-    path: '/',
-    element: <Navigate to="/login" replace />
+    element: <LayoutWrapper />,
+    children: [
+      {
+        path: '/doctor',
+        element: <AuthGuard allowedRoles={['doctor', 'receptionist', 'clinic_admin', 'super_admin']}>
+          <DoctorPatientList />
+        </AuthGuard>
+      },
+      {
+        path: '/doctor/session/:id',
+        element: <AuthGuard allowedRoles={['doctor', 'receptionist', 'clinic_admin', 'super_admin']}>
+          <DecisionCard />
+        </AuthGuard>
+      },
+      {
+        path: '/receptionist',
+        element: <AuthGuard allowedRoles={['receptionist', 'clinic_admin', 'super_admin']}>
+          <div className="p-8 text-white text-center"><h1 className="text-2xl font-bold mb-4">لوحة الاستقبال</h1><p className="text-white/60">جاري التطوير...</p></div>
+        </AuthGuard>
+      },
+      {
+        path: '/clinic_admin',
+        element: <AuthGuard allowedRoles={['clinic_admin', 'super_admin']}>
+          <div className="p-8 text-white text-center"><h1 className="text-2xl font-bold mb-4">لوحة تحكم العيادة</h1><p className="text-white/60">جاري التطوير...</p></div>
+        </AuthGuard>
+      },
+      {
+        path: '/super_admin',
+        element: <AuthGuard allowedRoles={['super_admin']}>
+          <div className="p-8 text-white text-center"><h1 className="text-2xl font-bold mb-4">لوحة تحكم النظام</h1><p className="text-white/60">جاري التطوير...</p></div>
+        </AuthGuard>
+      },
+    ]
   },
-  {
-    path: '/login',
-    element: <AuthScreen />
-  },
-  {
-    path: '/doctor',
-    element: (
-      <AuthGuard allowedRoles={['doctor', 'receptionist', 'clinic_admin', 'super_admin']}>
-        <DoctorPatientList />
-      </AuthGuard>
-    )
-  },
-  {
-    path: '/doctor/session/:id',
-    element: (
-      <AuthGuard allowedRoles={['doctor', 'receptionist', 'clinic_admin', 'super_admin']}>
-        <DecisionCardWrapper />
-      </AuthGuard>
-    )
-  },
-  {
-    path: '*',
-    element: <Navigate to="/login" replace />
-  }
+  { path: '*', element: <Navigate to="/login" replace /> }
 ]);
 
 export default router;
