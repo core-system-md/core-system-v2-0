@@ -62,7 +62,7 @@ function getPinAuthData() {
       tenant_id: parsed.tenant_id || null,
       expiry: parsed.expiry || null,
     };
-  } catch {
+n  } catch {
     return { user_id: null, role: null, full_name: null, tenant_id: null, expiry: null };
   }
 }
@@ -75,12 +75,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pinExpiry, setPinExpiry] = useState<number | null>(null);
   const [pinRole, setPinRole] = useState<string | null>(null);
   const [pinTenantId, setPinTenantId] = useState<string | null>(null);
+  const [storageVersion, setStorageVersion] = useState(0);
 
   const tenantIdFromSession = getFromAppMeta(session, "tenant_id");
   const tenantIdFromStorage = getTenantIdFromLocalStorage();
   const tenantId = tenantIdFromSession || tenantIdFromStorage || pinTenantId;
   const userRole = getFromAppMeta(session, "user_role") || pinRole;
   const isAuthenticated = !!user || isPinAuthenticated;
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === PIN_AUTH_KEY || e.key === LEGACY_TENANT_KEY) {
+        console.log("[AuthProvider] localStorage changed:", e.key);
+        setStorageVersion(v => v + 1);
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  useEffect(() => {
+    const pinData = getPinAuthData();
+    if (pinData.expiry && Date.now() < pinData.expiry) {
+      setIsPinAuthenticated(true);
+      setPinExpiry(pinData.expiry);
+      setPinRole(pinData.role);
+      setPinTenantId(pinData.tenant_id);
+    } else if (pinData.expiry && Date.now() >= pinData.expiry) {
+      localStorage.removeItem(PIN_AUTH_KEY);
+      setIsPinAuthenticated(false);
+      setPinExpiry(null);
+      setPinRole(null);
+      setPinTenantId(null);
+    }
+  }, [storageVersion]);
 
   useEffect(() => {
     const init = async () => {
@@ -95,12 +123,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setPinExpiry(pinData.expiry);
         setPinRole(pinData.role);
         setPinTenantId(pinData.tenant_id);
-      } else if (pinData.expiry && Date.now() >= pinData.expiry) {
-        localStorage.removeItem(PIN_AUTH_KEY);
-        setIsPinAuthenticated(false);
-        setPinExpiry(null);
-        setPinRole(null);
-        setPinTenantId(null);
       }
       setIsLoading(false);
     };
@@ -172,6 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPinExpiry(expiry);
     setPinRole(pinData.role);
     setPinTenantId(currentTenantId);
+    setStorageVersion(v => v + 1);
 
     return { success: true, role: pinData.role };
   };
