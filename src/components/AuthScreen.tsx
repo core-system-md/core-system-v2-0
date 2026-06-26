@@ -78,7 +78,7 @@ export default function AuthScreen() {
     localStorage.setItem('auth_pin', pin);
     localStorage.setItem('auth_timestamp', Date.now().toString());
 
-    toast.success('تم تسجيل الدخول كـ ' + roleConfig.label);
+    toast.success(`تم تسجيل الدخول كـ ${roleConfig.label}`);
     setLoading(false);
 
     switch (selectedRole) {
@@ -170,7 +170,7 @@ export default function AuthScreen() {
                       onClick={() => selectRole(role.id)}
                       className="flex flex-col items-center p-4 border-2 border-gray-200 rounded-xl hover:border-[#1B2A4A] hover:bg-blue-50 transition-all"
                     >
-                      <div className={'w-12 h-12 ' + role.color + ' rounded-lg flex items-center justify-center mb-2'}>
+                      <div className={`w-12 h-12 ${role.color} rounded-lg flex items-center justify-center mb-2`}>
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                       <span className="text-sm font-medium text-gray-800">{role.label}</span>
@@ -190,7 +190,7 @@ export default function AuthScreen() {
               </div>
               <div className="flex justify-center gap-3">
                 {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className={'w-14 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ' + (i < pin.length ? 'border-[#1B2A4A] bg-[#1B2A4A] text-white' : 'border-gray-300 text-gray-300')}>
+                  <div key={i} className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${i < pin.length ? 'border-[#1B2A4A] bg-[#1B2A4A] text-white' : 'border-gray-300 text-gray-300'}`}>
                     {i < pin.length ? '•' : ''}
                   </div>
                 ))}
