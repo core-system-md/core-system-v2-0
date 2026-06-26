@@ -1,6 +1,6 @@
 // ============================================================
 // CORE SYSTEM v2.1 — DoctorPatientList
-// Constitution §2.6 (tenant_id), §4.2 (Core Score), §5 (SLA)
+// FIXED: 2026-06-26 — session_status instead of status
 // ============================================================
 
 import { useEffect, useState } from 'react';
@@ -21,7 +21,7 @@ interface Patient {
 
 interface SessionInfo {
   id: string;
-  status: string;
+  session_status: string;
   created_at: string;
   patient_id: string;
 }
@@ -57,7 +57,7 @@ export default function DoctorPatientList() {
             tenant_id,
             clinic_visit_sessions (
               id,
-              status,
+              session_status,
               created_at,
               patient_id
             )
@@ -70,7 +70,7 @@ export default function DoctorPatientList() {
 
         const mappedPatients: PatientWithSession[] = (data || []).map((p: any) => {
           const sessions = p.clinic_visit_sessions as SessionInfo[] | null;
-          const activeSession = sessions?.find(s => s.status !== 'closed') || null;
+          const activeSession = sessions?.find(s => s.session_status !== 'completed' && s.session_status !== 'cancelled') || null;
           
           return {
             id: p.id,
@@ -169,14 +169,14 @@ export default function DoctorPatientList() {
               {patient.active_session && (
                 <div className="mt-3 flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full ${
-                    patient.active_session.status === 'waiting' ? 'bg-yellow-400' :
-                    patient.active_session.status === 'in_progress' ? 'bg-green-500' :
+                    patient.active_session.session_status === 'waiting' ? 'bg-yellow-400' :
+                    patient.active_session.session_status === 'in_consultation' ? 'bg-green-500' :
                     'bg-gray-400'
                   }`} />
                   <span className="text-xs text-gray-500">
-                    {patient.active_session.status === 'waiting' ? 'في الانتظار' :
-                     patient.active_session.status === 'in_progress' ? 'جارية' :
-                     patient.active_session.status}
+                    {patient.active_session.session_status === 'waiting' ? 'في الانتظار' :
+                     patient.active_session.session_status === 'in_consultation' ? 'جارية' :
+                     patient.active_session.session_status}
                   </span>
                 </div>
               )}
