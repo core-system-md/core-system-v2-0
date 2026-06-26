@@ -1,11 +1,12 @@
 // ============================================================
 // AuthScreen.tsx — CORE SYSTEM v2.1
-// FIXED: 2026-06-26 — Uses AuthProvider.signInWithPin() directly
+// FINAL FIX: 2026-06-26 — validate_license → store tenant_id → signInWithPin → navigate
 // ============================================================
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/core/auth/AuthProvider";
+import { supabase } from "@/infrastructure/supabase/client";
 import { Shield, Mail, KeyRound, UserCircle } from "lucide-react";
 
 const ROLES = [
@@ -29,21 +30,72 @@ export default function AuthScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // STEP 1: Validate license to get tenantId
+  const validateLicense = async (): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.rpc("validate_license", {
+        params: { p_license_key: licenseKey.trim(), p_device_fingerprint: null },
+      });
+
+      if (error) {
+        console.error("[AuthScreen] License RPC error:", error);
+        return null;
+      }
+
+      let licenseData: any;
+      if (data && typeof data === "object") {
+        licenseData = data.data !== undefined ? data.data : data;
+      } else if (Array.isArray(data) && data.length > 0) {
+        licenseData = data[0];
+      }
+
+      if (!licenseData?.success) {
+        console.error("[AuthScreen] License validation failed:", licenseData?.message);
+        return null;
+      }
+
+      const tenantId = String(licenseData.tenant_id);
+      if (!tenantId || tenantId === "null" || tenantId === "undefined") {
+        console.error("[AuthScreen] Invalid tenantId in license response");
+        return null;
+      }
+
+      // CRITICAL: Store tenantId BEFORE calling signInWithPin
+      localStorage.setItem("tenant_id", tenantId);
+      console.log("[AuthScreen] License validated, tenantId stored:", tenantId);
+      return tenantId;
+    } catch (err) {
+      console.error("[AuthScreen] License validation exception:", err);
+      return null;
+    }
+  };
+
   const handlePinLogin = async () => {
     setError(null);
     setIsLoading(true);
 
     try {
-      // CRITICAL FIX: Use AuthProvider.signInWithPin() directly
+      // STEP 1: Validate license (stores tenantId in localStorage)
+      const tenantId = await validateLicense();
+      if (!tenantId) {
+        setError("فشل التحقق من الترخيص. تأكد من مفتاح الترخيص.");
+        setIsLoading(false);
+        return;
+      }
+
+      // STEP 2: Call signInWithPin (reads tenantId from localStorage)
+      console.log("[AuthScreen] Calling signInWithPin with role:", selectedRole);
       const result = await signInWithPin(pin, selectedRole);
 
       if (result.success && result.role) {
         console.log("[AuthScreen] PIN login success, navigating to:", `/${result.role}`);
-        navigate(`/${result.role}`);
+        // STEP 3: Force navigation with replace to prevent back-button to login
+        navigate(`/${result.role}`, { replace: true });
       } else {
         setError(result.error || "فشل تسجيل الدخول");
       }
     } catch (err) {
+      console.error("[AuthScreen] Login error:", err);
       setError(err instanceof Error ? err.message : "خطأ غير متوقع");
     } finally {
       setIsLoading(false);
@@ -53,10 +105,9 @@ export default function AuthScreen() {
   const handleEmailLogin = async () => {
     setError(null);
     setIsLoading(true);
-
     try {
       await signInWithEmail(email, password);
-      navigate("/doctor");
+      navigate("/doctor", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "فشل تسجيل الدخول");
     } finally {
@@ -164,7 +215,7 @@ export default function AuthScreen() {
                 />
                 {currentRole && (
                   <p className="text-white/30 text-xs mt-2 text-center">
-                    Test PIN for {currentRole.label}: {currentRole.pin}
+                    Test PIN: {currentRole.pin}
                   </p>
                 )}
               </div>
@@ -175,61 +226,28 @@ export default function AuthScreen() {
                 disabled={isLoading || pin.length !== 4}
                 className="w-full bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/30 text-white font-medium py-3 rounded-lg transition-colors"
               >
-                {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    جاري تسجيل الدخول...
-                  </span>
-                ) : (
-                  "تسجيل الدخول"
-                )}
+                {isLoading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
               </button>
             </>
           ) : (
             <>
-              {/* Email Input */}
               <div className="mb-4">
                 <label className="block text-white/70 text-sm mb-2">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
-                  placeholder="doctor@clinic.com"
-                />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30" />
               </div>
-
-              {/* Password Input */}
               <div className="mb-6">
                 <label className="block text-white/70 text-sm mb-2">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
-                  placeholder="••••••••"
-                />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30" />
               </div>
-
-              {/* Login Button */}
-              <button
-                onClick={handleEmailLogin}
-                disabled={isLoading || !email || !password}
-                className="w-full bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/30 text-white font-medium py-3 rounded-lg transition-colors"
-              >
-                {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    جاري تسجيل الدخول...
-                  </span>
-                ) : (
-                  "تسجيل الدخول"
-                )}
+              <button onClick={handleEmailLogin} disabled={isLoading || !email || !password}
+                className="w-full bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/30 text-white font-medium py-3 rounded-lg transition-colors">
+                {isLoading ? "جاري..." : "تسجيل الدخول"}
               </button>
             </>
           )}
 
-          {/* Error */}
           {error && (
             <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
               <p className="text-red-300 text-sm text-center">{error}</p>
@@ -237,10 +255,7 @@ export default function AuthScreen() {
           )}
         </div>
 
-        {/* Footer */}
-        <p className="text-white/30 text-xs text-center mt-6">
-          CORE SYSTEM v2.1 — All Rights Reserved
-        </p>
+        <p className="text-white/30 text-xs text-center mt-6">CORE SYSTEM v2.1</p>
       </div>
     </div>
   );
