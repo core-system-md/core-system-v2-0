@@ -1,6 +1,6 @@
 // ============================================================
 // CORE SYSTEM v2.1 — DoctorPatientList
-// FIXED: 2026-06-26 — session_status instead of status
+// FIXED: 2026-06-26 — phone_primary instead of phone
 // ============================================================
 
 import { useEffect, useState } from 'react';
@@ -13,7 +13,7 @@ import { SlaTimer } from '@/shared/components/ui/SlaTimer';
 interface Patient {
   id: string;
   full_name: string;
-  phone: string | null;
+  phone_primary: string | null;
   core_score_display: number | null;
   disc_profile: string | null;
   tenant_id: string;
@@ -51,7 +51,7 @@ export default function DoctorPatientList() {
           .select(`
             id,
             full_name,
-            phone,
+            phone_primary,
             core_score_display,
             disc_profile,
             tenant_id,
@@ -75,7 +75,7 @@ export default function DoctorPatientList() {
           return {
             id: p.id,
             full_name: p.full_name,
-            phone: p.phone,
+            phone_primary: p.phone_primary,
             core_score_display: p.core_score_display,
             disc_profile: p.disc_profile,
             tenant_id: p.tenant_id,
@@ -145,7 +145,7 @@ export default function DoctorPatientList() {
                     {patient.full_name}
                   </h2>
                   <p className="text-gray-500 text-sm mt-1">
-                    {patient.phone || 'لا يوجد هاتف'}
+                    {patient.phone_primary || 'لا يوجد هاتف'}
                   </p>
                   {patient.disc_profile && (
                     <span className="inline-block mt-2 px-2 py-0.5 bg-blue-100 text-blue-800 
