@@ -4,12 +4,6 @@
 // Core platform layer
 export * from './core';
 
-// Domain data layer
-export * from './domain';
-
-// Feature modules (UI screens)
-export * from './features';
-
 // Shared utilities — Explicit exports to avoid ambiguity
 export { 
   backendToDisplay, 
@@ -28,5 +22,8 @@ export {
   SUBUNIT_RATIO 
 } from './shared/utils/currency';
 
-// Note: PatientClass type is exported from scoreDisplay.ts only
-// Do NOT export * from './shared/utils' to avoid duplicate identifiers
+// Infrastructure
+export * from './infrastructure';
+
+// Types
+export * from './shared/types';
