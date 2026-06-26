@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
-import { useAuth } from '@/core/auth/AuthProvider';
 import { Shield, ToggleLeft, ToggleRight, Info, Save, RefreshCw } from 'lucide-react';
 
 interface FeatureFlag {
@@ -35,7 +34,6 @@ const PRESET_FLAGS = [
 ];
 
 export default function FeatureFlagManager() {
-  const { userRole } = useAuth();
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenant, setSelectedTenant] = useState<string>('global');

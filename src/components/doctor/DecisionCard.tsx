@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import CoreScoreMeter from '@/shared/components/ui/CoreScoreMeter';
 import SlaTimer from '@/shared/components/ui/SlaTimer';
-import { ArrowRight, Save, CheckCircle, FileText, Stethoscope } from 'lucide-react';
+import { ArrowRight, Save, CheckCircle, FileText, Calculator, RefreshCw } from 'lucide-react';
 
 interface SessionData {
   id: string;
@@ -38,6 +38,8 @@ interface LongitudinalData {
   total_visits: number;
   total_revenue_subunits: number;
   loyalty_tier: string;
+  historical_core_score_avg: number | null;
+  last_visit_date: string | null;
 }
 
 const PAR_OPTIONS = [
@@ -46,6 +48,16 @@ const PAR_OPTIONS = [
   { value: 'deferred', label: 'مؤجل', color: 'bg-yellow-500/20 text-yellow-400' },
   { value: 'rejection', label: 'رفض', color: 'bg-red-500/20 text-red-400' },
 ] as const;
+
+// Default indicator values for demo/testing
+const DEFAULT_INDICATORS = {
+  APS: 850,
+  DRI: 800,
+  RVS: 750,
+  URI: 700,
+  TSI: 650,
+  PQS: 300
+};
 
 export default function DecisionCard() {
   const { id } = useParams<{ id: string }>();
@@ -57,6 +69,17 @@ export default function DecisionCard() {
   const [notes, setNotes] = useState('');
   const [selectedPar, setSelectedPar] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [calculating, setCalculating] = useState(false);
+
+  // Indicator inputs for score calculation
+  const [indicators, setIndicators] = useState({
+    APS: DEFAULT_INDICATORS.APS,
+    DRI: DEFAULT_INDICATORS.DRI,
+    RVS: DEFAULT_INDICATORS.RVS,
+    URI: DEFAULT_INDICATORS.URI,
+    TSI: DEFAULT_INDICATORS.TSI,
+    PQS: DEFAULT_INDICATORS.PQS
+  });
 
   useEffect(() => { if (id) fetchSessionData(); }, [id]);
 
@@ -73,6 +96,14 @@ export default function DecisionCard() {
       setNotes(sessionData.doctor_notes || '');
       setSelectedPar(sessionData.par_result);
 
+      // Load existing indicators if available
+      if (sessionData.score_aps) setIndicators(prev => ({ ...prev, APS: sessionData.score_aps }));
+      if (sessionData.score_dri) setIndicators(prev => ({ ...prev, DRI: sessionData.score_dri }));
+      if (sessionData.score_rvs) setIndicators(prev => ({ ...prev, RVS: sessionData.score_rvs }));
+      if (sessionData.score_uri) setIndicators(prev => ({ ...prev, URI: sessionData.score_uri }));
+      if (sessionData.score_tsi) setIndicators(prev => ({ ...prev, TSI: sessionData.score_tsi }));
+      if (sessionData.score_pqs) setIndicators(prev => ({ ...prev, PQS: sessionData.score_pqs }));
+
       const { data: patientData, error: patientError } = await supabase
         .from('clinic_patients').select('id, full_name, phone_primary, date_of_birth, gender')
         .eq('id', sessionData.patient_id).eq('tenant_id', tenant_id).single();
@@ -80,7 +111,7 @@ export default function DecisionCard() {
       setPatient(patientData);
 
       const { data: longData, error: longError } = await supabase
-        .from('patient_longitudinal_profiles').select('dominant_disc_profile, total_visits, total_revenue_subunits, loyalty_tier')
+        .from('patient_longitudinal_profiles').select('dominant_disc_profile, total_visits, total_revenue_subunits, loyalty_tier, historical_core_score_avg, last_visit_date')
         .eq('patient_id', sessionData.patient_id).eq('tenant_id', tenant_id).single();
       if (longError && longError.code !== 'PGRST116') throw longError;
       setLongitudinal(longData);
@@ -105,6 +136,49 @@ export default function DecisionCard() {
       toast.error(err.message || 'فشل في الحفظ');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Constitution §4: Core Score Calculation via Edge Function
+  const handleCalculateScore = async () => {
+    if (!id || !session) return;
+
+    setCalculating(true);
+    try {
+      const tenant_id = localStorage.getItem('tenant_id');
+
+      // Call Edge Function score-calculator
+      const { data, error } = await supabase.functions.invoke('score-calculator', {
+        body: {
+          indicators: {
+            APS: indicators.APS,
+            DRI: indicators.DRI,
+            RVS: indicators.RVS,
+            URI: indicators.URI,
+            TSI: indicators.TSI,
+            PQS: indicators.PQS
+          },
+          historicalAvg: longitudinal?.historical_core_score_avg,
+          lastVisitDate: longitudinal?.last_visit_date,
+          sessionId: id,
+          tenantId: tenant_id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success(`تم حساب Core Score: ${data.display} (${data.patientClass})`);
+        // Refresh session data to show updated score
+        fetchSessionData();
+      } else {
+        throw new Error(data?.error || 'فشل في حساب الدرجة');
+      }
+    } catch (err: any) {
+      console.error('Score calculation error:', err);
+      toast.error(err.message || 'فشل في حساب Core Score');
+    } finally {
+      setCalculating(false);
     }
   };
 
@@ -144,6 +218,7 @@ export default function DecisionCard() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto" dir="rtl">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <button onClick={() => navigate('/doctor')} className="flex items-center gap-2 text-white/50 hover:text-white transition-colors">
           <ArrowRight className="w-5 h-5" /> <span>العودة للقائمة</span>
@@ -151,6 +226,7 @@ export default function DecisionCard() {
         <SlaTimer createdAt={session.created_at} />
       </div>
 
+      {/* Patient Info */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
         <div className="flex items-start justify-between">
           <div>
@@ -178,30 +254,57 @@ export default function DecisionCard() {
         )}
       </div>
 
+      {/* Score Calculation Section — Constitution §4 */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <Stethoscope className="w-5 h-5 text-blue-400" /> تفاصيل التقييم
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Calculator className="w-5 h-5 text-blue-400" /> حساب Core Score
+          </h2>
+          <button onClick={handleCalculateScore} disabled={calculating}
+            className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 disabled:bg-white/5 text-blue-400 rounded-lg transition-colors flex items-center gap-2">
+            <RefreshCw className={`w-4 h-4 ${calculating ? 'animate-spin' : ''}`} />
+            {calculating ? 'جاري الحساب...' : 'حساب الدرجة'}
+          </button>
+        </div>
+
+        <p className="text-white/50 text-sm mb-4">Constitution §4: Formula MUST be in Backend (Edge Function)</p>
+
+        <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'APS', value: session.score_aps, weight: '28%' },
-            { label: 'DRI', value: session.score_dri, weight: '24%' },
-            { label: 'RVS', value: session.score_rvs, weight: '20%' },
-            { label: 'URI', value: session.score_uri, weight: '15%' },
-            { label: 'TSI', value: session.score_tsi, weight: '13%' },
-            { label: 'PQS', value: session.score_pqs, weight: 'Penalty' },
+            { label: 'APS', key: 'APS' as const, weight: '28%' },
+            { label: 'DRI', key: 'DRI' as const, weight: '24%' },
+            { label: 'RVS', key: 'RVS' as const, weight: '20%' },
+            { label: 'URI', key: 'URI' as const, weight: '15%' },
+            { label: 'TSI', key: 'TSI' as const, weight: '13%' },
+            { label: 'PQS', key: 'PQS' as const, weight: 'Penalty' },
           ].map((indicator) => (
             <div key={indicator.label} className="bg-white/5 rounded-lg p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-white/50 text-sm">{indicator.label}</span>
                 <span className="text-white/30 text-xs">{indicator.weight}</span>
               </div>
-              <span className="text-white font-bold text-lg">{indicator.value !== null ? indicator.value : '—'}</span>
+              <input 
+                type="number" 
+                min="0" 
+                max="1000"
+                value={indicators[indicator.key]}
+                onChange={(e) => setIndicators(prev => ({ ...prev, [indicator.key]: Number(e.target.value) }))}
+                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white text-center focus:outline-none focus:border-white/30"
+              />
             </div>
           ))}
         </div>
+
+        {session.core_score_backend && (
+          <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <p className="text-green-400 text-sm">
+              ✓ آخر درجة محسوبة: <strong>{session.core_score_display}</strong> ({session.patient_class})
+            </p>
+          </div>
+        )}
       </div>
 
+      {/* PAR Decision */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold text-white mb-4">قرار القبول (PAR)</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -214,6 +317,7 @@ export default function DecisionCard() {
         </div>
       </div>
 
+      {/* Clinical Notes */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <FileText className="w-5 h-5 text-yellow-400" /> ملاحظات طبية
@@ -223,6 +327,7 @@ export default function DecisionCard() {
           placeholder="اكتب ملاحظاتك الطبية هنا..." />
       </div>
 
+      {/* Actions */}
       <div className="flex gap-3">
         <button onClick={handleSave} disabled={saving}
           className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
