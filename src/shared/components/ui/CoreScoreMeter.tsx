@@ -1,71 +1,37 @@
-// ============================================
-// CoreScoreMeter.tsx
-// Sacred: Displays Core Score with color coding per Constitution §4.2 + §5
-// Backend scale: 0-1000 | Display scale: 0.0-100.0
-// ============================================
-import React from 'react';
+import { classifyPatient, getClassColors } from '@/shared/utils/scoreDisplay';
 
 interface CoreScoreMeterProps {
-  score: number;
+  backendScore: number | null;
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
 }
 
-const scoreConfig = {
-  hot_lead: { min: 90.0, color: '#22c55e', label: 'VIP' },
-  qualified: { min: 80.0, color: '#3b82f6', label: 'مؤهل' },
-  high_priority: { min: 60.0, color: '#eab308', label: 'أولوية' },
-  medium_priority: { min: 40.0, color: '#f97316', label: 'متوسط' },
-  low_priority: { min: 0.0, color: '#ef4444', label: 'عادي' },
-};
+export default function CoreScoreMeter({ backendScore, size = 'md', showLabel = true }: CoreScoreMeterProps) {
+  if (backendScore === null || backendScore === undefined) {
+    return <span className="text-white/30 text-sm">—</span>;
+  }
 
-function getScoreClass(score: number): keyof typeof scoreConfig {
-  if (score >= 90.0) return 'hot_lead';
-  if (score >= 80.0) return 'qualified';
-  if (score >= 60.0) return 'high_priority';
-  if (score >= 40.0) return 'medium_priority';
-  return 'low_priority';
-}
+  const displayScore = Math.round((backendScore / 10) * 10) / 10;
+  const classification = classifyPatient(displayScore);
+  const colors = getClassColors(classification);
 
-export const CoreScoreMeter: React.FC<CoreScoreMeterProps> = ({
-  score,
-  size = 'md',
-  showLabel = true,
-}) => {
-  const config = scoreConfig[getScoreClass(score)];
-  
   const sizeClasses = {
-    sm: 'w-12 h-12 text-sm',
-    md: 'w-20 h-20 text-lg',
-    lg: 'w-28 h-28 text-2xl',
+    sm: { score: 'text-lg', label: 'text-xs', padding: 'px-2 py-1' },
+    md: { score: 'text-xl', label: 'text-sm', padding: 'px-3 py-1.5' },
+    lg: { score: 'text-2xl', label: 'text-base', padding: 'px-4 py-2' }
   };
-
-  const circumference = 2 * Math.PI * 40;
-  const progress = (score / 100) * circumference;
+  const sizes = sizeClasses[size];
 
   return (
-    <div className="flex flex-col items-center gap-2" dir="rtl">
-      <div className={`relative ${sizeClasses[size]} flex items-center justify-center`}>
-        <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="8" />
-          <circle
-            cx="50" cy="50" r="40" fill="none"
-            stroke={config.color}
-            strokeWidth="8"
-            strokeDasharray={`${progress} ${circumference}`}
-            strokeLinecap="round"
-            className="transition-all duration-500"
-          />
-        </svg>
-        <span className="absolute font-bold" style={{ color: config.color }}>
-          {score.toFixed(1)}
-        </span>
-      </div>
+    <div className={`inline-flex items-center gap-2 rounded-lg ${colors.bg} ${sizes.padding}`}>
+      <span className={`font-bold ${colors.text} ${sizes.score}`}>
+        {displayScore.toFixed(1)}
+      </span>
       {showLabel && (
-        <span className="text-sm font-medium" style={{ color: config.color }}>
-          {config.label}
+        <span className={`${colors.text} ${sizes.label} opacity-70`}>
+          {classification}
         </span>
       )}
     </div>
   );
-};
+}

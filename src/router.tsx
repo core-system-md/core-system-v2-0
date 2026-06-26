@@ -1,8 +1,3 @@
-// ============================================================
-// CORE SYSTEM v2.1 — Router Configuration
-// FINAL FIX: 2026-06-26 — AuthGuard reads localStorage directly
-// ============================================================
-
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/core/auth/AuthProvider';
@@ -22,20 +17,16 @@ function LoadingSpinner() {
   );
 }
 
-// ── CRITICAL FIX: AuthGuard reads localStorage DIRECTLY ───
 function AuthGuard({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) {
   const { isLoading, isAuthenticated, isPinAuthenticated, userRole, role } = useAuth();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (isLoading) return;
-
-    // CRITICAL: Read from localStorage DIRECTLY (not from context)
     const localTenantId = localStorage.getItem('tenant_id');
     const localPinData = localStorage.getItem('core_pin_auth');
     let localRole = null;
     let hasLocalAuth = false;
-
     if (localPinData) {
       try {
         const parsed = JSON.parse(localPinData);
@@ -45,30 +36,15 @@ function AuthGuard({ children, allowedRoles }: { children: React.ReactNode; allo
         }
       } catch { /* ignore */ }
     }
-
-    // Use context OR localStorage (localStorage is the source of truth)
-    const effectiveTenantId = localTenantId; // Always use localStorage for tenantId
+    const effectiveTenantId = localTenantId;
     const effectiveRole = userRole || role || localRole;
     const isAuth = isAuthenticated || isPinAuthenticated || hasLocalAuth;
 
-    console.log('[AuthGuard] Check:', { 
-      isAuth, 
-      effectiveTenantId, 
-      effectiveRole, 
-      allowedRoles,
-      localTenantId: !!localTenantId,
-      hasLocalAuth 
-    });
-
     if (!isAuth || !effectiveTenantId) {
-      console.log('[AuthGuard] ❌ DENIED — missing auth or tenantId');
       setAuthorized(false);
       return;
     }
-
-    const isAllowed = allowedRoles.includes(effectiveRole || '');
-    console.log('[AuthGuard]', isAllowed ? '✅ ALLOWED' : '❌ ROLE DENIED', effectiveRole);
-    setAuthorized(isAllowed);
+    setAuthorized(allowedRoles.includes(effectiveRole || ''));
   }, [isLoading, isAuthenticated, isPinAuthenticated, userRole, role, allowedRoles]);
 
   if (isLoading || authorized === null) return <LoadingSpinner />;

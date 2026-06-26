@@ -1,47 +1,43 @@
-// ============================================================
-// CORE SYSTEM v2.1 — SlaTimer
-// Constitution §5 (SLA): Green <15min, Yellow 15-24min, Red >=25min
-// ============================================================
-
 import { useEffect, useState } from 'react';
+import { Clock } from 'lucide-react';
 
 interface SlaTimerProps {
-  created_at: string;
+  createdAt: string;
+  size?: 'sm' | 'md';
 }
 
-export function SlaTimer({ created_at }: SlaTimerProps) {
-  const [elapsed, setElapsed] = useState('');
+export default function SlaTimer({ createdAt, size = 'md' }: SlaTimerProps) {
+  const [minutes, setMinutes] = useState(0);
 
   useEffect(() => {
-    const start = new Date(created_at).getTime();
-    
-    const update = () => {
+    const calculateMinutes = () => {
+      const created = new Date(createdAt).getTime();
       const now = Date.now();
-      const diffMinutes = Math.floor((now - start) / 60000);
-      
-      let label = 'آمن';
-      
-      if (diffMinutes >= 25) {
-        label = 'تجاوز';
-      } else if (diffMinutes >= 15) {
-        label = 'تحذير';
-      }
-      
-      setElapsed(`${diffMinutes}د ${label}`);
+      const diff = Math.max(0, Math.floor((now - created) / 60000));
+      setMinutes(diff);
     };
-
-    update();
-    const interval = setInterval(update, 60000);
+    calculateMinutes();
+    const interval = setInterval(calculateMinutes, 60000);
     return () => clearInterval(interval);
-  }, [created_at]);
+  }, [createdAt]);
+
+  let colorClass = 'text-green-400';
+  let bgClass = 'bg-green-500/20';
+  let label = 'آمن';
+  if (minutes >= 25) { colorClass = 'text-red-400'; bgClass = 'bg-red-500/20'; label = 'تجاوز'; }
+  else if (minutes >= 15) { colorClass = 'text-yellow-400'; bgClass = 'bg-yellow-500/20'; label = 'تحذير'; }
+
+  const sizeClasses = {
+    sm: { icon: 'w-3 h-3', text: 'text-xs', padding: 'px-2 py-0.5' },
+    md: { icon: 'w-4 h-4', text: 'text-sm', padding: 'px-3 py-1' }
+  };
+  const sizes = sizeClasses[size];
 
   return (
-    <span className={`inline-flex items-center px-2 py-1 rounded text-sm font-medium ${
-      elapsed.includes('تجاوز') ? 'bg-red-100 text-red-800' :
-      elapsed.includes('تحذير') ? 'bg-yellow-100 text-yellow-800' :
-      'bg-green-100 text-green-800'
-    }`}>
-      ⏱️ {elapsed}
-    </span>
+    <div className={`inline-flex items-center gap-1.5 rounded-lg ${bgClass} ${sizes.padding}`}>
+      <Clock className={`${sizes.icon} ${colorClass}`} />
+      <span className={`font-mono font-medium ${colorClass} ${sizes.text}`}>{minutes}د</span>
+      <span className={`${colorClass} ${sizes.text} opacity-70`}>{label}</span>
+    </div>
   );
 }

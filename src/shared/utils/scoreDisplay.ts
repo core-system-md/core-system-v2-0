@@ -1,72 +1,50 @@
-// ============================================================
-// scoreDisplay.ts — CORE SYSTEM v2.1
-// Constitution §4.3: Backend 0-1000 → Display 0.0-100.0
-// Purpose: Convert backend score to display format
-// ============================================================
-
 /**
- * Convert backend score (0-1000) to display score (0.0-100.0)
+ * CORE SYSTEM v2.1 — scoreDisplay.ts
+ * CONSTITUTION §2.3: Backend 0-1000 → Display 0.0-100.0
+ * DISPLAY = ROUND(BACKEND / 10.0, 1)
  */
-export function backendToDisplay(backend: number): number {
-  return Math.round((backend / 10.0) * 10) / 10; // Round to 1 decimal
+
+export function backendToDisplay(backendScore: number | null): number | null {
+  if (backendScore === null || backendScore === undefined) return null;
+  const clamped = Math.max(0, Math.min(1000, backendScore));
+  return Math.round((clamped / 10) * 10) / 10;
 }
 
-/**
- * Convert display score (0.0-100.0) to backend score (0-1000)
- */
-export function displayToBackend(display: number): number {
-  return Math.round(display * 10);
+export function displayToBackend(displayScore: number | null): number | null {
+  if (displayScore === null || displayScore === undefined) return null;
+  const backend = Math.round(displayScore * 10);
+  return Math.max(0, Math.min(1000, backend));
 }
 
-/**
- * Get color class based on display score
- * Constitution SLA: Green <15min, Yellow 15-24min, Red >=25min
- * Score colors: Hot Lead (90+), Qualified (80+), High (60+), Medium (40+), Low (<40)
- */
-export function getScoreColorClass(display: number): string {
-  if (display >= 90) return 'text-red-500';      // hot_lead
-  if (display >= 80) return 'text-orange-500';     // qualified
-  if (display >= 60) return 'text-yellow-500';     // high_priority
-  if (display >= 40) return 'text-blue-400';       // medium_priority
-  return 'text-gray-400';                          // low_priority
+export type PatientClass = 'hot_lead' | 'qualified' | 'high_priority' | 'medium_priority' | 'low_priority';
+
+export function classifyPatient(displayScore: number | null): PatientClass {
+  if (displayScore === null) return 'low_priority';
+  if (displayScore >= 90) return 'hot_lead';
+  if (displayScore >= 80) return 'qualified';
+  if (displayScore >= 60) return 'high_priority';
+  if (displayScore >= 40) return 'medium_priority';
+  return 'low_priority';
 }
 
-/**
- * Get background color class based on display score
- */
-export function getScoreBgClass(display: number): string {
-  if (display >= 90) return 'bg-red-500/20 border-red-500/30';
-  if (display >= 80) return 'bg-orange-500/20 border-orange-500/30';
-  if (display >= 60) return 'bg-yellow-500/20 border-yellow-500/30';
-  if (display >= 40) return 'bg-blue-500/20 border-blue-500/30';
-  return 'bg-gray-500/20 border-gray-500/30';
-}
-
-/**
- * Get patient class label in Arabic
- */
-export function getPatientClassLabel(display: number): string {
-  if (display >= 90) return 'عميل ساخن';
-  if (display >= 80) return 'مؤهل';
-  if (display >= 60) return 'أولوية عالية';
-  if (display >= 40) return 'أولوية متوسطة';
-  return 'أولوية منخفضة';
-}
-
-/**
- * Format display score with Arabic label
- */
-export function formatScoreDisplay(backend: number): {
-  display: number;
-  label: string;
-  colorClass: string;
-  bgClass: string;
-} {
-  const display = backendToDisplay(backend);
-  return {
-    display,
-    label: getPatientClassLabel(display),
-    colorClass: getScoreColorClass(display),
-    bgClass: getScoreBgClass(display),
+export function getClassLabel(className: PatientClass): string {
+  const labels: Record<PatientClass, string> = {
+    hot_lead: 'فرصة ساخنة',
+    qualified: 'مؤهل',
+    high_priority: 'أولوية عالية',
+    medium_priority: 'أولوية متوسطة',
+    low_priority: 'أولوية منخفضة'
   };
+  return labels[className] || className;
+}
+
+export function getClassColors(className: PatientClass): { text: string; bg: string } {
+  const colors: Record<PatientClass, { text: string; bg: string }> = {
+    hot_lead: { text: 'text-red-400', bg: 'bg-red-500/20' },
+    qualified: { text: 'text-orange-400', bg: 'bg-orange-500/20' },
+    high_priority: { text: 'text-yellow-400', bg: 'bg-yellow-500/20' },
+    medium_priority: { text: 'text-blue-400', bg: 'bg-blue-500/20' },
+    low_priority: { text: 'text-gray-400', bg: 'bg-gray-500/20' }
+  };
+  return colors[className] || colors.low_priority;
 }
