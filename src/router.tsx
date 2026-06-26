@@ -9,6 +9,7 @@ import SimpleInvoice from '@/features/doctor/SimpleInvoice';
 import ReceptionDashboard from '@/features/reception/ReceptionDashboard';
 import ClinicAdminDashboard from '@/features/clinic-admin/ClinicAdminDashboard';
 import SuperAdminDashboard from '@/features/super-admin/SuperAdminDashboard';
+import FeatureFlagManager from '@/features/super-admin/FeatureFlagManager';
 
 function LoadingSpinner() {
   return (
@@ -73,6 +74,7 @@ export const router = createBrowserRouter([
       { path: '/receptionist', element: <AuthGuard allowedRoles={['receptionist','clinic_admin','super_admin']}><ReceptionDashboard /></AuthGuard> },
       { path: '/clinic_admin', element: <AuthGuard allowedRoles={['clinic_admin','super_admin']}><ClinicAdminDashboard /></AuthGuard> },
       { path: '/super_admin', element: <AuthGuard allowedRoles={['super_admin']}><SuperAdminDashboard /></AuthGuard> },
+      { path: '/super_admin/features', element: <AuthGuard allowedRoles={['super_admin']}><FeatureFlagManager /></AuthGuard> },
     ]
   },
   { path: '*', element: <Navigate to="/login" replace /> }

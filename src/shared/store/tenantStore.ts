@@ -1,50 +1,78 @@
 import { create } from 'zustand';
-
-export type SubscriptionTier = 'trial' | 'essential' | 'professional' | 'enterprise' | 'suspended';
-
-export interface TenantConfig {
-  id: string;
-  name: string;
-  nameAr: string | null;
-  slug: string;
-  licenseKey: string;
-  subscriptionTier: SubscriptionTier;
-  maxDevices: number;
-  maxUsers: number;
-  maxPatients: number;
-  maxProceduresPerMonth: number;
-  timezone: string;
-  currency: string;
-  currencySubunit: number;
-  primaryColor: string;
-  logoUrl: string | null;
-  isActive: boolean;
-  settings: Record<string, any>;
-  [key: string]: any;
-}
+import { supabase } from '@/infrastructure/supabase/client';
 
 interface TenantState {
   tenantId: string | null;
-  tenantName: string | null;
+  clinicName: string | null;
+  subscriptionTier: string;
   primaryColor: string;
-  subscriptionTier: SubscriptionTier | null;
-  config: TenantConfig | null;
-  setTenantId: (id: string | null) => void;
-  setTenantName: (name: string | null) => void;
-  setPrimaryColor: (color: string) => void;
-  setSubscriptionTier: (tier: SubscriptionTier | null) => void;
-  setConfig: (config: TenantConfig | null) => void;
+  logoUrl: string | null;
+  isLoading: boolean;
+  error: string | null;
+
+  // Actions
+  fetchTenant: () => Promise<void>;
+  setTenantId: (id: string) => void;
+  clearTenant: () => void;
 }
 
-export const useTenantStore = create<TenantState>()((set) => ({
+export const useTenantStore = create<TenantState>((set, get) => ({
   tenantId: null,
-  tenantName: null,
+  clinicName: null,
+  subscriptionTier: 'trial',
   primaryColor: '#1B2A4A',
-  subscriptionTier: null,
-  config: null,
-  setTenantId: (id) => set({ tenantId: id }),
-  setTenantName: (name) => set({ tenantName: name }),
-  setPrimaryColor: (color) => set({ primaryColor: color }),
-  setSubscriptionTier: (tier) => set({ subscriptionTier: tier }),
-  setConfig: (config) => set({ config }),
+  logoUrl: null,
+  isLoading: false,
+  error: null,
+
+  fetchTenant: async () => {
+    const { tenantId } = get();
+    if (!tenantId) return;
+
+    set({ isLoading: true, error: null });
+
+    try {
+      const { data, error } = await supabase
+        .from('master_tenants')
+        .select('id, clinic_name, subscription_tier, primary_color, logo_url')
+        .eq('id', tenantId)
+        .is('deleted_at', null)
+        .single();
+
+      if (error) throw error;
+
+      set({
+        clinicName: data?.clinic_name || null,
+        subscriptionTier: data?.subscription_tier || 'trial',
+        primaryColor: data?.primary_color || '#1B2A4A',
+        logoUrl: data?.logo_url || null,
+        isLoading: false,
+        error: null
+      });
+
+    } catch (err: any) {
+      console.error('[tenantStore] Fetch error:', err);
+      set({ 
+        error: err.message, 
+        isLoading: false,
+        subscriptionTier: 'trial' // Fallback to safest tier
+      });
+    }
+  },
+
+  setTenantId: (id: string) => {
+    set({ tenantId: id });
+    get().fetchTenant();
+  },
+
+  clearTenant: () => {
+    set({
+      tenantId: null,
+      clinicName: null,
+      subscriptionTier: 'trial',
+      primaryColor: '#1B2A4A',
+      logoUrl: null,
+      error: null
+    });
+  }
 }));

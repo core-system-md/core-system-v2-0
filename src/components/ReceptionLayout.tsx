@@ -10,7 +10,7 @@ export function ReceptionLayout() {
   const navigate = useNavigate();
 
   const { fullName, role, logout } = useAuthContext();
-  const { tenantName, primaryColor } = useTenantStore();
+  const { clinicName, primaryColor } = useTenantStore();
 
   const navItems = [
     { path: "/reception", icon: Users, label: "Queue" },
@@ -42,8 +42,8 @@ export function ReceptionLayout() {
           <Building2 className="w-6 h-6 text-white/90 mr-3" />
           <div className="flex flex-col">
             <span className="text-lg font-bold text-white leading-tight">CORE</span>
-            {tenantName && (
-              <span className="text-xs text-white/50 truncate max-w-[140px]">{tenantName}</span>
+            {clinicName && (
+              <span className="text-xs text-white/50 truncate max-w-[140px]">{clinicName}</span>
             )}
           </div>
         </div>
