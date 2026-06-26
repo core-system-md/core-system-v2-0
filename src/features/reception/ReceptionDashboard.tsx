@@ -236,6 +236,7 @@ export default function ReceptionDashboard() {
       if (agendaError) throw agendaError;
 
       // Step 3: Create visit session (opens the "gate" for doctor)
+      const { data: userData } = await supabase.auth.getUser();
       const { error: sessionError } = await supabase
         .from('clinic_visit_sessions')
         .insert({
@@ -244,7 +245,7 @@ export default function ReceptionDashboard() {
           doctor_id: bookingForm.doctorId,
           agenda_event_id: agendaEvent.id,
           session_status: 'waiting',
-          initialized_by_receptionist: (await supabase.auth.getUser()).data.user?.id,
+          initialized_by_receptionist: userData.user?.id,
           is_insured: false
         });
 
