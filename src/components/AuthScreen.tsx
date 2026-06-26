@@ -68,14 +68,12 @@ export default function AuthScreen() {
       return;
     }
 
-    // For demo: direct PIN comparison (production: hash comparison)
     if (pin !== roleConfig.pin) {
       toast.error('PIN غير صحيح');
       setLoading(false);
       return;
     }
 
-    // Store auth state
     localStorage.setItem('auth_role', selectedRole);
     localStorage.setItem('auth_pin', pin);
     localStorage.setItem('auth_timestamp', Date.now().toString());
@@ -83,22 +81,12 @@ export default function AuthScreen() {
     toast.success(`تم تسجيل الدخول كـ ${roleConfig.label}`);
     setLoading(false);
 
-    // Navigate based on role
     switch (selectedRole) {
-      case 'doctor':
-        navigate('/doctor');
-        break;
-      case 'receptionist':
-        navigate('/receptionist');
-        break;
-      case 'clinic_admin':
-        navigate('/clinic_admin');
-        break;
-      case 'super_admin':
-        navigate('/super_admin');
-        break;
-      default:
-        navigate('/doctor');
+      case 'doctor': navigate('/doctor'); break;
+      case 'receptionist': navigate('/receptionist'); break;
+      case 'clinic_admin': navigate('/clinic_admin'); break;
+      case 'super_admin': navigate('/super_admin'); break;
+      default: navigate('/doctor');
     }
   }
 
@@ -112,7 +100,6 @@ export default function AuthScreen() {
     }
   }
 
-  // Check existing auth
   useEffect(() => {
     const existingRole = localStorage.getItem('auth_role');
     const existingTimestamp = localStorage.getItem('auth_timestamp');
@@ -132,7 +119,6 @@ export default function AuthScreen() {
   return (
     <div className="min-h-screen bg-[#1B2A4A] flex items-center justify-center" dir="rtl">
       <div className="max-w-md w-full mx-4">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <Shield className="w-10 h-10 text-[#1B2A4A]" />
@@ -141,7 +127,6 @@ export default function AuthScreen() {
           <p className="text-blue-200 mt-2">نظام إدارة العيادات الطبية</p>
         </div>
 
-        {/* Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           {step === 'license' && (
             <div className="space-y-6">
@@ -149,11 +134,8 @@ export default function AuthScreen() {
                 <h2 className="text-xl font-bold text-[#1B2A4A]">التفعيل</h2>
                 <p className="text-gray-500 mt-1">أدخل مفتاح الترخيص للمتابعة</p>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  مفتاح الترخيص
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">مفتاح الترخيص</label>
                 <input
                   type="text"
                   value={licenseKey}
@@ -163,7 +145,6 @@ export default function AuthScreen() {
                   dir="ltr"
                 />
               </div>
-
               <button
                 onClick={validateLicense}
                 disabled={loading}
@@ -180,7 +161,6 @@ export default function AuthScreen() {
                 <h2 className="text-xl font-bold text-[#1B2A4A]">اختيار الدور</h2>
                 <p className="text-gray-500 mt-1">اختر الدور للدخول</p>
               </div>
-
               <div className="grid grid-cols-2 gap-3">
                 {ROLES.map((role) => {
                   const Icon = role.icon;
@@ -198,13 +178,7 @@ export default function AuthScreen() {
                   );
                 })}
               </div>
-
-              <button
-                onClick={() => setStep('license')}
-                className="w-full text-gray-500 py-2 text-sm hover:text-gray-700"
-              >
-                رجوع
-              </button>
+              <button onClick={() => setStep('license')} className="w-full text-gray-500 py-2 text-sm hover:text-gray-700">رجوع</button>
             </div>
           )}
 
@@ -212,26 +186,15 @@ export default function AuthScreen() {
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-xl font-bold text-[#1B2A4A]">رمز PIN</h2>
-                <p className="text-gray-500 mt-1">
-                  أدخل رمز PIN الخاص بـ {ROLES.find(r => r.id === selectedRole)?.label}
-                </p>
+                <p className="text-gray-500 mt-1">أدخل رمز PIN الخاص بـ {ROLES.find(r => r.id === selectedRole)?.label}</p>
               </div>
-
               <div className="flex justify-center gap-3">
                 {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                      i < pin.length
-                        ? 'border-[#1B2A4A] bg-[#1B2A4A] text-white'
-                        : 'border-gray-300 text-gray-300'
-                    }`}
-                  >
+                  <div key={i} className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${i < pin.length ? 'border-[#1B2A4A] bg-[#1B2A4A] text-white' : 'border-gray-300 text-gray-300'}`}>
                     {i < pin.length ? '•' : ''}
                   </div>
                 ))}
               </div>
-
               <input
                 type="password"
                 inputMode="numeric"
@@ -244,21 +207,12 @@ export default function AuthScreen() {
                 autoFocus
                 dir="ltr"
               />
-
-              <button
-                onClick={() => setStep('role')}
-                className="w-full text-gray-500 py-2 text-sm hover:text-gray-700"
-              >
-                رجوع
-              </button>
+              <button onClick={() => setStep('role')} className="w-full text-gray-500 py-2 text-sm hover:text-gray-700">رجوع</button>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-blue-200 text-sm mt-6">
-          CORE SYSTEM v2.1 — Constitution Compliant
-        </p>
+        <p className="text-center text-blue-200 text-sm mt-6">CORE SYSTEM v2.1 — Constitution Compliant</p>
       </div>
     </div>
   );
