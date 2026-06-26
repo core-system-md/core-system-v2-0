@@ -5,6 +5,7 @@ import { AppLayout } from '@/shared/components/AppLayout';
 import AuthScreen from '@/components/AuthScreen';
 import DoctorPatientList from '@/components/doctor/DoctorPatientList';
 import DecisionCard from '@/components/doctor/DecisionCard';
+import SimpleInvoice from '@/features/doctor/SimpleInvoice';
 import ReceptionDashboard from '@/features/reception/ReceptionDashboard';
 import ClinicAdminDashboard from '@/features/clinic-admin/ClinicAdminDashboard';
 import SuperAdminDashboard from '@/features/super-admin/SuperAdminDashboard';
@@ -68,6 +69,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/doctor', element: <AuthGuard allowedRoles={['doctor','receptionist','clinic_admin','super_admin']}><DoctorPatientList /></AuthGuard> },
       { path: '/doctor/session/:id', element: <AuthGuard allowedRoles={['doctor','receptionist','clinic_admin','super_admin']}><DecisionCard /></AuthGuard> },
+      { path: '/doctor/invoice/:sessionId', element: <AuthGuard allowedRoles={['doctor','receptionist','clinic_admin','super_admin']}><SimpleInvoice /></AuthGuard> },
       { path: '/receptionist', element: <AuthGuard allowedRoles={['receptionist','clinic_admin','super_admin']}><ReceptionDashboard /></AuthGuard> },
       { path: '/clinic_admin', element: <AuthGuard allowedRoles={['clinic_admin','super_admin']}><ClinicAdminDashboard /></AuthGuard> },
       { path: '/super_admin', element: <AuthGuard allowedRoles={['super_admin']}><SuperAdminDashboard /></AuthGuard> },
