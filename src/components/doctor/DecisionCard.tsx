@@ -96,13 +96,15 @@ export default function DecisionCard() {
       setNotes(sessionData.doctor_notes || '');
       setSelectedPar(sessionData.par_result);
 
-      // Load existing indicators if available
-      if (sessionData.score_aps) setIndicators(prev => ({ ...prev, APS: sessionData.score_aps }));
-      if (sessionData.score_dri) setIndicators(prev => ({ ...prev, DRI: sessionData.score_dri }));
-      if (sessionData.score_rvs) setIndicators(prev => ({ ...prev, RVS: sessionData.score_rvs }));
-      if (sessionData.score_uri) setIndicators(prev => ({ ...prev, URI: sessionData.score_uri }));
-      if (sessionData.score_tsi) setIndicators(prev => ({ ...prev, TSI: sessionData.score_tsi }));
-      if (sessionData.score_pqs) setIndicators(prev => ({ ...prev, PQS: sessionData.score_pqs }));
+      // Load existing indicators from session OR use defaults
+      setIndicators({
+        APS: sessionData.score_aps ?? DEFAULT_INDICATORS.APS,
+        DRI: sessionData.score_dri ?? DEFAULT_INDICATORS.DRI,
+        RVS: sessionData.score_rvs ?? DEFAULT_INDICATORS.RVS,
+        URI: sessionData.score_uri ?? DEFAULT_INDICATORS.URI,
+        TSI: sessionData.score_tsi ?? DEFAULT_INDICATORS.TSI,
+        PQS: sessionData.score_pqs ?? DEFAULT_INDICATORS.PQS
+      });
 
       const { data: patientData, error: patientError } = await supabase
         .from('clinic_patients').select('id, full_name, phone_primary, date_of_birth, gender')
@@ -146,6 +148,22 @@ export default function DecisionCard() {
     setCalculating(true);
     try {
       const tenant_id = localStorage.getItem('tenant_id');
+
+      // First save indicators to session
+      const { error: updateError } = await supabase
+        .from('clinic_visit_sessions')
+        .update({
+          score_aps: indicators.APS,
+          score_dri: indicators.DRI,
+          score_rvs: indicators.RVS,
+          score_uri: indicators.URI,
+          score_tsi: indicators.TSI,
+          score_pqs: indicators.PQS,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
 
       // Call Edge Function score-calculator
       const { data, error } = await supabase.functions.invoke('score-calculator', {
