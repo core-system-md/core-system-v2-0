@@ -1,238 +1,247 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/infrastructure/supabase/client";
+// ============================================================
+// AuthScreen.tsx — CORE SYSTEM v2.1
+// FIXED: 2026-06-25 — Uses AuthProvider.signInWithPin() directly
+// ============================================================
 
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  userId: string | null;
-  email: string | null;
-  fullName: string | null;
-  tenantId: string | null;
-  userRole: string | null;
-  role: string | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  isPinAuthenticated: boolean;
-  pinExpiry: number | null;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
-  signInWithPin: (pin: string, role: string) => Promise<{ success: boolean; role?: string; error?: string }>;
-  signOut: () => Promise<void>;
-  logout: () => Promise<void>;
-  setUser: (user: User | null) => void;
-  refreshTenantId: () => string | null;
-}
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/core/auth/AuthProvider";
+import { Shield, Mail, KeyRound, UserCircle } from "lucide-react";
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const PIN_AUTH_KEY = "core_pin_auth";
-const LEGACY_TENANT_KEY = "tenant_id";
-const PIN_EXPIRY_HOURS = 24;
+const ROLES = [
+  { value: "doctor", label: "طبيب", pin: "5678" },
+  { value: "receptionist", label: "موظف استقبال", pin: "0000" },
+  { value: "clinic_admin", label: "مدير العيادة", pin: "1234" },
+  { value: "super_admin", label: "مدير النظام", pin: "9999" },
+];
 
-function getFromAppMeta(session: Session | null, key: string): string | null {
-  if (!session) return null;
-  return (session.user.app_metadata?.[key] as string) || null;
-}
+const LICENSE_KEY = "DEMO-LICENSE-2024";
 
-function getTenantIdFromLocalStorage(): string | null {
-  const directTenantId = localStorage.getItem(LEGACY_TENANT_KEY);
-  if (directTenantId && directTenantId !== "null" && directTenantId !== "undefined") {
-    return directTenantId;
-  }
-  const pinData = localStorage.getItem(PIN_AUTH_KEY);
-  if (pinData) {
+export default function AuthScreen() {
+  const navigate = useNavigate();
+  const { signInWithPin, signInWithEmail } = useAuth();
+  const [mode, setMode] = useState<"pin" | "email">("pin");
+  const [licenseKey, setLicenseKey] = useState(LICENSE_KEY);
+  const [selectedRole, setSelectedRole] = useState("doctor");
+  const [pin, setPin] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handlePinLogin = async () => {
+    setError(null);
+    setIsLoading(true);
+
     try {
-      const parsed = JSON.parse(pinData);
-      if (parsed.tenant_id && parsed.tenant_id !== "null" && parsed.tenant_id !== "undefined") {
-        return parsed.tenant_id;
+      // CRITICAL FIX: Use AuthProvider.signInWithPin() directly
+      const result = await signInWithPin(pin, selectedRole);
+
+      if (result.success && result.role) {
+        console.log("[AuthScreen] PIN login success, navigating to:", `/${result.role}`);
+        navigate(`/${result.role}`);
+      } else {
+        setError(result.error || "فشل تسجيل الدخول");
       }
-    } catch { /* ignore */ }
-  }
-  return null;
-}
-
-function getPinAuthData() {
-  const pinData = localStorage.getItem(PIN_AUTH_KEY);
-  if (!pinData) return { user_id: null, role: null, full_name: null, tenant_id: null, expiry: null };
-  try {
-    const parsed = JSON.parse(pinData);
-    return {
-      user_id: parsed.user_id || null,
-      role: parsed.role || null,
-      full_name: parsed.full_name || null,
-      tenant_id: parsed.tenant_id || null,
-      expiry: parsed.expiry || null,
-    };
-n  } catch {
-    return { user_id: null, role: null, full_name: null, tenant_id: null, expiry: null };
-  }
-}
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPinAuthenticated, setIsPinAuthenticated] = useState(false);
-  const [pinExpiry, setPinExpiry] = useState<number | null>(null);
-  const [pinRole, setPinRole] = useState<string | null>(null);
-  const [pinTenantId, setPinTenantId] = useState<string | null>(null);
-  const [storageVersion, setStorageVersion] = useState(0);
-
-  const tenantIdFromSession = getFromAppMeta(session, "tenant_id");
-  const tenantIdFromStorage = getTenantIdFromLocalStorage();
-  const tenantId = tenantIdFromSession || tenantIdFromStorage || pinTenantId;
-  const userRole = getFromAppMeta(session, "user_role") || pinRole;
-  const isAuthenticated = !!user || isPinAuthenticated;
-
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === PIN_AUTH_KEY || e.key === LEGACY_TENANT_KEY) {
-        console.log("[AuthProvider] localStorage changed:", e.key);
-        setStorageVersion(v => v + 1);
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
-
-  useEffect(() => {
-    const pinData = getPinAuthData();
-    if (pinData.expiry && Date.now() < pinData.expiry) {
-      setIsPinAuthenticated(true);
-      setPinExpiry(pinData.expiry);
-      setPinRole(pinData.role);
-      setPinTenantId(pinData.tenant_id);
-    } else if (pinData.expiry && Date.now() >= pinData.expiry) {
-      localStorage.removeItem(PIN_AUTH_KEY);
-      setIsPinAuthenticated(false);
-      setPinExpiry(null);
-      setPinRole(null);
-      setPinTenantId(null);
-    }
-  }, [storageVersion]);
-
-  useEffect(() => {
-    const init = async () => {
-      setIsLoading(true);
-      const { data: { session: s } } = await supabase.auth.getSession();
-      setSession(s);
-      setUser(s?.user ?? null);
-
-      const pinData = getPinAuthData();
-      if (pinData.expiry && Date.now() < pinData.expiry) {
-        setIsPinAuthenticated(true);
-        setPinExpiry(pinData.expiry);
-        setPinRole(pinData.role);
-        setPinTenantId(pinData.tenant_id);
-      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطأ غير متوقع");
+    } finally {
       setIsLoading(false);
-    };
-    init();
+    }
+  };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-      }
-    );
-    return () => subscription.unsubscribe();
-  }, []);
+  const handleEmailLogin = async () => {
+    setError(null);
+    setIsLoading(true);
 
-  const signInWithEmail = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    if (!data.session) throw new Error("No session");
     try {
-      await supabase.functions.invoke("auth-metadata-sync", {
-        headers: { Authorization: `Bearer ${data.session.access_token}` }
-      });
-      await supabase.auth.refreshSession();
-    } catch (e) {
-      console.error("Metadata sync failed:", e);
+      await signInWithEmail(email, password);
+      navigate("/doctor");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "فشل تسجيل الدخول");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const signInWithPin = async (pin: string, role: string) => {
-    const currentTenantId = tenantId || getTenantIdFromLocalStorage();
-    if (!currentTenantId) {
-      return { success: false, error: "No tenant context. Please validate license first." };
-    }
-
-    const { data, error } = await supabase.rpc("validate_pin", {
-      params: { p_tenant_id: currentTenantId, p_pin: pin, p_role: role },
-    });
-
-    if (error) {
-      console.error("validate_pin RPC error:", error);
-      return { success: false, error: error.message || "Invalid PIN" };
-    }
-
-    let pinData: any;
-    if (data && typeof data === "object") {
-      pinData = data.data !== undefined ? data.data : data;
-    } else if (Array.isArray(data) && data.length > 0) {
-      pinData = data[0];
-    } else {
-      return { success: false, error: "Invalid PIN response format" };
-    }
-
-    if (!pinData?.success) {
-      return { success: false, error: pinData?.message || "Invalid PIN" };
-    }
-
-    const expiry = Date.now() + PIN_EXPIRY_HOURS * 60 * 60 * 1000;
-    localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
-      user_id: pinData.user_id,
-      role: pinData.role,
-      full_name: pinData.full_name,
-      tenant_id: currentTenantId,
-      employee_code: pinData.employee_code,
-      expiry,
-    }));
-    localStorage.setItem(LEGACY_TENANT_KEY, currentTenantId);
-
-    setIsPinAuthenticated(true);
-    setPinExpiry(expiry);
-    setPinRole(pinData.role);
-    setPinTenantId(currentTenantId);
-    setStorageVersion(v => v + 1);
-
-    return { success: true, role: pinData.role };
-  };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem(PIN_AUTH_KEY);
-    localStorage.removeItem(LEGACY_TENANT_KEY);
-    setUser(null);
-    setSession(null);
-    setIsPinAuthenticated(false);
-    setPinExpiry(null);
-    setPinRole(null);
-    setPinTenantId(null);
-  };
-
-  const logout = signOut;
-  const refreshTenantId = useCallback(() => getTenantIdFromLocalStorage(), []);
+  const currentRole = ROLES.find(r => r.value === selectedRole);
 
   return (
-    <AuthContext.Provider value={{
-      user, session,
-      userId: user?.id || getPinAuthData().user_id,
-      email: user?.email || null,
-      fullName: getFromAppMeta(session, "full_name") || getPinAuthData().full_name,
-      tenantId, userRole, role: userRole,
-      isLoading, isAuthenticated, isPinAuthenticated, pinExpiry,
-      signInWithEmail, signInWithPin, signOut, logout, setUser, refreshTenantId,
-    }}>
-      {children}
-    </AuthContext.Provider>
+    <div className="min-h-screen bg-[#1B2A4A] flex items-center justify-center p-4" dir="rtl">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">CORE SYSTEM</h1>
+          <p className="text-white/60 mt-1">Clinic Management Portal</p>
+        </div>
+
+        {/* Online Badge */}
+        <div className="flex justify-center mb-6">
+          <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm flex items-center gap-2">
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            Online Mode
+          </span>
+        </div>
+
+        {/* Login Card */}
+        <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
+          <h2 className="text-xl font-semibold text-white text-center mb-6">Staff Login</h2>
+
+          {/* Mode Toggle */}
+          <div className="flex bg-white/5 rounded-lg p-1 mb-6">
+            <button
+              onClick={() => setMode("pin")}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+                mode === "pin" ? "bg-white/10 text-white" : "text-white/50 hover:text-white/70"
+              }`}
+            >
+              <KeyRound className="w-4 h-4 inline-block ml-2" />
+              PIN
+            </button>
+            <button
+              onClick={() => setMode("email")}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+                mode === "email" ? "bg-white/10 text-white" : "text-white/50 hover:text-white/70"
+              }`}
+            >
+              <Mail className="w-4 h-4 inline-block ml-2" />
+              Email
+            </button>
+          </div>
+
+          {/* License Key */}
+          <div className="mb-4">
+            <label className="block text-white/70 text-sm mb-2">Clinic License Key</label>
+            <input
+              type="text"
+              value={licenseKey}
+              onChange={(e) => setLicenseKey(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+              placeholder="Enter license key"
+            />
+          </div>
+
+          {mode === "pin" ? (
+            <>
+              {/* Role Selection */}
+              <div className="mb-4">
+                <label className="block text-white/70 text-sm mb-2">Select Role</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ROLES.map((role) => (
+                    <button
+                      key={role.value}
+                      onClick={() => {
+                        setSelectedRole(role.value);
+                        setPin(role.pin);
+                      }}
+                      className={`p-3 rounded-lg border text-sm transition-colors ${
+                        selectedRole === role.value
+                          ? "bg-white/15 border-white/30 text-white"
+                          : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
+                      }`}
+                    >
+                      <UserCircle className="w-4 h-4 mx-auto mb-1" />
+                      {role.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* PIN Input */}
+              <div className="mb-6">
+                <label className="block text-white/70 text-sm mb-2">PIN Code</label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-center text-2xl tracking-[0.5em] placeholder-white/30 focus:outline-none focus:border-white/30"
+                  placeholder="••••"
+                />
+                {currentRole && (
+                  <p className="text-white/30 text-xs mt-2 text-center">
+                    Test PIN for {currentRole.label}: {currentRole.pin}
+                  </p>
+                )}
+              </div>
+
+              {/* Login Button */}
+              <button
+                onClick={handlePinLogin}
+                disabled={isLoading || pin.length !== 4}
+                className="w-full bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/30 text-white font-medium py-3 rounded-lg transition-colors"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    جاري تسجيل الدخول...
+                  </span>
+                ) : (
+                  "تسجيل الدخول"
+                )}
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Email Input */}
+              <div className="mb-4">
+                <label className="block text-white/70 text-sm mb-2">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+                  placeholder="doctor@clinic.com"
+                />
+              </div>
+
+              {/* Password Input */}
+              <div className="mb-6">
+                <label className="block text-white/70 text-sm mb-2">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {/* Login Button */}
+              <button
+                onClick={handleEmailLogin}
+                disabled={isLoading || !email || !password}
+                className="w-full bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/30 text-white font-medium py-3 rounded-lg transition-colors"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    جاري تسجيل الدخول...
+                  </span>
+                ) : (
+                  "تسجيل الدخول"
+                )}
+              </button>
+            </>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+              <p className="text-red-300 text-sm text-center">{error}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <p className="text-white/30 text-xs text-center mt-6">
+          CORE SYSTEM v2.1 — All Rights Reserved
+        </p>
+      </div>
+    </div>
   );
 }
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-}
-
-export const useAuthContext = useAuth;
