@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/core/auth/AuthProvider';
 import { Users, ClipboardList, Settings, Shield, LogOut, Stethoscope, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 
 const NAV_ITEMS = [
   { path: '/doctor', label: 'الأطباء', icon: Stethoscope, roles: ['doctor', 'receptionist', 'clinic_admin', 'super_admin'] },
@@ -10,7 +10,11 @@ const NAV_ITEMS = [
   { path: '/super_admin', label: 'النظام', icon: Shield, roles: ['super_admin'] },
 ];
 
-export function AppLayout() {
+interface AppLayoutProps {
+  children?: ReactNode;
+}
+
+export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { userRole, role, fullName, signOut } = useAuth();
@@ -82,7 +86,7 @@ export function AppLayout() {
       </aside>
 
       <main className="flex-1 overflow-auto">
-        <Outlet />
+        {children || <Outlet />}
       </main>
     </div>
   );
