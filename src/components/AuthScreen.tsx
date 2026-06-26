@@ -1,247 +1,247 @@
-// src/components/AuthScreen.tsx
-// UPDATED: 2026-06-24 — Added diagnostic logs for handlePinLogin
+// ============================================================
+// AuthScreen.tsx — CORE SYSTEM v2.1
+// FIXED: 2026-06-26 — Uses AuthProvider.signInWithPin() directly
+// ============================================================
 
-import { useState } from 'react';
-import { useAuth } from '../core/auth/useAuth';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/core/auth/AuthProvider";
+import { Shield, Mail, KeyRound, UserCircle } from "lucide-react";
 
-const VALID_ROLES = ['doctor', 'receptionist', 'clinic_admin', 'super_admin'] as const;
-type ValidRole = typeof VALID_ROLES[number];
+const ROLES = [
+  { value: "doctor", label: "طبيب", pin: "5678" },
+  { value: "receptionist", label: "موظف استقبال", pin: "0000" },
+  { value: "clinic_admin", label: "مدير العيادة", pin: "1234" },
+  { value: "super_admin", label: "مدير النظام", pin: "9999" },
+];
 
-export function AuthScreen() {
-  const { login } = useAuth();
+const LICENSE_KEY = "DEMO-LICENSE-2024";
+
+export default function AuthScreen() {
   const navigate = useNavigate();
-  
-  const [licenseKey, setLicenseKey] = useState('DEMO-LICENSE-2024');
-  const [loginMode, setLoginMode] = useState<'email' | 'pin'>('pin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [enteredPin, setEnteredPin] = useState('');
-  const [selectedRole, setSelectedRole] = useState<ValidRole | ''>('');
-
-  const handleEmailLogin = async () => {
-    console.log('🔍 === handleEmailLogin started ===');
-    
-    if (!email.trim() || !password.trim()) {
-      console.log('🔍 ERROR: Email or password missing');
-      toast.error('Email and password are required');
-      return;
-    }
-
-    try {
-      console.log('🔍 Calling login.mutateAsync for email...');
-      const result = await login.mutateAsync({ 
-        email: email.trim(), 
-        password, 
-        licenseKey: licenseKey.trim() 
-      });
-      
-      console.log('🔍 Email login success:', result);
-      console.log('🔍 Navigating to:', `/${result.role}`);
-      
-      navigate(`/${result.role}`);
-      console.log('🔍 Navigation called');
-    } catch (error) {
-      console.error('🔍 Email login error:', error);
-      toast.error(error instanceof Error ? error.message : 'Login failed');
-    }
-  };
+  const { signInWithPin, signInWithEmail } = useAuth();
+  const [mode, setMode] = useState<"pin" | "email">("pin");
+  const [licenseKey, setLicenseKey] = useState(LICENSE_KEY);
+  const [selectedRole, setSelectedRole] = useState("doctor");
+  const [pin, setPin] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handlePinLogin = async () => {
-    console.log('🔍 === handlePinLogin started ===');
-    console.log('🔍 selectedRole:', selectedRole);
-    console.log('🔍 enteredPin:', enteredPin);
-    console.log('🔍 licenseKey:', licenseKey);
-    
-    if (!selectedRole) {
-      console.log('🔍 ERROR: Role missing');
-      toast.error('Please select your role');
-      return;
-    }
-    
-    if (!enteredPin || enteredPin.length !== 4 || !/^\d{4}$/.test(enteredPin)) {
-      console.log('🔍 ERROR: PIN invalid');
-      toast.error('Please enter a valid 4-digit PIN');
-      return;
-    }
-    
+    setError(null);
+    setIsLoading(true);
+
     try {
-      console.log('🔍 Calling login.mutateAsync for PIN...');
-      const result = await login.mutateAsync({ 
-        pinCode: enteredPin, 
-        licenseKey: licenseKey.trim(),
-        role: selectedRole,
-      });
-      
-      console.log('🔍 PIN login success:', result);
-      console.log('🔍 Navigating to:', `/${result.role}`);
-      
-      navigate(`/${result.role}`);
-      console.log('🔍 Navigation called');
-    } catch (error) {
-      console.error('🔍 PIN login error:', error);
-      toast.error(error instanceof Error ? error.message : 'Login failed');
+      // CRITICAL FIX: Use AuthProvider.signInWithPin() directly
+      const result = await signInWithPin(pin, selectedRole);
+
+      if (result.success && result.role) {
+        console.log("[AuthScreen] PIN login success, navigating to:", `/${result.role}`);
+        navigate(`/${result.role}`);
+      } else {
+        setError(result.error || "فشل تسجيل الدخول");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطأ غير متوقع");
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const handleEmailLogin = async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      await signInWithEmail(email, password);
+      navigate("/doctor");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "فشل تسجيل الدخول");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const currentRole = ROLES.find(r => r.value === selectedRole);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#1B2A4A]">
-      <div className="w-full max-w-md p-8">
+    <div className="min-h-screen bg-[#1B2A4A] flex items-center justify-center p-4" dir="rtl">
+      <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 bg-white/10 rounded-2xl flex items-center justify-center">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
+          <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">CORE SYSTEM</h1>
-          <p className="text-gray-400">Clinic Management Portal</p>
+          <h1 className="text-2xl font-bold text-white">CORE SYSTEM</h1>
+          <p className="text-white/60 mt-1">Clinic Management Portal</p>
         </div>
 
-        {/* Online Mode Badge */}
+        {/* Online Badge */}
         <div className="flex justify-center mb-6">
-          <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm">
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z" />
-            </svg>
+          <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm flex items-center gap-2">
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
             Online Mode
           </span>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10">
+        <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-6">
           <h2 className="text-xl font-semibold text-white text-center mb-6">Staff Login</h2>
+
+          {/* Mode Toggle */}
+          <div className="flex bg-white/5 rounded-lg p-1 mb-6">
+            <button
+              onClick={() => setMode("pin")}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+                mode === "pin" ? "bg-white/10 text-white" : "text-white/50 hover:text-white/70"
+              }`}
+            >
+              <KeyRound className="w-4 h-4 inline-block ml-2" />
+              PIN
+            </button>
+            <button
+              onClick={() => setMode("email")}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+                mode === "email" ? "bg-white/10 text-white" : "text-white/50 hover:text-white/70"
+              }`}
+            >
+              <Mail className="w-4 h-4 inline-block ml-2" />
+              Email
+            </button>
+          </div>
 
           {/* License Key */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              Clinic License Key
-            </label>
+            <label className="block text-white/70 text-sm mb-2">Clinic License Key</label>
             <input
               type="text"
               value={licenseKey}
               onChange={(e) => setLicenseKey(e.target.value)}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
               placeholder="Enter license key"
             />
           </div>
 
-          {/* Login Mode Toggle */}
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setLoginMode('email')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                loginMode === 'email' 
-                  ? 'bg-white/10 text-white' 
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Email
-            </button>
-            <button
-              onClick={() => setLoginMode('pin')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                loginMode === 'pin' 
-                  ? 'bg-white text-[#1B2A4A]' 
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
-              PIN
-            </button>
-          </div>
-
-          {/* Email Login Form */}
-          {loginMode === 'email' && (
-            <div className="space-y-4">
-              <div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Email address"
-                />
-              </div>
-              <div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Password"
-                />
-              </div>
-              <button
-                onClick={handleEmailLogin}
-                disabled={login.isPending}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-              >
-                {login.isPending ? 'Logging in...' : 'Login'}
-              </button>
-            </div>
-          )}
-
-          {/* PIN Login Form */}
-          {loginMode === 'pin' && (
-            <div className="space-y-4">
+          {mode === "pin" ? (
+            <>
               {/* Role Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Select Role
-                </label>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as ValidRole)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="" className="bg-[#1B2A4A]">Select your role</option>
-                  <option value="doctor" className="bg-[#1B2A4A]">Doctor</option>
-                  <option value="receptionist" className="bg-[#1B2A4A]">Receptionist</option>
-                  <option value="clinic_admin" className="bg-[#1B2A4A]">Clinic Admin</option>
-                  <option value="super_admin" className="bg-[#1B2A4A]">Super Admin</option>
-                </select>
+              <div className="mb-4">
+                <label className="block text-white/70 text-sm mb-2">Select Role</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ROLES.map((role) => (
+                    <button
+                      key={role.value}
+                      onClick={() => {
+                        setSelectedRole(role.value);
+                        setPin(role.pin);
+                      }}
+                      className={`p-3 rounded-lg border text-sm transition-colors ${
+                        selectedRole === role.value
+                          ? "bg-white/15 border-white/30 text-white"
+                          : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
+                      }`}
+                    >
+                      <UserCircle className="w-4 h-4 mx-auto mb-1" />
+                      {role.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* PIN Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2 text-center">
-                  Enter your 4-digit staff PIN
-                </label>
+              <div className="mb-6">
+                <label className="block text-white/70 text-sm mb-2">PIN Code</label>
                 <input
                   type="password"
                   inputMode="numeric"
                   maxLength={4}
-                  value={enteredPin}
-                  onChange={(e) => setEnteredPin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-center text-2xl tracking-[0.5em] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="____"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-center text-2xl tracking-[0.5em] placeholder-white/30 focus:outline-none focus:border-white/30"
+                  placeholder="••••"
+                />
+                {currentRole && (
+                  <p className="text-white/30 text-xs mt-2 text-center">
+                    Test PIN for {currentRole.label}: {currentRole.pin}
+                  </p>
+                )}
+              </div>
+
+              {/* Login Button */}
+              <button
+                onClick={handlePinLogin}
+                disabled={isLoading || pin.length !== 4}
+                className="w-full bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/30 text-white font-medium py-3 rounded-lg transition-colors"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    جاري تسجيل الدخول...
+                  </span>
+                ) : (
+                  "تسجيل الدخول"
+                )}
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Email Input */}
+              <div className="mb-4">
+                <label className="block text-white/70 text-sm mb-2">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+                  placeholder="doctor@clinic.com"
                 />
               </div>
 
+              {/* Password Input */}
+              <div className="mb-6">
+                <label className="block text-white/70 text-sm mb-2">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {/* Login Button */}
               <button
-                onClick={handlePinLogin}
-                disabled={login.isPending || !selectedRole || enteredPin.length !== 4}
-                className="w-full py-3 bg-white text-[#1B2A4A] hover:bg-gray-100 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleEmailLogin}
+                disabled={isLoading || !email || !password}
+                className="w-full bg-white/10 hover:bg-white/20 disabled:bg-white/5 disabled:text-white/30 text-white font-medium py-3 rounded-lg transition-colors"
               >
-                {login.isPending ? 'Verifying...' : 'Login with PIN'}
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    جاري تسجيل الدخول...
+                  </span>
+                ) : (
+                  "تسجيل الدخول"
+                )}
               </button>
+            </>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+              <p className="text-red-300 text-sm text-center">{error}</p>
             </div>
           )}
         </div>
+
+        {/* Footer */}
+        <p className="text-white/30 text-xs text-center mt-6">
+          CORE SYSTEM v2.1 — All Rights Reserved
+        </p>
       </div>
     </div>
   );
 }
-
-// Default export for backward compatibility
-export default AuthScreen;
