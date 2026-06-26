@@ -4,7 +4,7 @@ import { useAuth } from '@/core/auth/AuthProvider';
 import { AppLayout } from '@/shared/components/AppLayout';
 import AuthScreen from '@/components/AuthScreen';
 import DoctorPatientList from '@/components/doctor/DoctorPatientList';
-import DecisionCard from '@/features/doctor/DecisionCard';
+import DecisionCard from '@/components/doctor/DecisionCard';
 import ReceptionDashboard from '@/features/reception/ReceptionDashboard';
 import ClinicAdminDashboard from '@/features/clinic-admin/ClinicAdminDashboard';
 import SuperAdminDashboard from '@/features/super-admin/SuperAdminDashboard';
@@ -53,7 +53,11 @@ function AuthGuard({ children, allowedRoles }: { children: React.ReactNode; allo
 }
 
 function AuthenticatedLayout() {
-  return (<AppLayout><Outlet /></AppLayout>);
+  return (
+    <AppLayout>
+      <Outlet />
+    </AppLayout>
+  );
 }
 
 export const router = createBrowserRouter([
