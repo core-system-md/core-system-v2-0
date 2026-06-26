@@ -10,6 +10,10 @@ const NAV_ITEMS = [
   { path: '/super_admin', label: 'النظام', icon: Shield, roles: ['super_admin'] },
 ];
 
+// ============================================
+// CRITICAL FIX: AppLayout accepts children prop
+// This allows both <AppLayout><Outlet /></AppLayout> and direct usage
+// ============================================
 interface AppLayoutProps {
   children?: ReactNode;
 }
@@ -32,7 +36,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-[#0f172a] flex" dir="rtl">
+      {/* Sidebar */}
       <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-[#1B2A4A] border-l border-white/10 transition-all duration-300 flex flex-col`}>
+        {/* Logo */}
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -47,10 +53,12 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
         </div>
 
+        {/* Toggle */}
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 mx-4 mt-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
           {sidebarOpen ? <X className="w-4 h-4 text-white/60" /> : <Menu className="w-4 h-4 text-white/60" />}
         </button>
 
+        {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2">
           {allowedNavItems.map((item) => {
             const Icon = item.icon;
@@ -65,6 +73,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           })}
         </nav>
 
+        {/* User + Sign Out */}
         <div className="p-4 border-t border-white/10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
@@ -85,6 +94,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </aside>
 
+      {/* Main Content — Render children if provided, otherwise Outlet */}
       <main className="flex-1 overflow-auto">
         {children || <Outlet />}
       </main>
