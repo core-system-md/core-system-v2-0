@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTenantStore } from '@/shared/store/tenantStore';
 import { supabase } from '@/infrastructure/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { subunitsToDisplay } from '@/shared/utils/currency';
 import { UserCheck, Stethoscope, Clock, DollarSign } from 'lucide-react';
 
@@ -31,7 +28,6 @@ export default function StaffPerformance() {
   async function fetchStaffMetrics() {
     setLoading(true);
 
-    // Fetch doctors in tenant
     const { data: doctors } = await supabase
       .from('clinic_users')
       .select('id, full_name, full_name_ar')
@@ -49,7 +45,6 @@ export default function StaffPerformance() {
     const metrics: StaffMetric[] = [];
 
     for (const doctor of doctors) {
-      // Sessions for this doctor
       const { data: sessions } = await supabase
         .from('clinic_visit_sessions')
         .select('session_status, session_duration_minutes, core_score_backend')
@@ -57,7 +52,6 @@ export default function StaffPerformance() {
         .eq('doctor_id', doctor.id)
         .is('deleted_at', null);
 
-      // Invoices linked to doctor's sessions
       const { data: invoices } = await supabase
         .from('clinic_invoices')
         .select('total_subunits')
@@ -81,7 +75,7 @@ export default function StaffPerformance() {
         completed_sessions: completedSessions,
         avg_session_duration: Math.round(avgDuration),
         total_revenue_subunits: totalRevenue,
-        avg_core_score: Math.round(avgScore / 10) / 10, // Convert backend to display scale
+        avg_core_score: Math.round(avgScore / 10) / 10,
         patient_satisfaction: completedSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0,
       });
     }
@@ -92,85 +86,96 @@ export default function StaffPerformance() {
 
   if (loading) {
     return (
-      <div className="p-4">
-        <Card className="animate-pulse"><CardContent className="h-64" /></Card>
+      <div className="p-4" dir="rtl">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse h-64" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4" dir="rtl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <UserCheck className="w-5 h-5 text-blue-600" />
-            أداء الطاقم الطبي
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {staffMetrics.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">لا يوجد أطباء مسجلين</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>الطبيب</TableHead>
-                  <TableHead className="text-center">الجلسات</TableHead>
-                  <TableHead className="text-center">مكتملة</TableHead>
-                  <TableHead className="text-center">متوسط المدة</TableHead>
-                  <TableHead className="text-center">الإيرادات</TableHead>
-                  <TableHead className="text-center">Core Score</TableHead>
-                  <TableHead className="text-center">الرضا</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+    <div className="p-4" dir="rtl">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <UserCheck className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-semibold">أداء الطاقم الطبي</h2>
+        </div>
+
+        {staffMetrics.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">لا يوجد أطباء مسجلين</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-right py-3 px-4 font-medium text-gray-600">الطبيب</th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-600">الجلسات</th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-600">مكتملة</th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-600">متوسط المدة</th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-600">الإيرادات</th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-600">Core Score</th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-600">الرضا</th>
+                </tr>
+              </thead>
+              <tbody>
                 {staffMetrics.map((metric) => (
-                  <TableRow key={metric.doctor_id}>
-                    <TableCell className="font-medium">
+                  <tr key={metric.doctor_id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
                         <Stethoscope className="w-4 h-4 text-gray-400" />
-                        {metric.doctor_name}
+                        <span className="font-medium">{metric.doctor_name}</span>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-center">{metric.total_sessions}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={metric.completed_sessions === metric.total_sessions ? 'default' : 'secondary'}>
+                    </td>
+                    <td className="text-center py-3 px-4">{metric.total_sessions}</td>
+                    <td className="text-center py-3 px-4">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        metric.completed_sessions === metric.total_sessions
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
                         {metric.completed_sessions}/{metric.total_sessions}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
+                      </span>
+                    </td>
+                    <td className="text-center py-3 px-4">
                       <div className="flex items-center justify-center gap-1">
                         <Clock className="w-3 h-3 text-gray-400" />
                         {metric.avg_session_duration}د
                       </div>
-                    </TableCell>
-                    <TableCell className="text-center">
+                    </td>
+                    <td className="text-center py-3 px-4">
                       <div className="flex items-center justify-center gap-1">
                         <DollarSign className="w-3 h-3 text-gray-400" />
                         {subunitsToDisplay(metric.total_revenue_subunits)}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge 
-                        variant={metric.avg_core_score >= 80 ? 'default' : metric.avg_core_score >= 60 ? 'secondary' : 'destructive'}
-                      >
+                    </td>
+                    <td className="text-center py-3 px-4">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        metric.avg_core_score >= 80
+                          ? 'bg-green-100 text-green-800'
+                          : metric.avg_core_score >= 60
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
                         {metric.avg_core_score.toFixed(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge 
-                        variant={metric.patient_satisfaction >= 90 ? 'default' : metric.patient_satisfaction >= 70 ? 'secondary' : 'destructive'}
-                      >
+                      </span>
+                    </td>
+                    <td className="text-center py-3 px-4">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        metric.patient_satisfaction >= 90
+                          ? 'bg-green-100 text-green-800'
+                          : metric.patient_satisfaction >= 70
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
                         {metric.patient_satisfaction}%
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
+                      </span>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

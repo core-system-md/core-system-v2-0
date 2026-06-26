@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
-import AppLayout from '@/components/AppLayout';
-import AuthGuard from '@/core/auth/RoleGuard';
+import App from '@/App';
+import { RoleGuard } from '@/core/auth/RoleGuard';
 
 // Lazy load all feature modules per Constitution §3
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
@@ -46,90 +46,90 @@ export const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <AppLayout />,
+    element: <App />,
     children: [
       // Doctor routes
       {
         path: 'doctor',
         element: (
-          <AuthGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
+          <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
             <Suspense fallback={<PageLoader />}>
               <DoctorPatientList />
             </Suspense>
-          </AuthGuard>
+          </RoleGuard>
         ),
       },
       {
         path: 'doctor/session/:sessionId',
         element: (
-          <AuthGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
+          <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
             <Suspense fallback={<PageLoader />}>
               <DecisionCard />
             </Suspense>
-          </AuthGuard>
+          </RoleGuard>
         ),
       },
       {
         path: 'doctor/invoice/:sessionId',
         element: (
-          <AuthGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
+          <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
             <Suspense fallback={<PageLoader />}>
               <SimpleInvoice />
             </Suspense>
-          </AuthGuard>
+          </RoleGuard>
         ),
       },
       // Reception routes
       {
         path: 'receptionist',
         element: (
-          <AuthGuard allowedRoles={['receptionist', 'clinic_admin', 'super_admin']}>
+          <RoleGuard allowedRoles={['receptionist', 'clinic_admin', 'super_admin']}>
             <Suspense fallback={<PageLoader />}>
               <ReceptionDashboard />
             </Suspense>
-          </AuthGuard>
+          </RoleGuard>
         ),
       },
       // Clinic Admin routes
       {
         path: 'clinic_admin',
         element: (
-          <AuthGuard allowedRoles={['clinic_admin', 'super_admin']}>
+          <RoleGuard allowedRoles={['clinic_admin', 'super_admin']}>
             <Suspense fallback={<PageLoader />}>
               <AdminDashboard />
             </Suspense>
-          </AuthGuard>
+          </RoleGuard>
         ),
       },
       // Super Admin routes
       {
         path: 'super_admin',
         element: (
-          <AuthGuard allowedRoles={['super_admin']}>
+          <RoleGuard allowedRoles={['super_admin']}>
             <Suspense fallback={<PageLoader />}>
               <SuperAdminLayout />
             </Suspense>
-          </AuthGuard>
+          </RoleGuard>
         ),
       },
       {
         path: 'super_admin/tenants',
         element: (
-          <AuthGuard allowedRoles={['super_admin']}>
+          <RoleGuard allowedRoles={['super_admin']}>
             <Suspense fallback={<PageLoader />}>
               <TenantRegistry />
             </Suspense>
-          </AuthGuard>
+          </RoleGuard>
         ),
       },
       {
         path: 'super_admin/features',
         element: (
-          <AuthGuard allowedRoles={['super_admin']}>
+          <RoleGuard allowedRoles={['super_admin']}>
             <Suspense fallback={<PageLoader />}>
               <FeatureFlagManager />
             </Suspense>
-          </AuthGuard>
+          </RoleGuard>
         ),
       },
     ],

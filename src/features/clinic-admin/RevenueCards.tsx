@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTenantStore } from '@/shared/store/tenantStore';
 import { supabase } from '@/infrastructure/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { subunitsToDisplay } from '@/shared/utils/currency';
 import { Calendar, TrendingUp, CreditCard, PiggyBank } from 'lucide-react';
 
@@ -69,7 +68,6 @@ export default function RevenueCards() {
     setLoading(false);
   }
 
-  // Pure CSS/SVG Bar Chart - no external library needed
   function renderBarChart() {
     if (revenueData.length === 0) return null;
 
@@ -82,7 +80,6 @@ export default function RevenueCards() {
     return (
       <div className="w-full overflow-x-auto">
         <svg width={totalWidth + 40} height={chartHeight + 60} className="mx-auto">
-          {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
             <g key={i}>
               <line
@@ -105,7 +102,6 @@ export default function RevenueCards() {
             </g>
           ))}
 
-          {/* Bars */}
           {revenueData.map((d, i) => {
             const barHeight = (d.revenue / maxRevenue) * chartHeight;
             const x = 30 + i * (barWidth + gap);
@@ -120,7 +116,6 @@ export default function RevenueCards() {
                   height={barHeight}
                   fill="#1B2A4A"
                   rx="4"
-                  className="hover:opacity-80 transition-opacity cursor-pointer"
                 >
                   <title>{d.date}: {subunitsToDisplay(d.revenue)}</title>
                 </rect>
@@ -143,13 +138,13 @@ export default function RevenueCards() {
 
   if (loading) {
     return (
-      <div className="space-y-4 p-4">
+      <div className="space-y-4 p-4" dir="rtl">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <Card key={i} className="animate-pulse"><CardContent className="h-24" /></Card>
+            <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse h-24" />
           ))}
         </div>
-        <Card className="animate-pulse"><CardContent className="h-64" /></Card>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse h-64" />
       </div>
     );
   }
@@ -187,32 +182,24 @@ export default function RevenueCards() {
 
   return (
     <div className="space-y-4 p-4" dir="rtl">
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {summaryCards.map((card) => (
-          <Card key={card.title} className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">{card.title}</CardTitle>
+          <div key={card.title} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-medium text-gray-600">{card.title}</span>
               <div className={`p-2 rounded-lg ${card.bg}`}>
                 <card.icon className={`w-5 h-5 ${card.color}`} />
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${card.color}`}>{card.value}</div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className={`text-2xl font-bold ${card.color}`}>{card.value}</div>
+          </div>
         ))}
       </div>
 
-      {/* Revenue Chart - Pure SVG */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">الإيرادات — آخر 7 أيام</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {renderBarChart()}
-        </CardContent>
-      </Card>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold mb-4">الإيرادات — آخر 7 أيام</h3>
+        {renderBarChart()}
+      </div>
     </div>
   );
 }
