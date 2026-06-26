@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuth } from '@/core/auth/AuthProvider';
 import { 
-  Users, Plus, Phone, Calendar, Clock, Stethoscope, 
+  Users, Plus, Calendar, Clock, Stethoscope, 
   Search, UserPlus, ClipboardList, ArrowRight 
 } from 'lucide-react';
 import SlaTimer from '@/shared/components/ui/SlaTimer';
