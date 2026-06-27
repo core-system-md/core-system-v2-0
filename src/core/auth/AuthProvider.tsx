@@ -16,11 +16,28 @@ interface AuthContextType {
   isPinAuthenticated: boolean;
   pinExpiry: number | null;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signInWithPin: (pin: string, role: string) => Promise<{ success: boolean; role?: string; error?: string }>;
+  signInWithPin: (pin: string, role: string) => Promise<{ success: boolean; role?: string; error?: string }>; 
   signOut: () => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;
   refreshTenantId: () => string | null;
+}
+
+interface PinAuthPayload {
+  user_id: string | null;
+  role: string | null;
+  full_name: string | null;
+  tenant_id: string | null;
+  expiry: number | null;
+}
+
+interface RpcPinResponse {
+  success?: boolean;
+  message?: string;
+  user_id?: string;
+  role?: string;
+  full_name?: string | null;
+  employee_code?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -50,11 +67,11 @@ function getTenantIdFromLocalStorage(): string | null {
   return null;
 }
 
-function getPinAuthData() {
+function getPinAuthData(): PinAuthPayload {
   const pinData = localStorage.getItem(PIN_AUTH_KEY);
   if (!pinData) return { user_id: null, role: null, full_name: null, tenant_id: null, expiry: null };
   try {
-    const parsed = JSON.parse(pinData);
+    const parsed = JSON.parse(pinData) as Partial<PinAuthPayload>;
     return {
       user_id: parsed.user_id || null,
       role: parsed.role || null,
@@ -166,11 +183,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: error.message || "Invalid PIN" };
     }
 
-    let pinData: any;
+    let pinData: RpcPinResponse | null = null;
     if (data && typeof data === "object") {
-      pinData = data.data !== undefined ? data.data : data;
+      const maybeData = data as { data?: unknown };
+      pinData = (maybeData.data !== undefined ? maybeData.data : data) as RpcPinResponse;
     } else if (Array.isArray(data) && data.length > 0) {
-      pinData = data[0];
+      pinData = data[0] as RpcPinResponse;
     } else {
       return { success: false, error: "Invalid PIN response format" };
     }
@@ -192,11 +210,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setIsPinAuthenticated(true);
     setPinExpiry(expiry);
-    setPinRole(pinData.role);
+    setPinRole(pinData.role ?? null);
     setPinTenantId(currentTenantId);
     setStorageVersion(v => v + 1);
 
-    return { success: true, role: pinData.role };
+    if (pinData.role) {
+      return { success: true, role: pinData.role };
+    }
+    return { success: true };
   };
 
   const signOut = async () => {

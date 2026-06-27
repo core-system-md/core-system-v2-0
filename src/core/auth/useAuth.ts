@@ -23,6 +23,28 @@ interface LoginResult {
   tenantId: string;
 }
 
+interface RpcResponse {
+  success?: boolean;
+  message?: string;
+  tenant_id?: unknown;
+  user_id?: unknown;
+  full_name?: string | null;
+  role?: string | null;
+  employee_code?: string | null;
+}
+
+function parseRpcResponse<T extends RpcResponse>(response: unknown): T | null {
+  if (response && typeof response === 'object') {
+    const payload = response as { data?: unknown };
+    if (payload.data !== undefined) return payload.data as T;
+    return response as T;
+  }
+  if (Array.isArray(response) && response.length > 0) {
+    return response[0] as T;
+  }
+  return null;
+}
+
 const PIN_AUTH_KEY = 'core_pin_auth';
 const PIN_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
@@ -56,12 +78,8 @@ export function useAuth() {
         throw new Error(`INVALID_LICENSE: ${licenseError.message}`);
       }
 
-      let licenseData: any;
-      if (licenseResult && typeof licenseResult === 'object') {
-        licenseData = licenseResult.data !== undefined ? licenseResult.data : licenseResult;
-      } else if (Array.isArray(licenseResult) && licenseResult.length > 0) {
-        licenseData = licenseResult[0];
-      } else {
+      const licenseData = parseRpcResponse<RpcResponse>(licenseResult);
+      if (!licenseData) {
         throw new Error('INVALID_LICENSE: Unexpected response format');
       }
 
@@ -92,7 +110,7 @@ export function useAuth() {
           throw new Error(`AUTH_FAILED: ${validateError.message}`);
         }
 
-        const authData = authResult as any;
+        const authData = parseRpcResponse<RpcResponse>(authResult);
 
         if (!authData?.success) {
           throw new Error(`AUTH_FAILED: ${authData?.message || 'Invalid email or password'}`);
@@ -145,12 +163,8 @@ export function useAuth() {
           throw new Error(`INVALID_PIN: ${pinError.message}`);
         }
 
-        let pinData: any;
-        if (pinResult && typeof pinResult === 'object') {
-          pinData = pinResult.data !== undefined ? pinResult.data : pinResult;
-        } else if (Array.isArray(pinResult) && pinResult.length > 0) {
-          pinData = pinResult[0];
-        } else {
+        const pinData = parseRpcResponse<RpcResponse>(pinResult);
+        if (!pinData) {
           throw new Error('INVALID_PIN: Unexpected response format');
         }
 

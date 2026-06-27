@@ -26,6 +26,25 @@ interface PatientWithData extends Patient {
   active_session: SessionInfo | null;
 }
 
+interface PatientRecord extends Patient {
+  created_at?: string;
+}
+
+interface ProfileRecord {
+  patient_id: string;
+  historical_core_score_avg: number | null;
+  dominant_disc_profile: string | null;
+}
+
+interface SessionRecord extends SessionInfo {
+  patient_id: string;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
 export default function DoctorPatientList() {
   const navigate = useNavigate();
   const [patients, setPatients] = useState<PatientWithData[]>([]);
@@ -56,7 +75,7 @@ export default function DoctorPatientList() {
           return;
         }
 
-        const patientIds = patientsData.map((p: any) => p.id);
+        const patientIds = patientsData.map((p: PatientRecord) => p.id);
 
         const { data: profilesData, error: profilesError } = await supabase
           .from('patient_longitudinal_profiles')
@@ -76,15 +95,15 @@ export default function DoctorPatientList() {
 
         if (sessionsError) throw sessionsError;
 
-        const profileMap = new Map<string, any>();
-        (profilesData || []).forEach((p: any) => profileMap.set(p.patient_id, p));
+        const profileMap = new Map<string, ProfileRecord>();
+        (profilesData || []).forEach((p: ProfileRecord) => profileMap.set(p.patient_id, p));
 
-        const sessionMap = new Map<string, any>();
-        (sessionsData || []).forEach((s: any) => {
+        const sessionMap = new Map<string, SessionRecord>();
+        (sessionsData || []).forEach((s: SessionRecord) => {
           if (!sessionMap.has(s.patient_id)) sessionMap.set(s.patient_id, s);
         });
 
-        const mappedPatients: PatientWithData[] = (patientsData || []).map((p: any) => {
+        const mappedPatients: PatientWithData[] = (patientsData || []).map((p: PatientRecord) => {
           const profile = profileMap.get(p.id);
           const session = sessionMap.get(p.id);
           const backendScore = profile?.historical_core_score_avg || null;
@@ -102,9 +121,9 @@ export default function DoctorPatientList() {
         }).filter((p: PatientWithData) => p.active_session !== null);
 
         setPatients(mappedPatients);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Patient list fetch error:', err);
-        toast.error(err.message || 'فشل في تحميل قائمة المرضى');
+        toast.error(getErrorMessage(err, 'فشل في تحميل قائمة المرضى'));
       } finally {
         setLoading(false);
       }

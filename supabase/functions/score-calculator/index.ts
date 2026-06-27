@@ -97,7 +97,7 @@ serve(async (req) => {
 
     // Calculate scores
     const coreScore = computeCoreScore(indicators);
-    let finalScore: any = coreScore;
+    let finalScore: { backend: number; display: number; patientClass: string; ltvMode?: string } = coreScore;
 
     // Apply 60/40 LTV rule if historical data exists
     if (historicalAvg !== undefined && historicalAvg !== null) {
@@ -148,9 +148,9 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

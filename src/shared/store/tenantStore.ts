@@ -50,10 +50,10 @@ export const useTenantStore = create<TenantState>((set, get) => ({
         error: null
       });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[tenantStore] Fetch error:', err);
       set({ 
-        error: err.message, 
+        error: err instanceof Error ? err.message : 'Failed to fetch tenant', 
         isLoading: false,
         subscriptionTier: 'trial' // Fallback to safest tier
       });

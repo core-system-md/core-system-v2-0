@@ -32,8 +32,17 @@ interface PinAttemptLog {
   tenantId: string;
   attemptedPin: string;
   success: boolean;
-  userId?: string;
+  userId: string | null;
+  role: string | null;
+}
+
+interface PinRpcResponse {
+  success?: boolean;
+  message?: string;
+  user_id?: string;
+  full_name?: string;
   role?: string;
+  employee_code?: string;
 }
 
 const PinAuthContext = createContext<PinAuthContextType | null>(null);
@@ -74,13 +83,13 @@ export function PinAuthProvider({ children }: { children: React.ReactNode }) {
     async (pinCode: string, tenantId: string, _userId: string | undefined, _employeeCode: string | undefined, role: string): Promise<PinVerificationResult> => {
       const isLocked = await checkRateLimit(tenantId, pinCode);
       if (isLocked) {
-        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, role });
+        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, userId: null, role });
         return { success: false, error: 'ACCOUNT_LOCKED: Too many failed attempts. Try again in 15 minutes.' };
       }
 
       const validRoles = ['doctor', 'receptionist', 'clinic_admin', 'super_admin'];
       if (!validRoles.includes(role)) {
-        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, role });
+        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, userId: null, role });
         return { success: false, error: 'INVALID_ROLE: Role must be one of: doctor, receptionist, clinic_admin, super_admin' };
       }
 
@@ -89,18 +98,24 @@ export function PinAuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (pinError) {
-        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, role });
+        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, userId: null, role });
         return { success: false, error: `INVALID_PIN: ${pinError.message}` };
       }
 
-      const pinData = pinResult as any;
+      const pinData = pinResult as PinRpcResponse | null;
       if (!pinData?.success) {
-        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, role });
+        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, userId: null, role });
         return { success: false, error: `INVALID_PIN: ${pinData?.message || 'Incorrect PIN code'}` };
       }
 
-      await logPinAttempt({ tenantId, attemptedPin: pinCode, success: true, userId: pinData.user_id, role: pinData.role });
-      return { success: true, userId: pinData.user_id, fullName: pinData.full_name, role: pinData.role, employeeCode: pinData.employee_code };
+      await logPinAttempt({ tenantId, attemptedPin: pinCode, success: true, userId: pinData.user_id ?? null, role: pinData.role ?? null });
+
+      const result: PinVerificationResult = { success: true };
+      if (pinData.user_id) result.userId = pinData.user_id;
+      if (pinData.full_name) result.fullName = pinData.full_name;
+      if (pinData.role) result.role = pinData.role;
+      if (pinData.employee_code) result.employeeCode = pinData.employee_code;
+      return result;
     }, [checkRateLimit, logPinAttempt],
   );
 

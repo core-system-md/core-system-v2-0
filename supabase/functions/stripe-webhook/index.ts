@@ -6,11 +6,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const STRIPE_WEBHOOK_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
 
 serve(async (req) => {
   const payload = await req.text();
-  const signature = req.headers.get('stripe-signature');
 
   // TODO: Verify signature with Stripe library when available in Deno
   // For now, parse and validate basic structure

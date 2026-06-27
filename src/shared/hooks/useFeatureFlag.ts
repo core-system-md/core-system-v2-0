@@ -82,9 +82,9 @@ export function useFeatureFlag(flagKey: string): {
           setIsEnabled(false);
         }
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`[useFeatureFlag] Error checking ${flagKey}:`, err);
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'Failed to check feature flag');
         setIsEnabled(false);
       } finally {
         setIsLoading(false);
@@ -130,7 +130,7 @@ export function useFeatureFlags(flagKeys: string[]): {
         if (tenantError) throw tenantError;
 
         // Fetch global flags for missing ones
-        const foundKeys = (tenantFlags || []).map((f: any) => f.flag_key);
+        const foundKeys = (tenantFlags || []).map((f: FeatureFlag) => f.flag_key);
         const missingKeys = flagKeys.filter(k => !foundKeys.includes(k));
 
         let globalFlags: FeatureFlag[] = [];
@@ -151,13 +151,13 @@ export function useFeatureFlags(flagKeys: string[]): {
 
         const result: Record<string, boolean> = {};
         flagKeys.forEach(key => {
-          const flag = allFlags.find((f: any) => f.flag_key === key);
+          const flag = allFlags.find((f: FeatureFlag) => f.flag_key === key);
           result[key] = flag ? flag.is_enabled && flag.allowed_tiers.includes(currentTier) : false;
         });
 
         setFlags(result);
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[useFeatureFlags] Error:', err);
         setFlags(Object.fromEntries(flagKeys.map(k => [k, false])));
       } finally {

@@ -11,7 +11,7 @@ interface FeatureFlag {
   description: string | null;
   is_enabled: boolean;
   allowed_tiers: string[];
-  config_json: Record<string, any>;
+  config_json: Record<string, unknown>;
 }
 
 interface Tenant {
@@ -66,8 +66,8 @@ export default function FeatureFlagManager() {
       if (tenantsError) throw tenantsError;
       setTenants(tenantsData || []);
 
-    } catch (err: any) {
-      toast.error(err.message || 'فشل في تحميل البيانات');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'فشل في تحميل البيانات');
     } finally {
       setLoading(false);
     }
@@ -88,8 +88,8 @@ export default function FeatureFlagManager() {
       ));
 
       toast.success(`تم ${!currentState ? 'تفعيل' : 'تعطيل'} الميزة`);
-    } catch (err: any) {
-      toast.error(err.message || 'فشل في التحديث');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'فشل في التحديث');
     } finally {
       setSaving(false);
     }
@@ -110,8 +110,8 @@ export default function FeatureFlagManager() {
       ));
 
       toast.success('تم تحديث الصلاحيات');
-    } catch (err: any) {
-      toast.error(err.message || 'فشل في التحديث');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'فشل في التحديث');
     } finally {
       setSaving(false);
     }
@@ -143,8 +143,8 @@ export default function FeatureFlagManager() {
 
       toast.success('تم إضافة الميزات المفقودة');
       fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'فشل في الإضافة');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'فشل في الإضافة');
     } finally {
       setSaving(false);
     }

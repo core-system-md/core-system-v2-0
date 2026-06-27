@@ -10,7 +10,7 @@ interface FeatureFlag {
   description: string | null;
   is_enabled: boolean;
   allowed_tiers: string[];
-  config_json: Record<string, any>;
+  config_json: Record<string, unknown>;
 }
 
 interface FeatureFlagState {
@@ -67,10 +67,10 @@ export const useFeatureFlagStore = create<FeatureFlagState>((set, get) => ({
         error: null 
       });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[featureFlagStore] Fetch error:', err);
       set({ 
-        error: err.message, 
+        error: err instanceof Error ? err.message : 'Failed to fetch feature flags', 
         isLoading: false,
         lastFetched: Date.now() 
       });

@@ -11,6 +11,18 @@ interface RevenueData {
   discounts: number;
 }
 
+interface SnapshotRecord {
+  snapshot_date: string;
+  total_revenue_subunits: number | null;
+  total_visits: number | null;
+  total_discounts_subunits: number | null;
+}
+
+interface InvoiceRecord {
+  total_subunits: number | null;
+  discount_subunits: number | null;
+}
+
 export default function RevenueCards() {
   const { tenantId } = useTenantStore();
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
@@ -47,15 +59,15 @@ export default function RevenueCards() {
       .gte('invoice_date', sevenDaysAgo.toISOString().split('T')[0])
       .in('invoice_status', ['paid', 'partial']);
 
-    const chartData: RevenueData[] = (snapshots || []).map((s: any) => ({
+    const chartData: RevenueData[] = (snapshots || []).map((s: SnapshotRecord) => ({
       date: s.snapshot_date.slice(5),
       revenue: s.total_revenue_subunits || 0,
       visits: s.total_visits || 0,
       discounts: s.total_discounts_subunits || 0,
     }));
 
-    const totalRev = (invoices || []).reduce((sum: number, inv: any) => sum + (inv.total_subunits || 0), 0);
-    const totalDisc = (invoices || []).reduce((sum: number, inv: any) => sum + (inv.discount_subunits || 0), 0);
+    const totalRev = (invoices || []).reduce((sum: number, inv: InvoiceRecord) => sum + (inv.total_subunits || 0), 0);
+    const totalDisc = (invoices || []).reduce((sum: number, inv: InvoiceRecord) => sum + (inv.discount_subunits || 0), 0);
     const totalVisits = chartData.reduce((sum, d) => sum + d.visits, 0);
 
     setRevenueData(chartData);

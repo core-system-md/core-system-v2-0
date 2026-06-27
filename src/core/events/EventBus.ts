@@ -1,19 +1,19 @@
 // src/core/events/EventBus.ts
 // Typed pub/sub event bus — no external dependencies
 
-export type EventCallback<T = any> = (payload: T) => void;
+export type EventCallback<T = unknown> = (payload: T) => void;
 
 class EventBus {
-  private listeners: Map<string, Set<EventCallback>> = new Map();
+  private listeners: Map<string, Set<EventCallback<unknown>>> = new Map();
 
   subscribe<T>(event: string, callback: EventCallback<T>): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    this.listeners.get(event)!.add(callback);
+    this.listeners.get(event)!.add(callback as EventCallback<unknown>);
 
     return () => {
-      this.listeners.get(event)?.delete(callback);
+      this.listeners.get(event)?.delete(callback as EventCallback<unknown>);
     };
   }
 

@@ -51,7 +51,7 @@ interface RoleGuardProps {
 // ─── RoleGuard Component ───
 export function RoleGuard({
   allowedRoles,
-  requiredPermissions: _requiredPermissions,
+  requiredPermissions,
   fallback = null,
   children,
 }: RoleGuardProps): ReactNode {
@@ -61,8 +61,9 @@ export function RoleGuard({
   const hasAllowedRole = role ? hasRole(allowedRoles) : false;
 
   // ── 2. Permission Check (reserved for future permission matrix integration)
-  // NOTE: _requiredPermissions is intentionally unused until permissionMatrix.ts is implemented.
+  // NOTE: requiredPermissions is intentionally unused until permissionMatrix.ts is implemented.
   // In production, integrate with src/core/permissions/permissionMatrix.ts
+  void requiredPermissions;
   const hasPermissions = true;
 
   // ── 3. Combined Access Decision ──

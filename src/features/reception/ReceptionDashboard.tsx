@@ -91,7 +91,7 @@ export default function ReceptionDashboard() {
 
       // Fetch patients for these sessions
       if (sessionsData && sessionsData.length > 0) {
-        const patientIds = sessionsData.map((s: any) => s.patient_id);
+        const patientIds = sessionsData.map((s: SessionInfo) => s.patient_id);
         const { data: patientsData, error: patientsError } = await supabase
           .from('clinic_patients')
           .select('id, full_name, phone_primary, patient_status')
@@ -129,9 +129,9 @@ export default function ReceptionDashboard() {
       if (agendaError) throw agendaError;
       setAgendaEvents(agendaData || []);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Reception dashboard error:', err);
-      toast.error(err.message || 'فشل في تحميل البيانات');
+      toast.error(err instanceof Error ? err.message : 'فشل في تحميل البيانات');
     } finally {
       setLoading(false);
     }
@@ -169,8 +169,8 @@ export default function ReceptionDashboard() {
         setBookingForm(prev => ({ ...prev, phone: searchPhone, isNewPatient: true }));
         toast.info('مريض جديد — املأ البيانات');
       }
-    } catch (err: any) {
-      toast.error(err.message || 'فشل في البحث');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'فشل في البحث');
     }
   };
 
@@ -272,9 +272,9 @@ export default function ReceptionDashboard() {
       fetchData();
       setActiveTab('queue');
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Booking error:', err);
-      toast.error(err.message || 'فشل في الحجز');
+      toast.error(err instanceof Error ? err.message : 'فشل في الحجز');
     } finally {
       setBookingLoading(false);
     }

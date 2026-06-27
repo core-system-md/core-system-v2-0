@@ -42,6 +42,11 @@ interface LongitudinalData {
   last_visit_date: string | null;
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
 const PAR_OPTIONS = [
   { value: 'full_acceptance', label: 'قبول كامل', color: 'bg-green-500/20 text-green-400' },
   { value: 'partial_acceptance', label: 'قبول جزئي', color: 'bg-blue-500/20 text-blue-400' },
@@ -117,9 +122,9 @@ export default function DecisionCard() {
         .eq('patient_id', sessionData.patient_id).eq('tenant_id', tenant_id).single();
       if (longError && longError.code !== 'PGRST116') throw longError;
       setLongitudinal(longData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Session fetch error:', err);
-      toast.error(err.message || 'فشل في تحميل بيانات الجلسة');
+      toast.error(getErrorMessage(err, 'فشل في تحميل بيانات الجلسة'));
     } finally {
       setLoading(false);
     }
@@ -134,8 +139,8 @@ export default function DecisionCard() {
       }).eq('id', id);
       if (error) throw error;
       toast.success('تم حفظ الملاحظات');
-    } catch (err: any) {
-      toast.error(err.message || 'فشل في الحفظ');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'فشل في الحفظ'));
     } finally {
       setSaving(false);
     }
@@ -192,9 +197,9 @@ export default function DecisionCard() {
       } else {
         throw new Error(data?.error || 'فشل في حساب الدرجة');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Score calculation error:', err);
-      toast.error(err.message || 'فشل في حساب Core Score');
+      toast.error(getErrorMessage(err, 'فشل في حساب Core Score'));
     } finally {
       setCalculating(false);
     }
@@ -210,8 +215,8 @@ export default function DecisionCard() {
       if (error) throw error;
       toast.success('تم إغلاق الجلسة');
       navigate('/doctor');
-    } catch (err: any) {
-      toast.error(err.message || 'فشل في إغلاق الجلسة');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'فشل في إغلاق الجلسة'));
     }
   };
 

@@ -45,6 +45,16 @@ export default function StaffPerformance() {
     const metrics: StaffMetric[] = [];
 
     for (const doctor of doctors) {
+      interface SessionRecord {
+        session_status: string;
+        session_duration_minutes: number | null;
+        core_score_backend: number | null;
+      }
+
+      interface InvoiceRecord {
+        total_subunits: number | null;
+      }
+
       const { data: sessions } = await supabase
         .from('clinic_visit_sessions')
         .select('session_status, session_duration_minutes, core_score_backend')
@@ -59,13 +69,13 @@ export default function StaffPerformance() {
         .in('invoice_status', ['paid', 'partial']);
 
       const totalSessions = sessions?.length || 0;
-      const completedSessions = sessions?.filter((s: any) => s.session_status === 'completed').length || 0;
+      const completedSessions = sessions?.filter((s: SessionRecord) => s.session_status === 'completed').length || 0;
       const avgDuration = totalSessions > 0
-        ? (sessions?.reduce((sum: number, s: any) => sum + (s.session_duration_minutes || 0), 0) || 0) / totalSessions
+        ? (sessions?.reduce((sum: number, s: SessionRecord) => sum + (s.session_duration_minutes || 0), 0) || 0) / totalSessions
         : 0;
-      const totalRevenue = invoices?.reduce((sum: number, inv: any) => sum + (inv.total_subunits || 0), 0) || 0;
+      const totalRevenue = invoices?.reduce((sum: number, inv: InvoiceRecord) => sum + (inv.total_subunits || 0), 0) || 0;
       const avgScore = totalSessions > 0
-        ? (sessions?.reduce((sum: number, s: any) => sum + (s.core_score_backend || 0), 0) || 0) / totalSessions
+        ? (sessions?.reduce((sum: number, s: SessionRecord) => sum + (s.core_score_backend || 0), 0) || 0) / totalSessions
         : 0;
 
       metrics.push({
