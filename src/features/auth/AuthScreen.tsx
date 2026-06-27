@@ -1,21 +1,210 @@
+// src/features/auth/AuthScreen.tsx
+// ─────────────────────────────────────────────
+// CORE SYSTEM v2.1 — Auth Screen (Constitution §9.6 compliant)
+// Navigation: window.location.href (no router dependency)
+// ─────────────────────────────────────────────
+
 import { useState } from 'react';
 import { supabase } from '@/infrastructure/supabase/client';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
-import { Shield, Stethoscope, Users, Crown, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
 
+// ─── Role Definitions (NO PINs — only UI metadata per Constitution §9.6) ───
 const ROLES = [
-  { id: 'doctor' as const, label: 'Doctor', labelAr: 'طبيب', icon: Stethoscope, color: '#1B2A4A' },
-  { id: 'receptionist' as const, label: 'Reception', labelAr: 'استقبال', icon: Users, color: '#059669' },
-  { id: 'clinic_admin' as const, label: 'Admin', labelAr: 'مدير', icon: Shield, color: '#d97706' },
-  { id: 'super_admin' as const, label: 'Super Admin', labelAr: 'مشرف عام', icon: Crown, color: '#dc2626' },
+  { id: 'doctor' as const, label: 'Doctor', labelAr: 'طبيب', color: '#1B2A4A' },
+  { id: 'receptionist' as const, label: 'Reception', labelAr: 'استقبال', color: '#059669' },
+  { id: 'clinic_admin' as const, label: 'Admin', labelAr: 'مدير', color: '#d97706' },
+  { id: 'super_admin' as const, label: 'Super Admin', labelAr: 'مشرف عام', color: '#dc2626' },
 ];
 
 type RoleId = typeof ROLES[number]['id'];
 
+// ─── Inline Styles (no external UI dependencies) ───
+const styles: Record<string, React.CSSProperties> = {
+  container: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+    padding: '16px',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+  },
+  card: {
+    width: '100%',
+    maxWidth: '400px',
+    background: 'white',
+    borderRadius: '16px',
+    padding: '32px',
+    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+    border: '1px solid #e2e8f0',
+  },
+  title: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1B2A4A',
+    textAlign: 'center',
+    marginBottom: '8px',
+  },
+  subtitle: {
+    fontSize: '14px',
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: '24px',
+  },
+  label: {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#334155',
+    marginBottom: '4px',
+  },
+  input: {
+    width: '100%',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '1px solid #cbd5e1',
+    fontSize: '16px',
+    textAlign: 'center',
+    marginBottom: '16px',
+    boxSizing: 'border-box',
+    fontFamily: 'monospace',
+    letterSpacing: '2px',
+  },
+  button: {
+    width: '100%',
+    padding: '14px',
+    borderRadius: '8px',
+    border: 'none',
+    background: '#1B2A4A',
+    color: 'white',
+    fontSize: '16px',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  },
+  error: {
+    padding: '12px',
+    background: '#fef2f2',
+    border: '1px solid #fecaca',
+    borderRadius: '8px',
+    color: '#dc2626',
+    fontSize: '14px',
+    textAlign: 'center',
+    marginBottom: '16px',
+  },
+  roleGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+    marginBottom: '16px',
+  },
+  roleButton: {
+    padding: '20px 16px',
+    borderRadius: '12px',
+    border: '2px solid #e2e8f0',
+    background: 'white',
+    cursor: 'pointer',
+    textAlign: 'center',
+    transition: 'all 0.2s',
+  },
+  roleIcon: {
+    fontSize: '32px',
+    marginBottom: '8px',
+  },
+  roleLabel: {
+    fontWeight: '500',
+    color: '#334155',
+    fontSize: '14px',
+    marginBottom: '2px',
+  },
+  roleLabelAr: {
+    fontSize: '12px',
+    color: '#94a3b8',
+  },
+  pinDisplay: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '12px',
+    marginBottom: '24px',
+  },
+  pinDot: {
+    width: '48px',
+    height: '56px',
+    borderRadius: '8px',
+    border: '2px solid #cbd5e1',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#cbd5e1',
+    transition: 'all 0.2s',
+  },
+  pinDotFilled: {
+    background: '#1B2A4A',
+    borderColor: '#1B2A4A',
+    color: 'white',
+  },
+  keypad: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1fr',
+    gap: '8px',
+    marginBottom: '16px',
+  },
+  key: {
+    padding: '18px',
+    borderRadius: '8px',
+    border: 'none',
+    background: '#f1f5f9',
+    fontSize: '20px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    color: '#334155',
+    transition: 'background 0.15s',
+  },
+  backLink: {
+    textAlign: 'center',
+    color: '#64748b',
+    fontSize: '14px',
+    cursor: 'pointer',
+    background: 'none',
+    border: 'none',
+    width: '100%',
+    padding: '8px',
+  },
+  loading: {
+    textAlign: 'center',
+    color: '#1B2A4A',
+    fontSize: '14px',
+    padding: '8px',
+  },
+  logoBox: {
+    width: '64px',
+    height: '64px',
+    background: '#1B2A4A',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 16px',
+    fontSize: '28px',
+  },
+  roleHeaderBox: {
+    width: '56px',
+    height: '56px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 12px',
+    fontSize: '28px',
+  },
+};
+
+// ─── Component ───
 export default function AuthScreen() {
   const [licenseKey, setLicenseKey] = useState('');
   const [selectedRole, setSelectedRole] = useState<RoleId | null>(null);
@@ -23,18 +212,23 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<'license' | 'role' | 'pin'>('license');
-  
-  const navigate = useNavigate();
+
   const { setUser, setTenant } = useAuthStore();
 
+  // ─── Universal Navigation (no router dependency) ───
+  const navigateTo = (path: string) => {
+    window.location.href = path;
+  };
+
+  // ─── License Verification ───
   const verifyLicense = async () => {
     if (!licenseKey.trim()) {
-      toast.error('يرجى إدخال مفتاح الترخيص');
+      setError('يرجى إدخال مفتاح الترخيص');
       return;
     }
     setLoading(true);
     setError(null);
-    
+
     try {
       const { data: tenant, error: tenantError } = await supabase
         .from('master_tenants')
@@ -43,13 +237,12 @@ export default function AuthScreen() {
         .eq('is_active', true)
         .is('deleted_at', null)
         .single();
-      
+
       if (tenantError || !tenant) {
         setError('مفتاح الترخيص غير صالح أو العيادة غير نشطة');
-        toast.error('مفتاح الترخيص غير صالح');
         return;
       }
-      
+
       setTenant({
         id: tenant.id,
         name: tenant.clinic_name,
@@ -59,21 +252,20 @@ export default function AuthScreen() {
         licenseKey: tenant.license_key,
       });
       setStep('role');
-      toast.success('تم التحقق من الترخيص');
     } catch (err) {
-      setError('خطأ في الاتصال');
-      toast.error('خطأ في الاتصال بالخادم');
+      setError('خطأ في الاتصال بالخادم');
     } finally {
       setLoading(false);
     }
   };
 
+  // ─── PIN Verification (Constitution §9.6) ───
   const verifyPin = async () => {
     if (!selectedRole || pin.length !== 4) {
-      toast.error('يرجى إدخال رمز PIN مكون من 4 أرقام');
+      setError('يرجى إدخال رمز PIN مكون من 4 أرقام');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
 
@@ -81,7 +273,6 @@ export default function AuthScreen() {
       const tenant = useAuthStore.getState().tenant;
       if (!tenant) {
         setError('خطأ في الجلسة');
-        toast.error('خطأ في الجلسة، أعد المحاولة');
         setStep('license');
         return;
       }
@@ -95,14 +286,14 @@ export default function AuthScreen() {
       if (rpcError) {
         console.error('RPC Error:', rpcError);
         setError('خطأ في الاتصال بالخادم');
-        toast.error('خطأ في الاتصال بالخادم');
         setPin('');
+        setLoading(false);
         return;
       }
 
+      // Handle rate limiting — Constitution §9.6
       if (data?.reason === 'RATE_LIMITED') {
         setError('تم تجاوز عدد المحاولات المسموح، حاول بعد 15 دقيقة');
-        toast.error('تم تجاوز عدد المحاولات المسموح، حاول بعد 15 دقيقة');
         setPin('');
         setLoading(false);
         return;
@@ -110,12 +301,12 @@ export default function AuthScreen() {
 
       if (!data?.success || !data?.user_id) {
         setError('رمز PIN غير صحيح');
-        toast.error('رمز PIN غير صحيح');
         setPin('');
         setLoading(false);
         return;
       }
 
+      // Success — fetch full user profile
       const { data: user, error: userError } = await supabase
         .from('clinic_users')
         .select('id, full_name, full_name_ar, role, tenant_id, email, phone, specialization')
@@ -124,7 +315,6 @@ export default function AuthScreen() {
 
       if (userError || !user) {
         setError('خطأ في تحميل بيانات المستخدم');
-        toast.error('خطأ في تحميل بيانات المستخدم');
         setLoading(false);
         return;
       }
@@ -140,26 +330,25 @@ export default function AuthScreen() {
         specialization: user.specialization,
       });
 
-      toast.success(`مرحباً ${user.full_name}`);
-      
+      // Navigate based on role
       const routes: Record<RoleId, string> = {
         doctor: '/doctor',
         receptionist: '/reception',
         clinic_admin: '/clinic_admin',
         super_admin: '/super_admin',
       };
-      
-      navigate(routes[selectedRole]);
+
+      navigateTo(routes[selectedRole]);
     } catch (err) {
       console.error('Auth error:', err);
       setError('حدث خطأ غير متوقع');
-      toast.error('حدث خطأ غير متوقع');
       setPin('');
     } finally {
       setLoading(false);
     }
   };
 
+  // ─── Navigation ───
   const handleRoleSelect = (role: RoleId) => {
     setSelectedRole(role);
     setStep('pin');
@@ -179,158 +368,202 @@ export default function AuthScreen() {
     setError(null);
   };
 
+  // ─── Render: License Key Step ───
   if (step === 'license') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-[#1B2A4A] rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-[#1B2A4A] mb-1">CORE SYSTEM</h1>
-            <p className="text-slate-500 text-sm">نظام إدارة العيادات الذكي</p>
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={styles.logoBox}>🛡️</div>
+            <h1 style={styles.title}>CORE SYSTEM</h1>
+            <p style={styles.subtitle}>نظام إدارة العيادات الذكي</p>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                مفتاح الترخيص / License Key
-              </label>
-              <Input
-                type="text"
-                placeholder="DEMO-LICENSE-2024"
-                value={licenseKey}
-                onChange={(e) => setLicenseKey(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && verifyLicense()}
-                className="text-center font-mono text-lg tracking-wider"
-                dir="ltr"
-              />
-            </div>
-
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm text-center">
-                {error}
-              </div>
-            )}
-
-            <Button
-              onClick={verifyLicense}
-              disabled={loading || !licenseKey.trim()}
-              className="w-full bg-[#1B2A4A] hover:bg-[#2a3f6a] text-white h-12"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'التالي →'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === 'role') {
-    const tenant = useAuthStore.getState().tenant;
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
-          <div className="text-center mb-6">
-            <h2 className="text-xl font-bold text-[#1B2A4A]">اختر دورك</h2>
-            <p className="text-slate-500 text-sm mt-1">
-              {tenant?.nameAr || tenant?.name}
-            </p>
+          <div>
+            <label style={styles.label}>
+              مفتاح الترخيص / License Key
+            </label>
+            <input
+              type="text"
+              placeholder="DEMO-LICENSE-2024"
+              value={licenseKey}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLicenseKey(e.target.value)}
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && verifyLicense()}
+              style={styles.input}
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {ROLES.map((role) => {
-              const Icon = role.icon;
-              return (
-                <button
-                  key={role.id}
-                  onClick={() => handleRoleSelect(role.id)}
-                  className="flex flex-col items-center p-4 rounded-xl border-2 border-slate-200 hover:border-[#1B2A4A] hover:bg-slate-50 transition-all group"
-                >
-                  <Icon className="w-8 h-8 mb-2" style={{ color: role.color }} />
-                  <span className="font-medium text-slate-700 text-sm">{role.label}</span>
-                  <span className="text-xs text-slate-400">{role.labelAr}</span>
-                </button>
-              );
-            })}
-          </div>
+          {error && <div style={styles.error}>{error}</div>}
 
-          <button onClick={handleBack} className="mt-4 text-sm text-slate-500 hover:text-slate-700 w-full text-center">
-            ← رجوع
+          <button
+            onClick={verifyLicense}
+            disabled={loading || !licenseKey.trim()}
+            style={{
+              ...styles.button,
+              ...(loading || !licenseKey.trim() ? styles.buttonDisabled : {}),
+            }}
+          >
+            {loading ? '⏳' : 'التالي →'}
           </button>
         </div>
       </div>
     );
   }
 
-  const selectedRoleData = ROLES.find(r => r.id === selectedRole);
-  const Icon = selectedRoleData?.icon || Shield;
+  // ─── Render: Role Selection Step ───
+  if (step === 'role') {
+    const tenant = useAuthStore.getState().tenant;
+    const roleEmojis: Record<RoleId, string> = {
+      doctor: '🩺',
+      receptionist: '👥',
+      clinic_admin: '🛡️',
+      super_admin: '👑',
+    };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
-        <div className="text-center mb-6">
-          <div className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: (selectedRoleData?.color || '#1B2A4A') + '15' }}>
-            <Icon className="w-7 h-7" style={{ color: selectedRoleData?.color }} />
-          </div>
-          <h2 className="text-lg font-bold text-[#1B2A4A]">
-            {selectedRoleData?.labelAr} - {selectedRoleData?.label}
-          </h2>
-          <p className="text-slate-500 text-sm mt-1">أدخل رمز PIN المكون من 4 أرقام</p>
-        </div>
+    return (
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <h2 style={{ ...styles.title, fontSize: '20px' }}>اختر دورك</h2>
+          <p style={styles.subtitle}>{tenant?.nameAr || tenant?.name}</p>
 
-        <div className="space-y-4">
-          <div className="flex justify-center gap-3 mb-4">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className={`w-12 h-14 rounded-lg border-2 flex items-center justify-center text-xl font-bold transition-all ${
-                  i < pin.length ? 'border-[#1B2A4A] bg-[#1B2A4A] text-white' : 'border-slate-300 text-slate-300'
-                }`}
-              >
-                {i < pin.length ? '•' : ''}
-              </div>
-            ))}
-          </div>
-
-          <input
-            type="password"
-            inputMode="numeric"
-            maxLength={4}
-            value={pin}
-            onChange={(e) => {
-              const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-              setPin(val);
-              if (val.length === 4) setTimeout(() => verifyPin(), 100);
-            }}
-            className="absolute opacity-0 w-0 h-0"
-            autoFocus
-          />
-
-          <div className="grid grid-cols-3 gap-2">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+          <div style={styles.roleGrid}>
+            {ROLES.map((role) => (
               <button
-                key={num}
-                onClick={() => {
-                  if (pin.length < 4) {
-                    const newPin = pin + num;
-                    setPin(newPin);
-                    if (newPin.length === 4) setTimeout(() => verifyPin(), 100);
-                  }
+                key={role.id}
+                onClick={() => handleRoleSelect(role.id)}
+                style={styles.roleButton}
+                onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+                  e.currentTarget.style.borderColor = role.color;
+                  e.currentTarget.style.background = '#f8fafc';
                 }}
-                className="h-14 rounded-lg bg-slate-100 hover:bg-slate-200 text-lg font-semibold text-slate-700 transition-colors"
+                onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                  e.currentTarget.style.background = 'white';
+                }}
               >
-                {num}
+                <div style={styles.roleIcon}>{roleEmojis[role.id]}</div>
+                <div style={styles.roleLabel}>{role.label}</div>
+                <div style={styles.roleLabelAr}>{role.labelAr}</div>
               </button>
             ))}
-            <button onClick={handleBack} className="h-14 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-medium text-slate-600">رجوع</button>
-            <button onClick={() => { if (pin.length < 4) { const newPin = pin + '0'; setPin(newPin); if (newPin.length === 4) setTimeout(() => verifyPin(), 100); } }} className="h-14 rounded-lg bg-slate-100 hover:bg-slate-200 text-lg font-semibold text-slate-700">0</button>
-            <button onClick={() => setPin(pin.slice(0, -1))} className="h-14 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-medium text-slate-600">⌫</button>
           </div>
 
-          {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm text-center">{error}</div>}
-          {loading && <div className="flex justify-center py-2"><Loader2 className="w-6 h-6 animate-spin text-[#1B2A4A]" /></div>}
+          <button onClick={handleBack} style={styles.backLink}>← رجوع</button>
         </div>
+      </div>
+    );
+  }
+
+  // ─── Render: PIN Entry Step ───
+  const selectedRoleData = ROLES.find(r => r.id === selectedRole);
+  const roleEmojis: Record<RoleId, string> = {
+    doctor: '🩺',
+    receptionist: '👥',
+    clinic_admin: '🛡️',
+    super_admin: '👑',
+  };
+
+  return (
+    <div style={styles.container}>
+      <div style={{ ...styles.card, maxWidth: '360px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div style={{
+            ...styles.roleHeaderBox,
+            background: (selectedRoleData?.color || '#1B2A4A') + '15',
+          }}>
+            {selectedRole ? roleEmojis[selectedRole] : '🛡️'}
+          </div>
+          <h2 style={{ ...styles.title, fontSize: '18px' }}>
+            {selectedRoleData?.labelAr} - {selectedRoleData?.label}
+          </h2>
+          <p style={styles.subtitle}>أدخل رمز PIN المكون من 4 أرقام</p>
+        </div>
+
+        <div style={styles.pinDisplay}>
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              style={{
+                ...styles.pinDot,
+                ...(i < pin.length ? styles.pinDotFilled : {}),
+              }}
+            >
+              {i < pin.length ? '•' : ''}
+            </div>
+          ))}
+        </div>
+
+        <input
+          type="password"
+          inputMode="numeric"
+          maxLength={4}
+          value={pin}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+            setPin(val);
+            if (val.length === 4) setTimeout(() => verifyPin(), 100);
+          }}
+          style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+          autoFocus
+        />
+
+        <div style={styles.keypad}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+            <button
+              key={num}
+              onClick={() => {
+                if (pin.length < 4) {
+                  const newPin = pin + num;
+                  setPin(newPin);
+                  if (newPin.length === 4) setTimeout(() => verifyPin(), 100);
+                }
+              }}
+              style={styles.key}
+              onMouseDown={(e: React.MouseEvent<HTMLButtonElement>) => {
+                e.currentTarget.style.background = '#e2e8f0';
+              }}
+              onMouseUp={(e: React.MouseEvent<HTMLButtonElement>) => {
+                e.currentTarget.style.background = '#f1f5f9';
+              }}
+            >
+              {num}
+            </button>
+          ))}
+          <button onClick={handleBack} style={styles.key}>رجوع</button>
+          <button
+            onClick={() => {
+              if (pin.length < 4) {
+                const newPin = pin + '0';
+                setPin(newPin);
+                if (newPin.length === 4) setTimeout(() => verifyPin(), 100);
+              }
+            }}
+            style={styles.key}
+            onMouseDown={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.currentTarget.style.background = '#e2e8f0';
+            }}
+            onMouseUp={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.currentTarget.style.background = '#f1f5f9';
+            }}
+          >
+            0
+          </button>
+          <button
+            onClick={() => setPin(pin.slice(0, -1))}
+            style={styles.key}
+            onMouseDown={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.currentTarget.style.background = '#e2e8f0';
+            }}
+            onMouseUp={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.currentTarget.style.background = '#f1f5f9';
+            }}
+          >
+            ⌫
+          </button>
+        </div>
+
+        {error && <div style={styles.error}>{error}</div>}
+        {loading && <div style={styles.loading}>⏳ جاري التحقق...</div>}
       </div>
     </div>
   );
