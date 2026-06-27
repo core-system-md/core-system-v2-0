@@ -1,79 +1,50 @@
-// src/shared/store/authStore.ts
-// Zustand: user + role + permissions + JWT claims
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type UserRole = 'super_admin' | 'clinic_admin' | 'doctor' | 'receptionist';
+export type UserRole = 'doctor' | 'receptionist' | 'clinic_admin' | 'super_admin';
+
+export interface TenantInfo {
+  id: string;
+  name: string;
+  nameAr: string | null;
+  primaryColor: string | null;
+  tier: string;
+  licenseKey: string;
+}
 
 export interface AuthUser {
   id: string;
   email: string;
   fullName: string;
+  fullNameAr: string | null;
   role: UserRole;
   tenantId: string;
-  clinicName: string;
+  phone: string | null;
+  specialization: string | null;
 }
 
-export interface AuthState {
+interface AuthState {
   user: AuthUser | null;
+  tenant: TenantInfo | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
-  pinVerified: boolean; // For kiosk fast-switch
-
-  // Actions
   setUser: (user: AuthUser | null) => void;
-  setLoading: (loading: boolean) => void;
-  setPinVerified: (verified: boolean) => void;
+  setTenant: (tenant: TenantInfo | null) => void;
   logout: () => void;
-  hasRole: (roles: UserRole[]) => boolean;
-  isSuperAdmin: () => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
+      tenant: null,
       isAuthenticated: false,
-      isLoading: true,
-      pinVerified: false,
-
-      setUser: (user) =>
-        set({
-          user,
-          isAuthenticated: !!user,
-          isLoading: false,
-        }),
-
-      setLoading: (loading) => set({ isLoading: loading }),
-
-      setPinVerified: (verified) => set({ pinVerified: verified }),
-
-      logout: () =>
-        set({
-          user: null,
-          isAuthenticated: false,
-          pinVerified: false,
-          isLoading: false,
-        }),
-
-      hasRole: (roles) => {
-        const { user } = get();
-        if (!user) return false;
-        return roles.includes(user.role);
-      },
-
-      isSuperAdmin: () => {
-        const { user } = get();
-        return user?.role === 'super_admin';
-      },
+      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setTenant: (tenant) => set({ tenant }),
+      logout: () => set({ user: null, tenant: null, isAuthenticated: false }),
     }),
     {
-      name: 'core-auth-storage',
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
+      name: 'core-system-auth',
+      partialize: (state) => ({ user: state.user, tenant: state.tenant }),
     }
   )
 );
