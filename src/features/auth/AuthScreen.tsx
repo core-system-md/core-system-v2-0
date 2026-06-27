@@ -1,14 +1,7 @@
-// src/features/auth/AuthScreen.tsx
-// ─────────────────────────────────────────────
-// CORE SYSTEM v2.1 — Auth Screen (Constitution §9.6 compliant)
-// Navigation: window.location.href (no router dependency)
-// ─────────────────────────────────────────────
-
 import { useState } from 'react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuthStore } from '@/shared/store/authStore';
 
-// ─── Role Definitions (NO PINs — only UI metadata per Constitution §9.6) ───
 const ROLES = [
   { id: 'doctor' as const, label: 'Doctor', labelAr: 'طبيب', color: '#1B2A4A' },
   { id: 'receptionist' as const, label: 'Reception', labelAr: 'استقبال', color: '#059669' },
@@ -18,7 +11,6 @@ const ROLES = [
 
 type RoleId = typeof ROLES[number]['id'];
 
-// ─── Inline Styles (no external UI dependencies) ───
 const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: '100vh',
@@ -204,7 +196,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
 };
 
-// ─── Component ───
 export default function AuthScreen() {
   const [licenseKey, setLicenseKey] = useState('');
   const [selectedRole, setSelectedRole] = useState<RoleId | null>(null);
@@ -215,12 +206,10 @@ export default function AuthScreen() {
 
   const { setUser, setTenant } = useAuthStore();
 
-  // ─── Universal Navigation (no router dependency) ───
   const navigateTo = (path: string) => {
     window.location.href = path;
   };
 
-  // ─── License Verification ───
   const verifyLicense = async () => {
     if (!licenseKey.trim()) {
       setError('يرجى إدخال مفتاح الترخيص');
@@ -259,7 +248,6 @@ export default function AuthScreen() {
     }
   };
 
-  // ─── PIN Verification (Constitution §9.6) ───
   const verifyPin = async () => {
     if (!selectedRole || pin.length !== 4) {
       setError('يرجى إدخال رمز PIN مكون من 4 أرقام');
@@ -291,7 +279,6 @@ export default function AuthScreen() {
         return;
       }
 
-      // Handle rate limiting — Constitution §9.6
       if (data?.reason === 'RATE_LIMITED') {
         setError('تم تجاوز عدد المحاولات المسموح، حاول بعد 15 دقيقة');
         setPin('');
@@ -306,7 +293,6 @@ export default function AuthScreen() {
         return;
       }
 
-      // Success — fetch full user profile
       const { data: user, error: userError } = await supabase
         .from('clinic_users')
         .select('id, full_name, full_name_ar, role, tenant_id, email, phone, specialization')
@@ -330,7 +316,6 @@ export default function AuthScreen() {
         specialization: user.specialization,
       });
 
-      // Navigate based on role
       const routes: Record<RoleId, string> = {
         doctor: '/doctor',
         receptionist: '/reception',
@@ -348,7 +333,6 @@ export default function AuthScreen() {
     }
   };
 
-  // ─── Navigation ───
   const handleRoleSelect = (role: RoleId) => {
     setSelectedRole(role);
     setStep('pin');
@@ -368,7 +352,6 @@ export default function AuthScreen() {
     setError(null);
   };
 
-  // ─── Render: License Key Step ───
   if (step === 'license') {
     return (
       <div style={styles.container}>
@@ -410,7 +393,6 @@ export default function AuthScreen() {
     );
   }
 
-  // ─── Render: Role Selection Step ───
   if (step === 'role') {
     const tenant = useAuthStore.getState().tenant;
     const roleEmojis: Record<RoleId, string> = {
@@ -454,7 +436,6 @@ export default function AuthScreen() {
     );
   }
 
-  // ─── Render: PIN Entry Step ───
   const selectedRoleData = ROLES.find(r => r.id === selectedRole);
   const roleEmojis: Record<RoleId, string> = {
     doctor: '🩺',
