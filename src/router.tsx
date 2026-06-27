@@ -1,141 +1,81 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { Suspense, lazy } from 'react';
-import App from '@/App';
-import { RoleGuard } from '@/core/auth/RoleGuard';
+// ============================================================
+// CORE SYSTEM v2.1 — Router
+// Constitution §6: 4 Roles Only. RoleGuard blocks unauthorized access.
+// ============================================================
 
-// Lazy load all feature modules per Constitution §3
-const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
-const DoctorPatientList = lazy(() => import('@/components/doctor/DoctorPatientList'));
-const DecisionCard = lazy(() => import('@/components/doctor/DecisionCard'));
-const SimpleInvoice = lazy(() => import('@/components/doctor/SimpleInvoice'));
-const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDashboard'));
-const AdminDashboard = lazy(() => import('@/features/clinic-admin/AdminDashboard'));
-const SuperAdminLayout = lazy(() => import('@/features/super-admin/SuperAdminLayout'));
-const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
-const FeatureFlagManager = lazy(() => import('@/features/super-admin/FeatureFlagManager'));
-const AmbientKioskView = lazy(() => import('@/components/AmbientKioskView'));
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore, selectIsAuthenticated, selectUserRole } from '@/shared/store/authStore';
+import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
+import { AuthScreen } from '@/features/auth/AuthScreen';
+import { RoleGuard } from '@/core/permissions/RoleGuard';
 
-function PageLoader() {
+// Lazy-loaded role dashboards (Constitution: features/ MAY import from domain + shared)
+const DoctorDashboard = () => import('@/features/doctor/DoctorLayout');
+const ReceptionDashboard = () => import('@/features/reception/ReceptionLayout');
+const ClinicAdminDashboard = () => import('@/features/clinic-admin/AdminLayout');
+const SuperAdminDashboard = () => import('@/features/super-admin/SuperAdminLayout');
+
+export function Router() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const role = useAuthStore(selectUserRole);
+
   return (
-    <div className="min-h-screen flex items-center justify-center" dir="rtl">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1B2A4A]" />
-    </div>
+    <Routes>
+      {/* Public Route */}
+      <Route 
+        path="/auth" 
+        element={isAuthenticated ? <Navigate to={getDefaultRoute(role)} replace /> : <AuthScreen />} 
+      />
+
+      {/* Doctor Routes */}
+      <Route 
+        path="/doctor/*" 
+        element={
+          <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
+            <DoctorDashboard />
+          </RoleGuard>
+        } 
+      />
+
+      {/* Reception Routes */}
+      <Route 
+        path="/reception/*" 
+        element={
+          <RoleGuard allowedRoles={['receptionist', 'clinic_admin', 'super_admin']}>
+            <ReceptionDashboard />
+          </RoleGuard>
+        } 
+      />
+
+      {/* Clinic Admin Routes */}
+      <Route 
+        path="/clinic-admin/*" 
+        element={
+          <RoleGuard allowedRoles={['clinic_admin', 'super_admin']}>
+            <ClinicAdminDashboard />
+          </RoleGuard>
+        } 
+      />
+
+      {/* Super Admin Routes */}
+      <Route 
+        path="/super-admin/*" 
+        element={
+          <RoleGuard allowedRoles={['super_admin']}>
+            <SuperAdminDashboard />
+          </RoleGuard>
+        } 
+      />
+
+      {/* Default: redirect based on auth state */}
+      <Route 
+        path="*" 
+        element={
+          isAuthenticated 
+            ? <Navigate to={getDefaultRoute(role)} replace />
+            : <Navigate to="/auth" replace />
+        } 
+      />
+    </Routes>
   );
 }
-
-export const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <Navigate to="/login" replace />,
-  },
-  {
-    path: '/login',
-    element: (
-      <Suspense fallback={<PageLoader />}>
-        <AuthScreen />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/kiosk',
-    element: (
-      <Suspense fallback={<PageLoader />}>
-        <AmbientKioskView />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/',
-    element: <App />,
-    children: [
-      // Doctor routes
-      {
-        path: 'doctor',
-        element: (
-          <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <DoctorPatientList />
-            </Suspense>
-          </RoleGuard>
-        ),
-      },
-      {
-        path: 'doctor/session/:sessionId',
-        element: (
-          <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <DecisionCard />
-            </Suspense>
-          </RoleGuard>
-        ),
-      },
-      {
-        path: 'doctor/invoice/:sessionId',
-        element: (
-          <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <SimpleInvoice />
-            </Suspense>
-          </RoleGuard>
-        ),
-      },
-      // Reception routes
-      {
-        path: 'receptionist',
-        element: (
-          <RoleGuard allowedRoles={['receptionist', 'clinic_admin', 'super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <ReceptionDashboard />
-            </Suspense>
-          </RoleGuard>
-        ),
-      },
-      // Clinic Admin routes
-      {
-        path: 'clinic_admin',
-        element: (
-          <RoleGuard allowedRoles={['clinic_admin', 'super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <AdminDashboard />
-            </Suspense>
-          </RoleGuard>
-        ),
-      },
-      // Super Admin routes
-      {
-        path: 'super_admin',
-        element: (
-          <RoleGuard allowedRoles={['super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <SuperAdminLayout />
-            </Suspense>
-          </RoleGuard>
-        ),
-      },
-      {
-        path: 'super_admin/tenants',
-        element: (
-          <RoleGuard allowedRoles={['super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <TenantRegistry />
-            </Suspense>
-          </RoleGuard>
-        ),
-      },
-      {
-        path: 'super_admin/features',
-        element: (
-          <RoleGuard allowedRoles={['super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <FeatureFlagManager />
-            </Suspense>
-          </RoleGuard>
-        ),
-      },
-    ],
-  },
-  {
-    path: '*',
-    element: <Navigate to="/login" replace />,
-  },
-]);
