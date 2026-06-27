@@ -323,6 +323,12 @@ export default function AuthScreen() {
         super_admin: '/super_admin',
       };
 
+      if (!selectedRole) {
+        setError('خطأ في اختيار الدور');
+        setLoading(false);
+        return;
+      }
+
       navigateTo(routes[selectedRole]);
     } catch (err) {
       console.error('Auth error:', err);
