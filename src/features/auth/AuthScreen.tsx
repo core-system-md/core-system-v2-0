@@ -5,7 +5,7 @@
 // Blueprint: AuthScreen is a View. useAuth is the Controller.
 // ============================================================
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/core/auth/useAuth';
 import { useAuthStore, selectIsPinLocked, selectPinAttemptsRemaining } from '@/shared/store/authStore';
@@ -30,6 +30,11 @@ import {
  * AuthScreen — Two-Step Authentication Flow:
  * Step 1: License Key Validation (clinic identification)
  * Step 2: PIN + Role Selection (staff authentication)
+ * 
+ * SECURITY NOTE: The actual role comes from the database via validate_pin RPC.
+ * UI role selection is a UX hint only. If the user selects a different role
+ * than their actual role, a warning is shown but login proceeds (PIN is the
+ * source of truth per Constitution §9.6).
  */
 export default function AuthScreen() {
   const navigate = useNavigate();
@@ -42,6 +47,7 @@ export default function AuthScreen() {
     status,
     tenant_id,
     user,
+    isAuthenticated,
     clearError,
   } = useAuth();
 
@@ -50,20 +56,36 @@ export default function AuthScreen() {
   const [pinCode, setPinCode] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | ''>('');
   const [step, setStep] = useState<1 | 2>(1);
+  const [roleMismatch, setRoleMismatch] = useState(false);
 
   const isPinLocked = useAuthStore(selectIsPinLocked);
   const attemptsRemaining = useAuthStore(selectPinAttemptsRemaining);
+
+  // ── Redirect if already authenticated ──
+  useEffect(() => {
+    if (isAuthenticated && user?.role) {
+      const route = getDefaultRoute(user.role);
+      navigate(route, { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   // ── Step 1: Validate License ──
   const handleLicenseSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
 
-    if (!licenseKey.trim()) return;
+    const trimmedKey = licenseKey.trim();
+    if (!trimmedKey) {
+      return;
+    }
 
-    const result = await validateLicense(licenseKey.trim());
+    const result = await validateLicense(trimmedKey);
+    
     if (result.success) {
       setStep(2);
+    } else {
+      // Error is already set in useAuth store, but ensure it's visible
+      // The error will be displayed via the error Alert below
     }
   }, [licenseKey, validateLicense, clearError]);
 
@@ -71,24 +93,31 @@ export default function AuthScreen() {
   const handlePinSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
+    setRoleMismatch(false);
 
-    if (!pinCode.trim() || pinCode.length !== 4) return;
-    if (!selectedRole) return;
+    const trimmedPin = pinCode.trim();
+    if (!trimmedPin || trimmedPin.length !== 4) {
+      return;
+    }
+    if (!selectedRole) {
+      return;
+    }
 
-    const result = await loginWithPin(pinCode.trim());
+    const result = await loginWithPin(trimmedPin);
     
     if (result.success && result.user) {
-      // Validate role matches (security check)
+      // Check role mismatch (security UX warning)
       if (result.user.role !== selectedRole) {
-        // Role mismatch — but we still allow if the PIN is correct
-        // The actual role comes from the database, not the UI selection
-        // UI selection is just a UX hint
+        setRoleMismatch(true);
+        // Login still proceeds — PIN is the source of truth per Constitution §9.6
+        // The actual role from database determines routing and permissions
       }
 
       // Navigate to role-specific dashboard
       const route = getDefaultRoute(result.user.role as UserRole);
       navigate(route, { replace: true });
     }
+    // If !result.success, error is set in useAuth store and displayed via Alert
   }, [pinCode, selectedRole, loginWithPin, clearError, navigate]);
 
   // ── Handle PIN input (4 digits only) ──
@@ -100,12 +129,14 @@ export default function AuthScreen() {
 
   // ── Reset / Logout ──
   const handleReset = useCallback(() => {
+    clearError();
+    setRoleMismatch(false);
     logout();
     setStep(1);
     setLicenseKey('');
     setPinCode('');
     setSelectedRole('');
-  }, [logout]);
+  }, [logout, clearError]);
 
   // ── Render ──
   return (
@@ -125,6 +156,16 @@ export default function AuthScreen() {
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Role Mismatch Warning */}
+          {roleMismatch && (
+            <Alert variant="warning" className="bg-amber-50 border-amber-200">
+              <AlertDescription className="text-amber-800">
+                ⚠️ الدور المختار ({selectedRole}) لا يطابق الدور المسجل في النظام. 
+                تم تسجيل الدخول بالدور الصحيح من قاعدة البيانات.
+              </AlertDescription>
             </Alert>
           )}
 
@@ -172,6 +213,9 @@ export default function AuthScreen() {
                     <SelectItem value="super_admin">مدير النظام</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-gray-400">
+                  اختيار الدور لتسهيل التجربة — الدور الفعلي يأتي من قاعدة البيانات
+                </p>
               </div>
 
               {/* PIN Input */}
@@ -227,12 +271,11 @@ export default function AuthScreen() {
             </form>
           )}
 
-          {/* Debug Info (remove in production) */}
+          {/* Debug Info (DEV only, minimal) */}
           {import.meta.env.DEV && tenant_id && (
             <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-500 font-mono">
               <p>tenant_id: {tenant_id}</p>
               <p>status: {status}</p>
-              <p>step: {step}</p>
             </div>
           )}
         </CardContent>
