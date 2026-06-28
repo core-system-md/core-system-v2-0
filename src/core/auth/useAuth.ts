@@ -1,4 +1,7 @@
 // src/core/auth/useAuth.ts
+// CORE SYSTEM v2.1 — Auth Business Logic (Constitution §12 compliant)
+// Single Source of Truth: authStore (Zustand)
+
 import { useState } from 'react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuthStore, type RoleId } from '@/shared/store/authStore';
@@ -19,10 +22,12 @@ export function useAuth() {
 
   const clearError = () => setError(null);
 
+  // ─── 1. LICENSE VERIFICATION ───
   const verifyLicense = async (licenseKey: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     try {
+      // Direct table query is safer if validate_license RPC signature is uncertain
       const { data: tenantData, error: tenantError } = await supabase
         .from('master_tenants')
         .select('id, clinic_name, clinic_name_ar, primary_color, subscription_tier, license_key')
@@ -54,6 +59,7 @@ export function useAuth() {
     }
   };
 
+  // ─── 2. PIN VERIFICATION ───
   const verifyPin = async (pinCode: string, role: RoleId): Promise<string | null> => {
     setIsLoading(true);
     setError(null);
@@ -64,10 +70,10 @@ export function useAuth() {
         return null;
       }
 
-      // CORRECT RPC CALL: No "params" wrapper, expects Array return
+      // CORRECT RPC CALL: Flat parameters, NO "params" wrapper!
       const { data, error: rpcError } = await supabase.rpc('validate_pin', {
         p_tenant_id: currentTenant.id,
-        p_pin_code: pinCode,
+        p_pin_code: pinCode, // Ensure this matches the RPC argument name exactly
       });
 
       if (rpcError) {
@@ -76,7 +82,7 @@ export function useAuth() {
         return null;
       }
 
-      // Data is returned as TABLE (Array of rows)
+      // Data is returned as TABLE (Array of rows), NOT an object with .success
       const validatedUsers = data as PinValidationRow[] | null;
       
       if (!validatedUsers || validatedUsers.length === 0) {
@@ -86,12 +92,13 @@ export function useAuth() {
 
       const validatedUser = validatedUsers[0];
 
-      // Ensure the returned role matches the selected role (Security check)
+      // Security check: Ensure the returned role matches the selected role
       if (validatedUser.role !== role) {
-        setError('صلاحية الدور غير متطابقة');
+        setError('صلاحية الدور غير متطابقة مع رمز PIN');
         return null;
       }
 
+      // UPDATE ZUSTAND STORE (Single Source of Truth - NO localStorage)
       setUser({
         id: validatedUser.id,
         fullName: validatedUser.full_name,
@@ -117,6 +124,7 @@ export function useAuth() {
     }
   };
 
+  // ─── 3. LOGOUT ───
   const logout = () => {
     useAuthStore.getState().clearAuth();
   };
