@@ -15,6 +15,11 @@ interface RoleGuardProps {
   allowedRoles?: UserRole[];
   requiredPermission?: Permission;
   fallback?: React.ReactNode;
+  /**
+   * If true, redirect to default route instead of showing fallback
+   * when permission check fails. Default: false (show fallback or error).
+   */
+  redirectOnPermissionFail?: boolean;
 }
 
 /**
@@ -33,7 +38,8 @@ export function RoleGuard({
   children, 
   allowedRoles, 
   requiredPermission,
-  fallback 
+  fallback,
+  redirectOnPermissionFail = false,
 }: RoleGuardProps) {
   const location = useLocation();
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
@@ -46,11 +52,13 @@ export function RoleGuard({
 
   // 2. No role → something is wrong, redirect to auth
   if (!role) {
+    console.warn('[RoleGuard] Authenticated but no role found. Redirecting to auth.');
     return <Navigate to="/auth" replace />;
   }
 
   // 3. Role check
   if (allowedRoles && !allowedRoles.includes(role)) {
+    console.warn(`[RoleGuard] Role "${role}" not in allowed roles [${allowedRoles.join(', ')}]. Redirecting.`);
     // Unauthorized role → redirect to role's default route
     const defaultRoute = getDefaultRoute(role);
     return <Navigate to={defaultRoute} replace />;
@@ -58,6 +66,13 @@ export function RoleGuard({
 
   // 4. Permission check
   if (requiredPermission && !hasPermission(role, requiredPermission)) {
+    console.warn(`[RoleGuard] Role "${role}" lacks permission "${requiredPermission}".`);
+    
+    if (redirectOnPermissionFail) {
+      const defaultRoute = getDefaultRoute(role);
+      return <Navigate to={defaultRoute} replace />;
+    }
+    
     return fallback ? (
       <>{fallback}</>
     ) : (
@@ -74,33 +89,50 @@ export function RoleGuard({
 
 // ── Convenience HOCs ──
 
-export function DoctorGuard({ children }: { children: React.ReactNode }) {
+interface GuardProps {
+  children: React.ReactNode;
+  requiredPermission?: Permission;
+}
+
+export function DoctorGuard({ children, requiredPermission }: GuardProps) {
   return (
-    <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
+    <RoleGuard 
+      allowedRoles={['doctor', 'clinic_admin', 'super_admin']}
+      requiredPermission={requiredPermission}
+    >
       {children}
     </RoleGuard>
   );
 }
 
-export function AdminGuard({ children }: { children: React.ReactNode }) {
+export function AdminGuard({ children, requiredPermission }: GuardProps) {
   return (
-    <RoleGuard allowedRoles={['clinic_admin', 'super_admin']}>
+    <RoleGuard 
+      allowedRoles={['clinic_admin', 'super_admin']}
+      requiredPermission={requiredPermission}
+    >
       {children}
     </RoleGuard>
   );
 }
 
-export function SuperAdminGuard({ children }: { children: React.ReactNode }) {
+export function SuperAdminGuard({ children, requiredPermission }: GuardProps) {
   return (
-    <RoleGuard allowedRoles={['super_admin']}>
+    <RoleGuard 
+      allowedRoles={['super_admin']}
+      requiredPermission={requiredPermission}
+    >
       {children}
     </RoleGuard>
   );
 }
 
-export function ReceptionGuard({ children }: { children: React.ReactNode }) {
+export function ReceptionGuard({ children, requiredPermission }: GuardProps) {
   return (
-    <RoleGuard allowedRoles={['receptionist', 'clinic_admin', 'super_admin']}>
+    <RoleGuard 
+      allowedRoles={['receptionist', 'clinic_admin', 'super_admin']}
+      requiredPermission={requiredPermission}
+    >
       {children}
     </RoleGuard>
   );
