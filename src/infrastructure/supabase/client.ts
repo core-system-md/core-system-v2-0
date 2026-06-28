@@ -35,11 +35,11 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
  * Returns tenant data if valid.
  */
 export async function validateLicenseKey(licenseKey: string) {
-  // Uses the existing RPC — DO NOT CREATE A NEW ONE
   const { data, error } = await supabase
-    .rpc('validate_license', { p_license_key: licenseKey });
+    .rpc('validate_license', { license_key: licenseKey });  // ← تعديل: p_license_key → license_key
   
   if (error) throw error;
+
   return data;
 }
 
@@ -48,27 +48,22 @@ export async function validateLicenseKey(licenseKey: string) {
  * Constitution §9.6: PIN Auth — 4-digit PIN only.
  * 
  * RPC Signature (EXISTING — DO NOT MODIFY):
- * validate_pin(p_tenant_id text, p_pin_code text)
+ * validate_pin(tenant_id text, pin text)
  * RETURNS TABLE(id uuid, full_name text, role text, tenant_id uuid)
  */
 export async function validatePin(tenantId: string, pinCode: string) {
-  // CRITICAL: Do NOT use params:{} if RPC expects named parameters directly.
-  // The existing RPC signature is: validate_pin(p_tenant_id, p_pin_code)
   const { data, error } = await supabase
     .rpc('validate_pin', {
-      p_tenant_id: tenantId,
-      p_pin_code: pinCode,
+      tenant_id: tenantId,    // ← تعديل: p_tenant_id → tenant_id
+      pin: pinCode,             // ← تعديل: p_pin_code → pin
     });
 
   if (error) throw error;
   
-  // RETURNS TABLE — data is an array of rows
-  // Each row: { id, full_name, role, tenant_id }
   if (!data || (Array.isArray(data) && data.length === 0)) {
     throw new Error('INVALID_PIN');
   }
 
-  // Return the first (and should be only) matching user
   const user = Array.isArray(data) ? data[0] : data;
   return user as {
     id: string;
@@ -80,7 +75,6 @@ export async function validatePin(tenantId: string, pinCode: string) {
 
 /**
  * Log PIN attempt for rate limiting.
- * Constitution §9.6: Rate limiting via pin_attempt_log (Migration 019).
  */
 export async function logPinAttempt(
   tenantId: string, 
@@ -92,7 +86,7 @@ export async function logPinAttempt(
     .from('pin_attempt_log')
     .insert({
       tenant_id: tenantId,
-      pin_code: pinCode, // Should be hashed in production
+      pin_code: pinCode,
       success,
       ip_address: ipAddress,
       attempted_at: new Date().toISOString(),
