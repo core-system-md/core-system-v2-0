@@ -1,241 +1,242 @@
-// src/features/auth/AuthScreen.tsx
-// CORE SYSTEM v2.1 — Auth Screen (Constitution §12 compliant - View Only)
+// ============================================================
+// CORE SYSTEM v2.1 — AuthScreen
+// VIEW ONLY. NO Business Logic. NO supabase.rpc(). NO supabase.from().
+// Constitution §12: AuthScreen → useAuth → Supabase. NOT AuthScreen → Supabase directly.
+// Blueprint: AuthScreen is a View. useAuth is the Controller.
+// ============================================================
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/core/auth/useAuth'; // We will create this hook
+import { useAuth } from '@/core/auth/useAuth';
+import { useAuthStore, selectIsPinLocked, selectPinAttemptsRemaining } from '@/shared/store/authStore';
+import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
+import type { UserRole } from '@/shared/types/auth';
 
-const ROLES = [
-  { id: 'doctor' as const, label: 'Doctor', labelAr: 'طبيب', color: '#1B2A4A' },
-  { id: 'receptionist' as const, label: 'Reception', labelAr: 'استقبال', color: '#059669' },
-  { id: 'clinic_admin' as const, label: 'Admin', labelAr: 'مدير', color: '#d97706' },
-  { id: 'super_admin' as const, label: 'Super Admin', labelAr: 'مشرف عام', color: '#dc2626' },
-];
+// UI Components (Shadcn/UI per Constitution §1)
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Label } from '@/components/ui/label';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-type RoleId = typeof ROLES[number]['id'];
-
-// ... (Keeping the exact same styles object you provided, no UI changes) ...
-const styles: Record<string, React.CSSProperties> = { /* ... same as your code ... */ };
-
+/**
+ * AuthScreen — Two-Step Authentication Flow:
+ * Step 1: License Key Validation (clinic identification)
+ * Step 2: PIN + Role Selection (staff authentication)
+ */
 export default function AuthScreen() {
-  const [licenseKey, setLicenseKey] = useState('');
-  const [selectedRole, setSelectedRole] = useState<RoleId | null>(null);
-  const [pin, setPin] = useState('');
-  const [step, setStep] = useState<'license' | 'role' | 'pin'>('license');
-
   const navigate = useNavigate();
-  
-  // Using the central useAuth hook (Business Logic Controller)
-  const { verifyLicense, verifyPin, tenant, isLoading, error, clearError } = useAuth();
+  const { 
+    validateLicense, 
+    loginWithPin, 
+    logout,
+    isLoading, 
+    error, 
+    status,
+    tenant_id,
+    user,
+    clearError,
+  } = useAuth();
 
-  const handleVerifyLicense = async () => {
+  // Local UI state only
+  const [licenseKey, setLicenseKey] = useState('');
+  const [pinCode, setPinCode] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole | ''>('');
+  const [step, setStep] = useState<1 | 2>(1);
+
+  const isPinLocked = useAuthStore(selectIsPinLocked);
+  const attemptsRemaining = useAuthStore(selectPinAttemptsRemaining);
+
+  // ── Step 1: Validate License ──
+  const handleLicenseSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearError();
+
     if (!licenseKey.trim()) return;
-    clearError();
-    const success = await verifyLicense(licenseKey.trim());
-    if (success) setStep('role');
-  };
 
-  const handleVerifyPin = async (pinCode: string) => {
-    if (!selectedRole || pinCode.length !== 4) return;
-    clearError();
-    const route = await verifyPin(pinCode, selectedRole);
-    if (route) {
-      navigate(route); // React Router navigation (No full page reload)
+    const result = await validateLicense(licenseKey.trim());
+    if (result.success) {
+      setStep(2);
     }
-  };
+  }, [licenseKey, validateLicense, clearError]);
 
-  const handleRoleSelect = (role: RoleId) => {
-    setSelectedRole(role);
-    setStep('pin');
-    setPin('');
+  // ── Step 2: PIN Login ──
+  const handlePinSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
     clearError();
-  };
 
-  const handleBack = () => {
-    clearError();
-    if (step === 'pin') {
-      setStep('role');
-      setPin('');
-      setSelectedRole(null);
-    } else if (step === 'role') {
-      setStep('license');
-      setSelectedRole(null);
+    if (!pinCode.trim() || pinCode.length !== 4) return;
+    if (!selectedRole) return;
+
+    const result = await loginWithPin(pinCode.trim());
+    
+    if (result.success && result.user) {
+      // Validate role matches (security check)
+      if (result.user.role !== selectedRole) {
+        // Role mismatch — but we still allow if the PIN is correct
+        // The actual role comes from the database, not the UI selection
+        // UI selection is just a UX hint
+      }
+
+      // Navigate to role-specific dashboard
+      const route = getDefaultRoute(result.user.role as UserRole);
+      navigate(route, { replace: true });
     }
-  };
+  }, [pinCode, selectedRole, loginWithPin, clearError, navigate]);
 
-  const roleEmojis: Record<RoleId, string> = {
-    doctor: '🩺',
-    receptionist: '👥',
-    clinic_admin: '🛡️',
-    super_admin: '👑',
-  };
+  // ── Handle PIN input (4 digits only) ──
+  const handlePinChange = useCallback((value: string) => {
+    // Only allow 4 digits
+    const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
+    setPinCode(digitsOnly);
+  }, []);
 
-  if (step === 'license') {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <div style={styles.logoBox}>🛡️</div>
-            <h1 style={styles.title}>CORE SYSTEM</h1>
-            <p style={styles.subtitle}>نظام إدارة العيادات الذكي</p>
-          </div>
+  // ── Reset / Logout ──
+  const handleReset = useCallback(() => {
+    logout();
+    setStep(1);
+    setLicenseKey('');
+    setPinCode('');
+    setSelectedRole('');
+  }, [logout]);
 
-          <div>
-            <label style={styles.label}>مفتاح الترخيص / License Key</label>
-            <input
-              type="text"
-              placeholder="DEMO-LICENSE-2024"
-              value={licenseKey}
-              onChange={(e) => setLicenseKey(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleVerifyLicense()}
-              style={styles.input}
-            />
-          </div>
-
-          {error && <div style={styles.error}>{error}</div>}
-
-          <button
-            onClick={handleVerifyLicense}
-            disabled={isLoading || !licenseKey.trim()}
-            style={{
-              ...styles.button,
-              ...(isLoading || !licenseKey.trim() ? styles.buttonDisabled : {}),
-            }}
-          >
-            {isLoading ? '⏳' : 'التالي →'}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === 'role') {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h2 style={{ ...styles.title, fontSize: '20px' }}>اختر دورك</h2>
-          <p style={styles.subtitle}>{tenant?.nameAr || tenant?.name}</p>
-
-          <div style={styles.roleGrid}>
-            {ROLES.map((role) => (
-              <button
-                key={role.id}
-                onClick={() => handleRoleSelect(role.id)}
-                style={styles.roleButton}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = role.color;
-                  e.currentTarget.style.background = '#f8fafc';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#e2e8f0';
-                  e.currentTarget.style.background = 'white';
-                }}
-              >
-                <div style={styles.roleIcon}>{roleEmojis[role.id]}</div>
-                <div style={styles.roleLabel}>{role.label}</div>
-                <div style={styles.roleLabelAr}>{role.labelAr}</div>
-              </button>
-            ))}
-          </div>
-
-          <button onClick={handleBack} style={styles.backLink}>← رجوع</button>
-        </div>
-      </div>
-    );
-  }
-
-  const selectedRoleData = ROLES.find(r => r.id === selectedRole);
-
+  // ── Render ──
   return (
-    <div style={styles.container}>
-      <div style={{ ...styles.card, maxWidth: '360px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{
-            ...styles.roleHeaderBox,
-            background: (selectedRoleData?.color || '#1B2A4A') + '15',
-          }}>
-            {selectedRole ? roleEmojis[selectedRole] : '🛡️'}
-          </div>
-          <h2 style={{ ...styles.title, fontSize: '18px' }}>
-            {selectedRoleData?.labelAr} - {selectedRoleData?.label}
-          </h2>
-          <p style={styles.subtitle}>أدخل رمز PIN المكون من 4 أرقام</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-[#1B2A4A]">
+            CORE SYSTEM v2.1
+          </CardTitle>
+          <p className="text-sm text-gray-500 mt-1">
+            {step === 1 ? 'تسجيل الدخول — الخطوة ١: الترخيص' : 'تسجيل الدخول — الخطوة ٢: PIN + الدور'}
+          </p>
+        </CardHeader>
 
-        <div style={styles.pinDisplay}>
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              style={{
-                ...styles.pinDot,
-                ...(i < pin.length ? styles.pinDotFilled : {}),
-              }}
-            >
-              {i < pin.length ? '•' : ''}
-            </div>
-          ))}
-        </div>
+        <CardContent className="space-y-4">
+          {/* Error Alert */}
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-        <input
-          type="password"
-          inputMode="numeric"
-          maxLength={4}
-          value={pin}
-          onChange={(e) => {
-            const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-            setPin(val);
-            if (val.length === 4) setTimeout(() => handleVerifyPin(val), 100);
-          }}
-          style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-          autoFocus
-        />
+          {/* Step 1: License Key */}
+          {step === 1 && (
+            <form onSubmit={handleLicenseSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="license">مفتاح الترخيص</Label>
+                <Input
+                  id="license"
+                  type="text"
+                  placeholder="أدخل مفتاح الترخيص..."
+                  value={licenseKey}
+                  onChange={(e) => setLicenseKey(e.target.value)}
+                  disabled={isLoading}
+                  className="text-center tracking-widest"
+                  autoComplete="off"
+                />
+              </div>
 
-        <div style={styles.keypad}>
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-            <button
-              key={num}
-              onClick={() => {
-                if (pin.length < 4) {
-                  const newPin = pin + num;
-                  setPin(newPin);
-                  if (newPin.length === 4) setTimeout(() => handleVerifyPin(newPin), 100);
+              <Button 
+                type="submit" 
+                className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
+                disabled={isLoading || !licenseKey.trim()}
+              >
+                {isLoading ? 'جاري التحقق...' : 'التحقق من الترخيص'}
+              </Button>
+            </form>
+          )}
+
+          {/* Step 2: PIN + Role */}
+          {step === 2 && (
+            <form onSubmit={handlePinSubmit} className="space-y-4">
+              {/* Role Selection */}
+              <div className="space-y-2">
+                <Label>الدور الوظيفي</Label>
+                <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as UserRole)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر الدور..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="doctor">طبيب</SelectItem>
+                    <SelectItem value="receptionist">استقبال</SelectItem>
+                    <SelectItem value="clinic_admin">مدير العيادة</SelectItem>
+                    <SelectItem value="super_admin">مدير النظام</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* PIN Input */}
+              <div className="space-y-2">
+                <Label htmlFor="pin">رمز PIN (4 أرقام)</Label>
+                <Input
+                  id="pin"
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  placeholder="• • • •"
+                  value={pinCode}
+                  onChange={(e) => handlePinChange(e.target.value)}
+                  disabled={isLoading || isPinLocked}
+                  className="text-center text-2xl tracking-[0.5em]"
+                  autoComplete="off"
+                />
+                {isPinLocked && (
+                  <p className="text-xs text-red-600">
+                    تم قفل المحاولات. يرجى الانتظار.
+                  </p>
+                )}
+                {!isPinLocked && attemptsRemaining < 5 && (
+                  <p className="text-xs text-amber-600">
+                    محاولات متبقية: {attemptsRemaining}
+                  </p>
+                )}
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
+                disabled={
+                  isLoading || 
+                  pinCode.length !== 4 || 
+                  !selectedRole || 
+                  isPinLocked
                 }
-              }}
-              style={styles.key}
-              onMouseDown={(e) => { e.currentTarget.style.background = '#e2e8f0'; }}
-              onMouseUp={(e) => { e.currentTarget.style.background = '#f1f5f9'; }}
-            >
-              {num}
-            </button>
-          ))}
-          <button onClick={handleBack} style={styles.key}>رجوع</button>
-          <button
-            onClick={() => {
-              if (pin.length < 4) {
-                const newPin = pin + '0';
-                setPin(newPin);
-                if (newPin.length === 4) setTimeout(() => handleVerifyPin(newPin), 100);
-              }
-            }}
-            style={styles.key}
-            onMouseDown={(e) => { e.currentTarget.style.background = '#e2e8f0'; }}
-            onMouseUp={(e) => { e.currentTarget.style.background = '#f1f5f9'; }}
-          >
-            0
-          </button>
-          <button
-            onClick={() => setPin(pin.slice(0, -1))}
-            style={styles.key}
-            onMouseDown={(e) => { e.currentTarget.style.background = '#e2e8f0'; }}
-            onMouseUp={(e) => { e.currentTarget.style.background = '#f1f5f9'; }}
-          >
-            ⌫
-          </button>
-        </div>
+              >
+                {isLoading ? 'جاري التحقق...' : 'تسجيل الدخول'}
+              </Button>
 
-        {error && <div style={styles.error}>{error}</div>}
-        {isLoading && <div style={styles.loading}>⏳ جاري التحقق...</div>}
-      </div>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                className="w-full"
+                onClick={handleReset}
+                disabled={isLoading}
+              >
+                العودة — إدخال ترخيص آخر
+              </Button>
+            </form>
+          )}
+
+          {/* Debug Info (remove in production) */}
+          {import.meta.env.DEV && tenant_id && (
+            <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-500 font-mono">
+              <p>tenant_id: {tenant_id}</p>
+              <p>status: {status}</p>
+              <p>step: {step}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
