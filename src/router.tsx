@@ -1,26 +1,100 @@
-// src/core/permissions/RoleGuard.tsx
-import { Navigate } from 'react-router-dom';
-import { useAuthStore, RoleId } from '@/shared/store/authStore';
+// ============================================================
+// CORE SYSTEM v2.1 — Router
+// Constitution §6: 4 Roles Only. RoleGuard blocks unauthorized access.
+// Constitution §3: features/ MAY import from domain + shared.
+// ============================================================
 
-interface RoleGuardProps {
-  children: React.ReactNode;
-  allowedRoles: RoleId[];
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
+import { useAuthStore, selectIsAuthenticated, selectUserRole } from '@/shared/store/authStore';
+import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
+import { RoleGuard } from '@/core/permissions/RoleGuard';
+import { AuthScreen } from '@/features/auth/AuthScreen';
+
+// Lazy load all feature modules per Constitution §3
+const DoctorDashboard = lazy(() => import('@/features/doctor/DoctorLayout'));
+const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionLayout'));
+const AdminLayout = lazy(() => import('@/features/clinic-admin/AdminLayout'));
+const SuperAdminDashboard = lazy(() => import('@/features/super-admin/SuperAdminLayout'));
+
+// PageLoader — shared component for Suspense fallback
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" dir="rtl">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1B2A4A]" />
+    </div>
+  );
 }
 
-export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
-  const user = useAuthStore(state => state.user);
-  const isAuthenticated = useAuthStore(state => state.selectIsAuthenticated());
+export function Router() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const role = useAuthStore(selectUserRole);
 
-  // If not authenticated, kick to login
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/auth" replace />;
-  }
+  return (
+    <Routes>
+      {/* Public Route */}
+      <Route 
+        path="/auth" 
+        element={isAuthenticated ? <Navigate to={getDefaultRoute(role)} replace /> : <AuthScreen />} 
+      />
 
-  // If user's role is not in the allowed list, kick to unauthorized or default route
-  if (!allowedRoles.includes(user.role)) {
-    // For now, redirect back to auth. Can be changed to an /unauthorized screen later.
-    return <Navigate to="/auth" replace />;
-  }
+      {/* Doctor Routes */}
+      <Route 
+        path="/doctor/*" 
+        element={
+          <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
+            <Suspense fallback={<PageLoader />}>
+              <DoctorDashboard />
+            </Suspense>
+          </RoleGuard>
+        } 
+      />
 
-  return <>{children}</>;
+      {/* Reception Routes */}
+      <Route 
+        path="/reception/*" 
+        element={
+          <RoleGuard allowedRoles={['receptionist', 'clinic_admin', 'super_admin']}>
+            <Suspense fallback={<PageLoader />}>
+              <ReceptionDashboard />
+            </Suspense>
+          </RoleGuard>
+        } 
+      />
+
+      {/* Clinic Admin Routes */}
+      <Route 
+        path="/clinic-admin/*" 
+        element={
+          <RoleGuard allowedRoles={['clinic_admin', 'super_admin']}>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout />
+            </Suspense>
+          </RoleGuard>
+        } 
+      />
+
+      {/* Super Admin Routes */}
+      <Route 
+        path="/super-admin/*" 
+        element={
+          <RoleGuard allowedRoles={['super_admin']}>
+            <Suspense fallback={<PageLoader />}>
+              <SuperAdminDashboard />
+            </Suspense>
+          </RoleGuard>
+        } 
+      />
+
+      {/* Default: redirect based on auth state */}
+      <Route 
+        path="*" 
+        element={
+          isAuthenticated 
+            ? <Navigate to={getDefaultRoute(role)} replace />
+            : <Navigate to="/auth" replace />
+        } 
+      />
+    </Routes>
+  );
 }
