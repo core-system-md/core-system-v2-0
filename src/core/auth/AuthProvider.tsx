@@ -3,6 +3,17 @@
 // SINGLE SOURCE OF SESSION for the entire application.
 // Constitution §1: React 18+ + Vite + TypeScript (strict)
 // Constitution §9: Security — RLS, JWT Claims, PIN Auth.
+// 
+// Responsibilities:
+//   1. Initialize auth state from persisted store (license/tenant only)
+//   2. Sync with Supabase session on mount
+//   3. Provide Context for backward compatibility
+//   4. Handle session expiry and refresh.
+//
+// DOES NOT:
+//   - Handle PIN logic (that's PinAuthProvider + useAuth)
+//   - Read from LocalStorage directly (Zustand persist handles that)
+//   - Create multiple session sources.
 // ============================================================
 
 import { useEffect, useRef, createContext, useContext } from 'react';
@@ -21,6 +32,8 @@ interface AuthContextValue {
   isLoading: boolean;
   tenantId: string | null;
   role: UserRole | null;
+  fullName: string;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -29,6 +42,8 @@ const AuthContext = createContext<AuthContextValue>({
   isLoading: false,
   tenantId: null,
   role: null,
+  fullName: '',
+  logout: () => {},
 });
 
 // ── Hook: useAuthContext (backward compatibility) ──
@@ -45,8 +60,11 @@ export function useAuth() {
     isLoading: store.isLoading,
     tenantId: store.tenant_id,
     role: store.user?.role ?? null,
+    userRole: store.user?.role ?? null,
+    fullName: store.user?.full_name ?? '',
     login: () => { /* delegated to useAuth hook */ },
     logout: () => store.logout(),
+    signOut: () => store.logout(),
   };
 }
 
@@ -203,6 +221,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     tenantId,
     role: user?.role ?? null,
+    fullName: user?.full_name ?? '',
+    logout: () => useAuthStore.getState().logout(),
   };
 
   return (
