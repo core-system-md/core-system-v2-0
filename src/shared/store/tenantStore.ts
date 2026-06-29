@@ -1,3 +1,8 @@
+// ============================================================
+// CORE SYSTEM v2.1 — Tenant Store (Zustand)
+// Constitution §5: ALWAYS use database.types.ts
+// ============================================================
+
 import { create } from 'zustand';
 import { supabase } from '@/infrastructure/supabase/client';
 
@@ -10,7 +15,6 @@ interface TenantState {
   isLoading: boolean;
   error: string | null;
 
-  // Actions
   fetchTenant: () => Promise<void>;
   setTenantId: (id: string) => void;
   clearTenant: () => void;
@@ -34,7 +38,7 @@ export const useTenantStore = create<TenantState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('master_tenants')
-        .select('id, clinic_name, subscription_tier, primary_color, logo_url')
+        .select('id, name, subscription_tier')
         .eq('id', tenantId)
         .is('deleted_at', null)
         .single();
@@ -42,10 +46,10 @@ export const useTenantStore = create<TenantState>((set, get) => ({
       if (error) throw error;
 
       set({
-        clinicName: data?.clinic_name || null,
+        clinicName: data?.name || null,
         subscriptionTier: data?.subscription_tier || 'trial',
-        primaryColor: data?.primary_color || '#1B2A4A',
-        logoUrl: data?.logo_url || null,
+        primaryColor: '#1B2A4A',
+        logoUrl: null,
         isLoading: false,
         error: null
       });
@@ -55,7 +59,7 @@ export const useTenantStore = create<TenantState>((set, get) => ({
       set({ 
         error: err instanceof Error ? err.message : 'Failed to fetch tenant', 
         isLoading: false,
-        subscriptionTier: 'trial' // Fallback to safest tier
+        subscriptionTier: 'trial'
       });
     }
   },
