@@ -18,7 +18,7 @@ export interface AuthUser {
   full_name: string;
   role: UserRole;
   tenant_id: string;
-  email?: string;
+  email?: string | undefined;  // ← FIXED: explicit undefined for exactOptionalPropertyTypes
 }
 
 export interface LicenseValidationResult {
@@ -27,4 +27,12 @@ export interface LicenseValidationResult {
   clinic_name: string;
   subscription_tier: string;
   is_valid: boolean;
+}
+
+// ← NEW: PinLoginResult for PinAuthProvider
+export interface PinLoginResult {
+  id: string;
+  full_name: string;
+  role: UserRole;
+  tenant_id: string;
 }
