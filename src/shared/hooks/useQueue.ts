@@ -3,12 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
 import { useQueueChannel } from '../../core/realtime/useQueueChannel';
 import { useQueueStore, type QueueItem } from '../store/queueStore';
-import { useAuthContext } from '../../core/auth/AuthProvider';
+import { useAuthStore } from '../../shared/store/authStore';
 
 const QUEUE_KEY = 'live-queue';
 
 export function useQueue() {
-  const { tenantId: authTenantId } = useAuthContext();
+  const authTenantId = useAuthStore((s) => s.tenant_id);
   
   let tenantId = authTenantId;
   if (!tenantId) {
