@@ -2,25 +2,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useTenantStore } from '@/shared/store/tenantStore';
 
-// Constitution §8.1: Feature flags table structure
-// tenant_id: UUID (NULL = global)
-// flag_key: VARCHAR(100)
-// is_enabled: BOOLEAN
-// allowed_tiers: TEXT[]
-
 interface FeatureFlag {
   flag_key: string;
   is_enabled: boolean;
-  allowed_tiers: string[];
+  allowed_tiers: string[] | null;
 }
 
-/**
- * Check if a feature flag is enabled for current tenant
- * Constitution §8.2: Tier validation required
- * 
- * @param flagKey - The feature flag key (e.g., 'AI_REPORTS')
- * @returns boolean - true if enabled and tier allowed
- */
 export function useFeatureFlag(flagKey: string): {
   isEnabled: boolean;
   isLoading: boolean;
@@ -43,7 +30,6 @@ export function useFeatureFlag(flagKey: string): {
 
       setIsLoading(true);
       try {
-        // Step 1: Check tenant-specific flag
         const { data: tenantFlag, error: tenantError } = await supabase
           .from('feature_flags')
           .select('flag_key, is_enabled, allowed_tiers')
@@ -55,7 +41,6 @@ export function useFeatureFlag(flagKey: string): {
           throw tenantError;
         }
 
-        // Step 2: If no tenant-specific flag, check global flag
         let flag: FeatureFlag | null = tenantFlag;
 
         if (!flag) {
@@ -72,11 +57,9 @@ export function useFeatureFlag(flagKey: string): {
           flag = globalFlag;
         }
 
-        // Step 3: Validate tier + enabled status
-        // Constitution §8: current_tier IN allowed_tiers AND is_enabled = true
         if (flag && flag.is_enabled) {
           const currentTier = subscriptionTier || 'trial';
-          const tierAllowed = flag.allowed_tiers.includes(currentTier);
+          const tierAllowed = flag.allowed_tiers?.includes(currentTier) ?? false;
           setIsEnabled(tierAllowed);
         } else {
           setIsEnabled(false);
@@ -97,10 +80,6 @@ export function useFeatureFlag(flagKey: string): {
   return { isEnabled, isLoading, error };
 }
 
-/**
- * Batch check multiple feature flags
- * Optimized: single query for all flags
- */
 export function useFeatureFlags(flagKeys: string[]): {
   flags: Record<string, boolean>;
   isLoading: boolean;
@@ -120,7 +99,6 @@ export function useFeatureFlags(flagKeys: string[]): {
 
       setIsLoading(true);
       try {
-        // Fetch tenant-specific flags
         const { data: tenantFlags, error: tenantError } = await supabase
           .from('feature_flags')
           .select('flag_key, is_enabled, allowed_tiers')
@@ -129,7 +107,6 @@ export function useFeatureFlags(flagKeys: string[]): {
 
         if (tenantError) throw tenantError;
 
-        // Fetch global flags for missing ones
         const foundKeys = (tenantFlags || []).map((f: FeatureFlag) => f.flag_key);
         const missingKeys = flagKeys.filter(k => !foundKeys.includes(k));
 
@@ -145,14 +122,13 @@ export function useFeatureFlags(flagKeys: string[]): {
           globalFlags = gFlags || [];
         }
 
-        // Merge and validate tiers
         const allFlags = [...(tenantFlags || []), ...globalFlags];
         const currentTier = subscriptionTier || 'trial';
 
         const result: Record<string, boolean> = {};
         flagKeys.forEach(key => {
           const flag = allFlags.find((f: FeatureFlag) => f.flag_key === key);
-          result[key] = flag ? flag.is_enabled && flag.allowed_tiers.includes(currentTier) : false;
+          result[key] = flag ? flag.is_enabled && (flag.allowed_tiers?.includes(currentTier) ?? false) : false;
         });
 
         setFlags(result);
