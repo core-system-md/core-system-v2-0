@@ -7,7 +7,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { AuthUser, UserRole, AuthStatus, LicenseValidationResult } from '@/shared/types/auth';
+import type { AuthUser, AuthStatus, LicenseValidationResult } from '@/shared/types/auth';
 
 interface AuthState {
   // ── Core State ──
@@ -23,7 +23,7 @@ interface AuthState {
 
   // ── PIN State ──
   pinAttempts: number;
-  pinLockedUntil: number | null; // timestamp
+  pinLockedUntil: number | null;
 
   // ── Actions ──
   setUser: (user: AuthUser | null) => void;
@@ -40,12 +40,11 @@ interface AuthState {
 }
 
 const PIN_MAX_ATTEMPTS = 5;
-const PIN_LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes per Constitution §9.6
+const PIN_LOCK_DURATION_MS = 15 * 60 * 1000;
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      // Initial State
       user: null,
       isAuthenticated: false,
       isLoading: false,
@@ -56,7 +55,6 @@ export const useAuthStore = create<AuthState>()(
       pinAttempts: 0,
       pinLockedUntil: null,
 
-      // Actions
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setAuthenticated: (value) => set({ isAuthenticated: value }),
       setLoading: (value) => set({ isLoading: value }),
@@ -101,9 +99,8 @@ export const useAuthStore = create<AuthState>()(
       }),
     }),
     {
-      name: 'core_auth_store', // LocalStorage key — SINGLE KEY ONLY
+      name: 'core_auth_store',
       storage: createJSONStorage(() => localStorage),
-      // Only persist license/tenant — NEVER persist PIN or sensitive data
       partialize: (state) => ({
         tenant_id: state.tenant_id,
         license: state.license,
@@ -112,7 +109,7 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
-// ── Selectors (for performance) ──
+// ── Selectors ──
 export const selectUser = (state: AuthState) => state.user;
 export const selectTenantId = (state: AuthState) => state.tenant_id;
 export const selectUserRole = (state: AuthState) => state.user?.role ?? null;
