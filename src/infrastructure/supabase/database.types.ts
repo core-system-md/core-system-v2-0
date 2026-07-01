@@ -2307,7 +2307,7 @@ export type Database = {
         | { Args: { params: Json }; Returns: Json }
       validate_license:
         | {
-            Args: { p_license_key: string }
+            Args: { p_device_fingerprint?: string; p_license_key: string }
             Returns: {
               address: string | null
               clinic_name: string | null

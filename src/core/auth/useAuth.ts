@@ -1,11 +1,14 @@
 // src/core/auth/useAuth.ts
 // Blueprint: src/core/auth/useAuth.ts
 // Purpose: Email + PIN + License validation
-// UPDATED: 2026-06-24 — Fixed validate_license/validate_pin jsonb response + backward compatibility for tenant_id
+// FIXED: 2026-07-01 — Sync login/logout with authStore (Zustand single source of truth)
+// FIXED: 2026-07-01 — Handle SETOF responses (array of rows) from RPCs
 
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { supabase } from '../../infrastructure/supabase/client';
+import { useAuthStore } from '@/shared/store/authStore';
+import type { UserRole } from '@/shared/types/auth';
 
 // ─── Types ───
 interface LoginCredentials {
@@ -24,24 +27,16 @@ interface LoginResult {
   tenantId: string;
 }
 
-interface RpcResponse {
-  success?: boolean;
-  message?: string;
-  tenant_id?: unknown;
-  user_id?: unknown;
-  full_name?: string | null;
-  role?: string | null;
-  employee_code?: string | null;
-}
-
-function parseRpcResponse<T extends RpcResponse>(response: unknown): T | null {
-  if (response && typeof response === 'object') {
-    const payload = response as { data?: unknown };
-    if (payload.data !== undefined) return payload.data as T;
-    return response as T;
-  }
+// ─── Helpers for SETOF responses ───
+/**
+ * SETOF returns an array of rows. We take the first row.
+ */
+function parseSetofResponse<T>(response: unknown): T | null {
   if (Array.isArray(response) && response.length > 0) {
     return response[0] as T;
+  }
+  if (response && typeof response === 'object') {
+    return response as T;
   }
   return null;
 }
@@ -50,6 +45,16 @@ const PIN_AUTH_KEY = 'core_pin_auth';
 const PIN_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
 export function useAuth() {
+  // ── Zustand Store hooks ──
+  const storeSetUser = useAuthStore((s) => s.setUser);
+  const storeSetAuthenticated = useAuthStore((s) => s.setAuthenticated);
+  const storeSetStatus = useAuthStore((s) => s.setStatus);
+  const storeSetTenant = useAuthStore((s) => s.setTenant);
+  const storeLogout = useAuthStore((s) => s.logout);
+  const storeUser = useAuthStore((s) => s.user);
+  const storeIsAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const storeTenantId = useAuthStore((s) => s.tenant_id);
+
   const login = useMutation<LoginResult, Error, LoginCredentials>({
     mutationFn: async (credentials) => {
       const {
@@ -74,16 +79,13 @@ export function useAuth() {
         throw new Error(`INVALID_LICENSE: ${licenseError.message}`);
       }
 
-      const licenseData = parseRpcResponse<RpcResponse>(licenseResult);
+      // SETOF returns array of rows
+      const licenseData = parseSetofResponse<any>(licenseResult);
       if (!licenseData) {
-        throw new Error('INVALID_LICENSE: Unexpected response format');
+        throw new Error('INVALID_LICENSE: License not found or inactive');
       }
 
-      if (!licenseData?.success) {
-        throw new Error(`INVALID_LICENSE: ${licenseData?.message || 'License validation failed'}`);
-      }
-
-      const tenantId = String(licenseData.tenant_id);
+      const tenantId = String(licenseData.id);
 
       if (!tenantId || tenantId === 'null' || tenantId === 'undefined' || tenantId === '') {
         throw new Error('TENANT_MISSING: Tenant ID was not returned by license validation');
@@ -100,14 +102,14 @@ export function useAuth() {
           throw new Error(`AUTH_FAILED: ${validateError.message}`);
         }
 
-        const authData = parseRpcResponse<RpcResponse>(authResult);
+        const authData = parseSetofResponse<any>(authResult);
 
-        if (!authData?.success) {
-          throw new Error(`AUTH_FAILED: ${authData?.message || 'Invalid email or password'}`);
+        if (!authData) {
+          throw new Error(`AUTH_FAILED: Invalid email or password`);
         }
 
         const result: LoginResult = {
-          userId: String(authData.user_id),
+          userId: String(authData.id),
           email: loginEmail.trim(),
           fullName: authData.full_name ?? null,
           role: authData.role ?? null,
@@ -126,8 +128,20 @@ export function useAuth() {
           }),
         );
 
-        // ✅ Write tenant_id directly for backward compatibility (DecisionCard.tsx, etc.)
+        // ✅ Write tenant_id directly for backward compatibility
         localStorage.setItem('tenant_id', result.tenantId);
+
+        // ✅ Sync to Zustand
+        storeSetTenant(result.tenantId, null);
+        storeSetUser({
+          id: result.userId,
+          full_name: result.fullName || 'User',
+          role: (result.role || 'receptionist') as UserRole,
+          tenant_id: result.tenantId,
+          email: result.email || undefined,
+        });
+        storeSetAuthenticated(true);
+        storeSetStatus('authenticated');
 
         return result;
       }
@@ -147,17 +161,14 @@ export function useAuth() {
           throw new Error(`INVALID_PIN: ${pinError.message}`);
         }
 
-        const pinData = parseRpcResponse<RpcResponse>(pinResult);
+        // SETOF returns array of rows
+        const pinData = parseSetofResponse<any>(pinResult);
         if (!pinData) {
-          throw new Error('INVALID_PIN: Unexpected response format');
-        }
-
-        if (!pinData?.success) {
-          throw new Error(`INVALID_PIN: ${pinData?.message || 'Incorrect PIN code'}`);
+          throw new Error('INVALID_PIN: Incorrect PIN code');
         }
 
         const result: LoginResult = {
-          userId: String(pinData.user_id),
+          userId: String(pinData.id),
           email: null,
           fullName: pinData.full_name ?? null,
           role: pinData.role ?? null,
@@ -176,8 +187,19 @@ export function useAuth() {
           }),
         );
 
-        // ✅ Write tenant_id directly for backward compatibility (DecisionCard.tsx, DoctorPatientList.tsx, etc.)
+        // ✅ Write tenant_id directly for backward compatibility
         localStorage.setItem('tenant_id', result.tenantId);
+
+        // ✅ Sync to Zustand
+        storeSetTenant(result.tenantId, null);
+        storeSetUser({
+          id: result.userId,
+          full_name: result.fullName || 'Staff User',
+          role: (result.role || 'receptionist') as UserRole,
+          tenant_id: result.tenantId,
+        });
+        storeSetAuthenticated(true);
+        storeSetStatus('authenticated');
 
         return result;
       }
@@ -202,15 +224,19 @@ export function useAuth() {
         setError(licenseError.message);
         return { success: false, message: licenseError.message };
       }
-      const licenseData = parseRpcResponse<RpcResponse>(licenseResult);
-      if (!licenseData || !licenseData.success) {
-        const msg = licenseData?.message || 'License validation failed';
+      // SETOF returns array of rows
+      const licenseData = parseSetofResponse<any>(licenseResult);
+      if (!licenseData) {
+        const msg = 'License not found or inactive';
         setStatus('error');
         setError(msg);
         return { success: false, message: msg };
       }
-      const tenantId = String(licenseData.tenant_id);
+      const tenantId = String(licenseData.id);
       localStorage.setItem('tenant_id', tenantId);
+      // ✅ Sync to Zustand
+      storeSetTenant(tenantId, null);
+      storeSetStatus('license_valid');
       setStatus('success');
       return { success: true, tenant_id: tenantId };
     } catch (err: any) {
@@ -237,17 +263,34 @@ export function useAuth() {
         setError(pinError.message);
         return { success: false, error: pinError.message };
       }
-      const pinData = parseRpcResponse<RpcResponse>(pinResult);
-      if (!pinData || !pinData.success) {
-        const msg = pinData?.message || 'Invalid PIN';
+      // SETOF returns array of rows
+      const pinData = parseSetofResponse<any>(pinResult);
+      if (!pinData) {
+        const msg = 'Invalid PIN';
         setStatus('error');
         setError(msg);
         return { success: false, error: msg };
       }
-      // Persist PIN auth similar to original flow
-      localStorage.setItem('core_pin_auth', JSON.stringify({ user_id: String(pinData.user_id), full_name: pinData.full_name ?? null, role: pinData.role ?? null, tenant_id: tenantId, expiry: Date.now() + (24 * 60 * 60 * 1000) }));
+      // Persist PIN auth
+      localStorage.setItem('core_pin_auth', JSON.stringify({ 
+        user_id: String(pinData.id), 
+        full_name: pinData.full_name ?? null, 
+        role: pinData.role ?? null, 
+        tenant_id: tenantId, 
+        expiry: Date.now() + (24 * 60 * 60 * 1000) 
+      }));
+      // ✅ Sync to Zustand
+      storeSetTenant(tenantId, null);
+      storeSetUser({
+        id: String(pinData.id),
+        full_name: pinData.full_name || 'Staff User',
+        role: (pinData.role || 'receptionist') as UserRole,
+        tenant_id: tenantId,
+      });
+      storeSetAuthenticated(true);
+      storeSetStatus('authenticated');
       setStatus('success');
-      const userObj: any = { id: String(pinData.user_id) };
+      const userObj: any = { id: String(pinData.id) };
       if (pinData.role) userObj.role = pinData.role;
       if (pinData.full_name) userObj.fullName = pinData.full_name;
       return { success: true, user: userObj };
@@ -264,6 +307,8 @@ export function useAuth() {
     } catch { /* ignore */ }
     localStorage.removeItem('tenant_id');
     localStorage.removeItem('core_pin_auth');
+    // ✅ Clear Zustand
+    storeLogout();
   };
 
   const clearError = () => setError(null);
@@ -272,14 +317,14 @@ export function useAuth() {
     login,
     isPending: login.isPending,
     isLoading: login.isPending,
-    user: null as any,
-    isAuthenticated: login.isSuccess,
+    user: storeUser,
+    isAuthenticated: storeIsAuthenticated,
     validateLicense,
     loginWithPin,
     logout,
     error,
     status,
-    tenant_id: localStorage.getItem('tenant_id') || null,
+    tenant_id: storeTenantId,
     clearError,
   };
 }

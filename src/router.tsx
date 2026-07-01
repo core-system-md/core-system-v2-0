@@ -2,6 +2,7 @@
 // CORE SYSTEM v2.1 — Router
 // Constitution §6: 4 Roles Only. RoleGuard blocks unauthorized access.
 // Constitution §3: features/ MAY import from domain + shared.
+// FIXED: 2026-07-01 — Added FeatureFlagGuard, fixed route redirects
 // ============================================================
 
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -26,6 +27,26 @@ function PageLoader() {
   );
 }
 
+/**
+ * FeatureFlagGuard — checks if a feature is enabled before rendering route.
+ * Falls back to default route if feature is disabled.
+ * TODO: Connect to featureFlagStore when implemented.
+ */
+function FeatureFlagGuard({ 
+  children, 
+  featureName: _featureName 
+}: { 
+  children: React.ReactNode; 
+  featureName: string;
+}) {
+  // For now, all features are enabled. 
+  const isEnabled = true; 
+  if (!isEnabled) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+}
+
 export function Router() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const role = useAuthStore(selectUserRole);
@@ -43,9 +64,11 @@ export function Router() {
         path="/doctor/*" 
         element={
           <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <DoctorDashboard />
-            </Suspense>
+            <FeatureFlagGuard featureName="doctor_dashboard">
+              <Suspense fallback={<PageLoader />}>
+                <DoctorDashboard />
+              </Suspense>
+            </FeatureFlagGuard>
           </RoleGuard>
         } 
       />
@@ -55,9 +78,11 @@ export function Router() {
         path="/reception/*" 
         element={
           <RoleGuard allowedRoles={['receptionist', 'clinic_admin', 'super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <ReceptionDashboard />
-            </Suspense>
+            <FeatureFlagGuard featureName="reception_dashboard">
+              <Suspense fallback={<PageLoader />}>
+                <ReceptionDashboard />
+              </Suspense>
+            </FeatureFlagGuard>
           </RoleGuard>
         } 
       />
@@ -67,9 +92,11 @@ export function Router() {
         path="/clinic-admin/*" 
         element={
           <RoleGuard allowedRoles={['clinic_admin', 'super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <AdminLayout />
-            </Suspense>
+            <FeatureFlagGuard featureName="admin_dashboard">
+              <Suspense fallback={<PageLoader />}>
+                <AdminLayout />
+              </Suspense>
+            </FeatureFlagGuard>
           </RoleGuard>
         } 
       />
@@ -79,9 +106,11 @@ export function Router() {
         path="/super-admin/*" 
         element={
           <RoleGuard allowedRoles={['super_admin']}>
-            <Suspense fallback={<PageLoader />}>
-              <SuperAdminDashboard />
-            </Suspense>
+            <FeatureFlagGuard featureName="super_admin_dashboard">
+              <Suspense fallback={<PageLoader />}>
+                <SuperAdminDashboard />
+              </Suspense>
+            </FeatureFlagGuard>
           </RoleGuard>
         } 
       />

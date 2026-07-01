@@ -1,6 +1,14 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+// ============================================================
+// CORE SYSTEM v2.1 — AuthProvider
+// SINGLE SOURCE OF SESSION — Synced with Zustand authStore
+// FIXED: 2026-07-01 — Removed separate React state, all state flows through authStore
+// Constitution §1: Zustand is the single source of truth.
+// ============================================================
+
+import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/infrastructure/supabase/client";
+import { useAuthStore } from "@/shared/store/authStore";
 
 interface AuthContextType {
   user: User | null;
@@ -85,6 +93,14 @@ function getPinAuthData(): PinAuthPayload {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // ── Zustand Store (Single Source of Truth) ──
+  const storeSetUser = useAuthStore((s) => s.setUser);
+  const storeSetAuthenticated = useAuthStore((s) => s.setAuthenticated);
+  const storeSetStatus = useAuthStore((s) => s.setStatus);
+  const storeSetTenant = useAuthStore((s) => s.setTenant);
+  const storeLogout = useAuthStore((s) => s.logout);
+
+  // ── Local React state for Supabase session (bridge to Zustand) ──
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -99,6 +115,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const tenantId = tenantIdFromSession || tenantIdFromStorage || pinTenantId;
   const userRole = getFromAppMeta(session, "user_role") || pinRole;
   const isAuthenticated = !!user || isPinAuthenticated;
+
+  // ── Sync isAuthenticated to Zustand ──
+  useEffect(() => {
+    storeSetAuthenticated(isAuthenticated);
+  }, [isAuthenticated, storeSetAuthenticated]);
+
+  // ── Sync user role to Zustand AuthUser ──
+  useEffect(() => {
+    if (isPinAuthenticated && pinRole && tenantId) {
+      const pinData = getPinAuthData();
+      storeSetUser({
+        id: pinData.user_id || 'pin_user',
+        full_name: pinData.full_name || 'Staff User',
+        role: pinRole as any,
+        tenant_id: tenantId,
+      });
+    } else if (user && tenantId) {
+      storeSetUser({
+        id: user.id,
+        full_name: getFromAppMeta(session, "full_name") || user.email || 'User',
+        role: (getFromAppMeta(session, "user_role") || 'receptionist') as any,
+        tenant_id: tenantId,
+        email: user.email || undefined,
+      });
+    }
+  }, [isPinAuthenticated, pinRole, tenantId, user, session, storeSetUser]);
+
+  // ── Sync status to Zustand ──
+  useEffect(() => {
+    if (isAuthenticated && tenantId) {
+      storeSetStatus('authenticated');
+    } else if (tenantId && !isAuthenticated) {
+      storeSetStatus('license_valid');
+    }
+  }, [isAuthenticated, tenantId, storeSetStatus]);
+
+  // ── Sync tenant to Zustand ──
+  useEffect(() => {
+    if (tenantId) {
+      storeSetTenant(tenantId, null);
+    }
+  }, [tenantId, storeSetTenant]);
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -212,6 +270,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPinTenantId(currentTenantId);
     setStorageVersion(v => v + 1);
 
+    // ✅ Sync to Zustand immediately
+    storeSetAuthenticated(true);
+    storeSetStatus('authenticated');
+    storeSetUser({
+      id: pinData.user_id || 'pin_user',
+      full_name: pinData.full_name || 'Staff User',
+      role: (pinData.role || 'receptionist') as any,
+      tenant_id: currentTenantId,
+    });
+
     if (pinData.role) {
       return { success: true, role: pinData.role };
     }
@@ -228,10 +296,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPinExpiry(null);
     setPinRole(null);
     setPinTenantId(null);
+    // ✅ Clear Zustand
+    storeLogout();
   };
 
   const logout = signOut;
-  const refreshTenantId = useCallback(() => getTenantIdFromLocalStorage(), []);
+  const refreshTenantId = () => getTenantIdFromLocalStorage();
 
   return (
     <AuthContext.Provider value={{

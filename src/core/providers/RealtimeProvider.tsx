@@ -8,7 +8,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuthStore } from '@/shared/store/authStore';
-import { useTenantStore } from '@/shared/store/tenantStore';
 
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const tenantId = useAuthStore((s) => s.tenant_id);
@@ -30,7 +29,6 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         { event: '*', schema: 'public', table: 'queue_entries', filter: `tenant_id=eq.${tenantId}` },
         (payload) => {
           console.log('[Realtime] Queue change:', payload);
-          // Trigger queue refresh — consumers can listen to this via Zustand
         }
       )
       .subscribe();

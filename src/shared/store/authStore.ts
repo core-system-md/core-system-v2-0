@@ -3,6 +3,7 @@
 // SINGLE SOURCE OF TRUTH for Authentication State
 // Constitution §1: No Redux, no Context overuse. Zustand only.
 // Constitution §9.6: PIN Auth — 4-digit PIN, rate limiting.
+// FIXED: 2026-07-01 — Persist user, isAuthenticated, status for session recovery
 // ============================================================
 
 import { create } from 'zustand';
@@ -101,7 +102,11 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'core_auth_store',
       storage: createJSONStorage(() => localStorage),
+      // FIXED: Persist user, isAuthenticated, status — not just tenant_id + license
       partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        status: state.status,
         tenant_id: state.tenant_id,
         license: state.license,
       }),

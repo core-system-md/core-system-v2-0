@@ -1,6 +1,7 @@
 // ============================================================
 // CORE SYSTEM v2.1 — App.tsx
-// Root providers: Query, Zustand, Auth, PinAuth, Router, Toaster.
+// Root providers: Query, Auth, Tenant, PinAuth, Realtime, Router, Toaster.
+// FIXED: 2026-07-01 — Added TenantProvider + RealtimeProvider, fixed provider nesting order
 // Constitution §1: React 18+ + Vite + TypeScript (strict)
 // Constitution §3: Folder structure — core/ NEVER imports from features/.
 // ============================================================
@@ -9,6 +10,8 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/core/auth/AuthProvider';
 import { PinAuthProvider } from '@/core/auth/PinAuthProvider';
+import { TenantProvider } from '@/core/providers/TenantProvider';
+import { RealtimeProvider } from '@/core/providers/RealtimeProvider';
 import { Router } from '@/router';
 import { Toaster } from 'sonner';
 
@@ -33,12 +36,18 @@ export function App() {
       <BrowserRouter>
         {/* AuthProvider = Single Source of Session */}
         <AuthProvider>
-          {/* PinAuthProvider = Kiosk mode, completes session (does NOT create independent session) */}
-          <PinAuthProvider>
-            <Router />
-            {/* Sonner = OFFICIAL toast for Shadcn/UI (Constitution §1) */}
-            <Toaster position="top-right" richColors />
-          </PinAuthProvider>
+          {/* TenantProvider = Loads tenant data after auth */}
+          <TenantProvider>
+            {/* PinAuthProvider = Kiosk mode, completes session */}
+            <PinAuthProvider>
+              {/* RealtimeProvider = Supabase realtime subscriptions */}
+              <RealtimeProvider>
+                <Router />
+                {/* Sonner = OFFICIAL toast for Shadcn/UI (Constitution §1) */}
+                <Toaster position="top-right" richColors />
+              </RealtimeProvider>
+            </PinAuthProvider>
+          </TenantProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
