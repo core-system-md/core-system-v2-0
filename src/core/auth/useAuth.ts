@@ -4,6 +4,7 @@
 // FIXED: 2026-07-01 — Sync login/logout with authStore (Zustand single source of truth)
 // FIXED: 2026-07-01 — Handle SETOF responses (array of rows) from RPCs
 // FIXED: 2026-07-01 — Validate tenant_id before saving to localStorage
+// FIXED: 2026-07-01 — Validate licenseData.id exists and is valid UUID
 
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -44,6 +45,12 @@ function isValidTenantId(tenantId: unknown): tenantId is string {
   if (!tenantId) return false;
   const str = String(tenantId).trim();
   return str !== '' && str !== 'null' && str !== 'undefined';
+}
+
+// ─── Validate UUID format ───
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
 }
 
 const PIN_AUTH_KEY = 'core_pin_auth';
@@ -90,10 +97,19 @@ export function useAuth() {
         throw new Error('INVALID_LICENSE: License not found or inactive');
       }
 
+      // ✅ Validate that id exists and is a valid UUID
+      if (!licenseData.id) {
+        throw new Error('INVALID_LICENSE: License data missing ID field');
+      }
+
       const tenantId = String(licenseData.id);
 
       if (!isValidTenantId(tenantId)) {
         throw new Error('TENANT_MISSING: Tenant ID was not returned by license validation');
+      }
+
+      if (!isValidUUID(tenantId)) {
+        throw new Error(`TENANT_INVALID: Tenant ID format invalid: ${tenantId}`);
       }
 
       // 2. Email + Password Login
@@ -237,6 +253,15 @@ export function useAuth() {
         setError(msg);
         return { success: false, message: msg };
       }
+      
+      // ✅ Validate that id exists
+      if (!licenseData.id) {
+        const msg = 'License data missing ID field';
+        setStatus('error');
+        setError(msg);
+        return { success: false, message: msg };
+      }
+      
       const tenantId = String(licenseData.id);
       if (!isValidTenantId(tenantId)) {
         const msg = 'Invalid tenant ID returned';
@@ -244,6 +269,14 @@ export function useAuth() {
         setError(msg);
         return { success: false, message: msg };
       }
+      
+      if (!isValidUUID(tenantId)) {
+        const msg = `Tenant ID format invalid: ${tenantId}`;
+        setStatus('error');
+        setError(msg);
+        return { success: false, message: msg };
+      }
+      
       localStorage.setItem('tenant_id', tenantId);
       // ✅ Sync to Zustand
       storeSetTenant(tenantId, null);
