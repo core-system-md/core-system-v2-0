@@ -67,7 +67,7 @@ export function useAuth() {
       // 1. Validate the license and obtain the trusted tenant ID.
       const { data: licenseResult, error: licenseError } = await supabase.rpc(
         'validate_license',
-        { p_license_key: licenseKey.trim(), p_device_fingerprint: null },
+        { p_license_key: licenseKey.trim() },
       );
 
       if (licenseError) {
@@ -195,7 +195,7 @@ export function useAuth() {
     try {
       const { data: licenseResult, error: licenseError } = await supabase.rpc(
         'validate_license',
-        { p_license_key: licenseKey.trim(), p_device_fingerprint: null },
+        { p_license_key: licenseKey.trim() },
       );
       if (licenseError) {
         setStatus('error');
