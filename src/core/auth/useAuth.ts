@@ -4,7 +4,7 @@
 // FIXED: 2026-07-01 — Sync login/logout with authStore (Zustand single source of truth)
 // FIXED: 2026-07-01 — Handle SETOF responses (array of rows) from RPCs
 // FIXED: 2026-07-01 — Validate tenant_id before saving to localStorage
-// FIXED: 2026-07-01 — Validate licenseData.id exists and is valid UUID
+// FIXED: 2026-07-02 — Add DEV MODE to bypass license validation for rapid development
 
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -53,6 +53,11 @@ function isValidUUID(str: string): boolean {
   return uuidRegex.test(str);
 }
 
+// ─── DEV MODE: Bypass license validation ───
+const DEV_MODE = import.meta.env.DEV;
+const DEV_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+const DEV_LICENSE_KEY = 'DEV-MODE-2026';
+
 const PIN_AUTH_KEY = 'core_pin_auth';
 const PIN_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
@@ -77,6 +82,50 @@ export function useAuth() {
         role,
       } = credentials;
 
+      // ── DEV MODE: Skip license validation ──
+      if (DEV_MODE && licenseKey === DEV_LICENSE_KEY) {
+        const tenantId = DEV_TENANT_ID;
+        
+        // PIN Login in DEV MODE
+        if (pinCode?.trim()) {
+          if (!role?.trim()) {
+            throw new Error('ROLE_REQUIRED: Role is required for PIN login');
+          }
+          
+          const result: LoginResult = {
+            userId: 'dev-user-' + role,
+            email: null,
+            fullName: 'Dev ' + role,
+            role: role,
+            tenantId,
+          };
+
+          localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
+            user_id: result.userId,
+            full_name: result.fullName,
+            role: result.role,
+            tenant_id: result.tenantId,
+            expiry: Date.now() + PIN_SESSION_DURATION_MS,
+          }));
+          localStorage.setItem('tenant_id', result.tenantId);
+
+          storeSetTenant(result.tenantId, null);
+          storeSetUser({
+            id: result.userId,
+            full_name: result.fullName,
+            role: result.role as UserRole,
+            tenant_id: result.tenantId,
+          });
+          storeSetAuthenticated(true);
+          storeSetStatus('authenticated');
+
+          return result;
+        }
+
+        throw new Error('CREDENTIALS_REQUIRED: Provide PIN in DEV mode');
+      }
+
+      // ── PRODUCTION MODE: Normal license validation ──
       if (!licenseKey?.trim()) {
         throw new Error('LICENSE_REQUIRED: Clinic license key is required');
       }
@@ -97,7 +146,7 @@ export function useAuth() {
         throw new Error('INVALID_LICENSE: License not found or inactive');
       }
 
-      // ✅ Validate that id exists and is a valid UUID
+      // ✅ Validate that id exists
       if (!licenseData.id) {
         throw new Error('INVALID_LICENSE: License data missing ID field');
       }
@@ -235,6 +284,16 @@ export function useAuth() {
   const validateLicense = async (licenseKey: string): Promise<{ success: boolean; tenant_id?: string; message?: string }> => {
     setStatus('loading');
     setError(null);
+    
+    // ── DEV MODE: Skip validation ──
+    if (DEV_MODE && licenseKey === DEV_LICENSE_KEY) {
+      localStorage.setItem('tenant_id', DEV_TENANT_ID);
+      storeSetTenant(DEV_TENANT_ID, null);
+      storeSetStatus('license_valid');
+      setStatus('success');
+      return { success: true, tenant_id: DEV_TENANT_ID };
+    }
+    
     try {
       const { data: licenseResult, error: licenseError } = await supabase.rpc(
         'validate_license',
