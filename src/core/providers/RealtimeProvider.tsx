@@ -1,6 +1,6 @@
 // ============================================================
 // CORE SYSTEM v2.1 — RealtimeProvider
-// Manages Supabase realtime subscriptions for queue, sessions, notifications.
+// Manages Supabase realtime subscriptions for queue, sessions, notification_queue.
 // NEW: 2026-07-01 — Created to enable real-time updates across the app
 // Constitution §8: Realtime subscriptions MUST respect tenant isolation
 // ============================================================
@@ -26,7 +26,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       .channel(`queue_${tenantId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'queue_entries', filter: `tenant_id=eq.${tenantId}` },
+        { event: '*', schema: 'public', table: 'clinic_visit_sessions', filter: `tenant_id=eq.${tenantId}` },
         (payload) => {
           console.log('[Realtime] Queue change:', payload);
         }
@@ -38,19 +38,19 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       .channel(`sessions_${tenantId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'doctor_sessions', filter: `tenant_id=eq.${tenantId}` },
+        { event: '*', schema: 'public', table: 'clinic_visit_sessions', filter: `tenant_id=eq.${tenantId}` },
         (payload) => {
           console.log('[Realtime] Session change:', payload);
         }
       )
       .subscribe();
 
-    // Subscribe to notifications
+    // Subscribe to notification_queue
     const notifSub = supabase
-      .channel(`notifications_${tenantId}`)
+      .channel(`notification_queue_${tenantId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `tenant_id=eq.${tenantId}` },
+        { event: 'INSERT', schema: 'public', table: 'notification_queue', filter: `tenant_id=eq.${tenantId}` },
         (payload) => {
           console.log('[Realtime] New notification:', payload);
         }

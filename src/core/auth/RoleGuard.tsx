@@ -1,142 +1,77 @@
-// src/core/auth/RoleGuard.tsx
-// ─────────────────────────────────────────────
-// CORE SYSTEM v2.1 — Role-Based Render Guard (HOC)
-// Blueprint: src/core/auth/RoleGuard.tsx
-// Purpose: Block component render by user role
-// ─────────────────────────────────────────────
-//
-// Engineering Constitution v2.1 Compliance:
-// • Uses useRole() hook (no direct Supabase calls)
-// • Supports role arrays + permission matrix
-// • Fallback component for unauthorized access
-// • Tenant-aware (inherited from AuthProvider)
+// CORE SYSTEM v2.1 - Role Guard
+// Constitution §6: 4 Roles Only (Locked)
 
-import { type ReactNode, type ComponentType } from "react";
-import { useRole } from "./useRole";
+import { ReactNode, ComponentType } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from './useAuth';
 
-// ─── Role Types (aligned with clinic_users.role CHECK constraint) ───
-export type ClinicRole =
-  | "super_admin"
-  | "clinic_admin"
-  | "doctor"
-  | "receptionist";
+export type ClinicRole = 'super_admin' | 'clinic_admin' | 'doctor' | 'receptionist';
 
-// ─── Permission Types (aligned with permissionMatrix.ts if present) ───
-export type PermissionAction =
-  | "view_dashboard"
-  | "manage_staff"
-  | "manage_patients"
-  | "manage_schedule"
-  | "view_invoices"
-  | "create_invoices"
-  | "edit_invoices"
-  | "delete_invoices"
-  | "view_reports"
-  | "manage_inventory"
-  | "system_settings"
-  | "audit_read";
-
-// ─── RoleGuard Props ───
-interface RoleGuardProps {
-  /** Allowed roles for access */
-  allowedRoles: ClinicRole[];
-  /** Optional: required permission actions (reserved for future permission matrix integration) */
-  requiredPermissions?: PermissionAction[];
-  /** Component to render when unauthorized (default: null) */
-  fallback?: ReactNode;
-  /** Children to render when authorized */
+export interface RoleGuardProps {
   children: ReactNode;
+  allowedRoles: ClinicRole[];
+  fallback?: ReactNode;
 }
 
-// ─── RoleGuard Component ───
-export function RoleGuard({
-  allowedRoles,
-  requiredPermissions,
-  fallback = null,
-  children,
-}: RoleGuardProps): ReactNode {
-  const { role, hasRole } = useRole();
+export function RoleGuard({ children, allowedRoles, fallback }: RoleGuardProps) {
+  const { user, isAuthenticated, status } = useAuth();
+  const location = useLocation();
 
-  // ── 1. Role Check ──
-  const hasAllowedRole = role ? hasRole(allowedRoles) : false;
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
-  // ── 2. Permission Check (reserved for future permission matrix integration)
-  // NOTE: requiredPermissions is intentionally unused until permissionMatrix.ts is implemented.
-  // In production, integrate with src/core/permissions/permissionMatrix.ts
-  void requiredPermissions;
-  const hasPermissions = true;
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
 
-  // ── 3. Combined Access Decision ──
-  const isAuthorized = hasAllowedRole && hasPermissions;
+  const hasPermission = allowedRoles.includes(user.role as ClinicRole);
 
-  if (!isAuthorized) {
-    return fallback;
+  if (!hasPermission) {
+    console.warn(`[RoleGuard] Unauthorized: ${user.role} tried to access ${location.pathname}`);
+    if (fallback) return <>{fallback}</>;
+    const roleRoutes: Record<ClinicRole, string> = {
+      doctor: '/doctor',
+      receptionist: '/reception',
+      clinic_admin: '/admin',
+      super_admin: '/super-admin',
+    };
+    return <Navigate to={roleRoutes[user.role as ClinicRole] || '/auth'} replace />;
   }
 
   return <>{children}</>;
 }
 
-// ─── withRoleGuard HOC (for class components or route guards) ───
-export function withRoleGuard<P extends object>(
-  Component: ComponentType<P>,
-  allowedRoles: ClinicRole[],
-  fallback?: ReactNode
-): ComponentType<P> {
-  return function RoleGuardedComponent(props: P): ReactNode {
+export function withRoleGuard<P extends object>(Component: ComponentType<P>, allowedRoles: ClinicRole[]) {
+  return function WrappedComponent(props: P) {
     return (
-      <RoleGuard allowedRoles={allowedRoles} fallback={fallback}>
+      <RoleGuard allowedRoles={allowedRoles}>
         <Component {...props} />
       </RoleGuard>
     );
   };
 }
 
-// ─── Convenience Guards (pre-configured for common roles) ───
-
-/** Super Admin only — full system access */
-export function SuperAdminGuard({ children, fallback }: Omit<RoleGuardProps, "allowedRoles">): ReactNode {
-  return (
-    <RoleGuard allowedRoles={["super_admin"]} fallback={fallback}>
-      {children}
-    </RoleGuard>
-  );
+export function SuperAdminGuard({ children, fallback }: Omit<RoleGuardProps, 'allowedRoles'>) {
+  return <RoleGuard allowedRoles={['super_admin']} fallback={fallback}>{children}</RoleGuard>;
 }
 
-/** Clinic Admin + Super Admin — clinic management */
-export function AdminGuard({ children, fallback }: Omit<RoleGuardProps, "allowedRoles">): ReactNode {
-  return (
-    <RoleGuard allowedRoles={["super_admin", "clinic_admin"]} fallback={fallback}>
-      {children}
-    </RoleGuard>
-  );
+export function AdminGuard({ children, fallback }: Omit<RoleGuardProps, 'allowedRoles'>) {
+  return <RoleGuard allowedRoles={['clinic_admin', 'super_admin']} fallback={fallback}>{children}</RoleGuard>;
 }
 
-/** Doctor only — medical sessions */
-export function DoctorGuard({ children, fallback }: Omit<RoleGuardProps, "allowedRoles">): ReactNode {
-  return (
-    <RoleGuard allowedRoles={["doctor"]} fallback={fallback}>
-      {children}
-    </RoleGuard>
-  );
+export function DoctorGuard({ children, fallback }: Omit<RoleGuardProps, 'allowedRoles'>) {
+  return <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']} fallback={fallback}>{children}</RoleGuard>;
 }
 
-/** Receptionist + Admin — front desk operations */
-export function ReceptionistGuard({ children, fallback }: Omit<RoleGuardProps, "allowedRoles">): ReactNode {
-  return (
-    <RoleGuard allowedRoles={["receptionist", "clinic_admin", "super_admin"]} fallback={fallback}>
-      {children}
-    </RoleGuard>
-  );
+export function ReceptionistGuard({ children, fallback }: Omit<RoleGuardProps, 'allowedRoles'>) {
+  return <RoleGuard allowedRoles={['receptionist', 'clinic_admin', 'super_admin']} fallback={fallback}>{children}</RoleGuard>;
 }
 
-/** Medical staff (Doctor + Receptionist) — clinical operations */
-export function MedicalStaffGuard({ children, fallback }: Omit<RoleGuardProps, "allowedRoles">): ReactNode {
-  return (
-    <RoleGuard allowedRoles={["doctor", "receptionist"]} fallback={fallback}>
-      {children}
-    </RoleGuard>
-  );
+export function MedicalStaffGuard({ children, fallback }: Omit<RoleGuardProps, 'allowedRoles'>) {
+  return <RoleGuard allowedRoles={['doctor', 'receptionist', 'clinic_admin', 'super_admin']} fallback={fallback}>{children}</RoleGuard>;
 }
-
-// ─── Re-export types ───
-export type { RoleGuardProps };

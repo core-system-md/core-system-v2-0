@@ -9,7 +9,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { useAuthStore, selectIsAuthenticated, selectUserRole } from '@/shared/store/authStore';
 import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
-import { RoleGuard } from '@/core/permissions/RoleGuard';
+import { RoleGuard } from '@/core/auth/RoleGuard';
 import AuthScreen from '@/features/auth/AuthScreen';
 
 // Lazy load all feature modules per Constitution §3

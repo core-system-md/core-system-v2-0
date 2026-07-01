@@ -143,10 +143,10 @@ export default function AuthScreen() {
             <div className="space-y-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-xs text-blue-600 font-bold text-center">🚀 وضع التطوير — تسجيل الدخول الفوري</p>
               <div className="grid grid-cols-2 gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => handleDevMode('doctor')} className="text-xs">طبيب</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => handleDevMode('receptionist')} className="text-xs">استقبال</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => handleDevMode('clinic_admin')} className="text-xs">مدير العيادة</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => handleDevMode('super_admin')} className="text-xs">مدير النظام</Button>
+                <Button type="button" variant="outline" onClick={() => handleDevMode('doctor')} className="text-xs">طبيب</Button>
+                <Button type="button" variant="outline" onClick={() => handleDevMode('receptionist')} className="text-xs">استقبال</Button>
+                <Button type="button" variant="outline" onClick={() => handleDevMode('clinic_admin')} className="text-xs">مدير العيادة</Button>
+                <Button type="button" variant="outline" onClick={() => handleDevMode('super_admin')} className="text-xs">مدير النظام</Button>
               </div>
             </div>
           )}
