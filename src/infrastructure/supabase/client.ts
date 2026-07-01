@@ -36,7 +36,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
  */
 export async function validateLicenseKey(licenseKey: string) {
   const { data, error } = await supabase
-    .rpc('validate_license', { license_key: licenseKey });  // ← تعديل: p_license_key → license_key
+    .rpc('validate_license', { p_license_key: licenseKey });
   
   if (error) throw error;
 
@@ -54,8 +54,8 @@ export async function validateLicenseKey(licenseKey: string) {
 export async function validatePin(tenantId: string, pinCode: string) {
   const { data, error } = await supabase
     .rpc('validate_pin', {
-      tenant_id: tenantId,    // ← تعديل: p_tenant_id → tenant_id
-      pin: pinCode,             // ← تعديل: p_pin_code → pin
+      p_tenant_id: tenantId,
+      p_pin: pinCode,
     });
 
   if (error) throw error;
@@ -65,12 +65,12 @@ export async function validatePin(tenantId: string, pinCode: string) {
   }
 
   const user = Array.isArray(data) ? data[0] : data;
-  return user as {
+  return ({ ...user, tenant_id: tenantId } as {
     id: string;
     full_name: string;
     role: 'super_admin' | 'clinic_admin' | 'doctor' | 'receptionist';
     tenant_id: string;
-  };
+  });
 }
 
 /**
@@ -86,10 +86,10 @@ export async function logPinAttempt(
     .from('pin_attempt_log')
     .insert({
       tenant_id: tenantId,
-      pin_code: pinCode,
+      attempted_pin: pinCode,
       success,
       ip_address: ipAddress,
-      attempted_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     });
 
   if (error) console.error('Failed to log PIN attempt:', error);

@@ -48,14 +48,14 @@ export default function RevenueCards() {
     const { data: snapshots } = await supabase
       .from('analytics_daily_snapshots')
       .select('*')
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', tenantId!)
       .gte('snapshot_date', sevenDaysAgo.toISOString().split('T')[0])
       .order('snapshot_date', { ascending: true });
 
     const { data: invoices } = await supabase
       .from('clinic_invoices')
       .select('total_subunits, discount_subunits, invoice_date')
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', tenantId!)
       .gte('invoice_date', sevenDaysAgo.toISOString().split('T')[0])
       .in('invoice_status', ['paid', 'partial']);
 

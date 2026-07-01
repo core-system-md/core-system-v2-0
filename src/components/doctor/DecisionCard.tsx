@@ -35,9 +35,9 @@ interface PatientData {
 
 interface LongitudinalData {
   dominant_disc_profile: string | null;
-  total_visits: number;
-  total_revenue_subunits: number;
-  loyalty_tier: string;
+  total_visits: number | null;
+  total_revenue_subunits: number | null;
+  loyalty_tier: string | null;
   historical_core_score_avg: number | null;
   last_visit_date: string | null;
 }
@@ -95,7 +95,7 @@ export default function DecisionCard() {
     setLoading(true);
     try {
       const { data: sessionData, error: sessionError } = await supabase
-        .from('clinic_visit_sessions').select('*').eq('id', id).eq('tenant_id', tenant_id).single();
+        .from('clinic_visit_sessions').select('*').eq('id', id!).eq('tenant_id', tenant_id!).single();
       if (sessionError) throw sessionError;
       setSession(sessionData);
       setNotes(sessionData.doctor_notes || '');
@@ -113,13 +113,13 @@ export default function DecisionCard() {
 
       const { data: patientData, error: patientError } = await supabase
         .from('clinic_patients').select('id, full_name, phone_primary, date_of_birth, gender')
-        .eq('id', sessionData.patient_id).eq('tenant_id', tenant_id).single();
+        .eq('id', sessionData.patient_id!).eq('tenant_id', tenant_id!).single();
       if (patientError) throw patientError;
       setPatient(patientData);
 
       const { data: longData, error: longError } = await supabase
         .from('patient_longitudinal_profiles').select('dominant_disc_profile, total_visits, total_revenue_subunits, loyalty_tier, historical_core_score_avg, last_visit_date')
-        .eq('patient_id', sessionData.patient_id).eq('tenant_id', tenant_id).single();
+        .eq('patient_id', sessionData.patient_id!).eq('tenant_id', tenant_id!).single();
       if (longError && longError.code !== 'PGRST116') throw longError;
       setLongitudinal(longData);
     } catch (err: unknown) {
@@ -184,7 +184,7 @@ export default function DecisionCard() {
           historicalAvg: longitudinal?.historical_core_score_avg,
           lastVisitDate: longitudinal?.last_visit_date,
           sessionId: id,
-          tenantId: tenant_id
+          tenantId: tenant_id!
         }
       });
 

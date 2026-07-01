@@ -31,7 +31,7 @@ export default function StaffPerformance() {
     const { data: doctors } = await supabase
       .from('clinic_users')
       .select('id, full_name, full_name_ar')
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', tenantId!)
       .eq('role', 'doctor')
       .eq('is_active', true)
       .is('deleted_at', null);
@@ -58,14 +58,14 @@ export default function StaffPerformance() {
       const { data: sessions } = await supabase
         .from('clinic_visit_sessions')
         .select('session_status, session_duration_minutes, core_score_backend')
-        .eq('tenant_id', tenantId)
+        .eq('tenant_id', tenantId!)
         .eq('doctor_id', doctor.id)
         .is('deleted_at', null);
 
       const { data: invoices } = await supabase
         .from('clinic_invoices')
         .select('total_subunits')
-        .eq('tenant_id', tenantId)
+        .eq('tenant_id', tenantId!)
         .in('invoice_status', ['paid', 'partial']);
 
       const totalSessions = sessions?.length || 0;

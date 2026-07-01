@@ -13,7 +13,7 @@ import type { UserRole } from '@/shared/types/auth';
 interface RoleGuardProps {
   children: React.ReactNode;
   allowedRoles?: UserRole[];
-  requiredPermission?: Permission;
+  requiredPermission?: Permission | undefined;
   fallback?: React.ReactNode;
   /**
    * If true, redirect to default route instead of showing fallback
@@ -91,7 +91,7 @@ export function RoleGuard({
 
 interface GuardProps {
   children: React.ReactNode;
-  requiredPermission?: Permission;
+  requiredPermission?: Permission | undefined;
 }
 
 export function DoctorGuard({ children, requiredPermission }: GuardProps) {

@@ -32,21 +32,21 @@ export const syncEngine = {
     const { table, operation, payload } = mutation;
 
     if (operation === 'create') {
-      const { error } = await supabase.from(table).insert(payload);
+      const { error } = await (supabase as any).from(table).insert(payload as any);
       if (error) throw error;
     } else if (operation === 'update') {
-      const { id, ...updates } = payload;
-      const { error } = await supabase.from(table).update(updates).eq('id', id);
+      const { id, ...updates } = payload as any;
+      const { error } = await (supabase as any).from(table).update(updates as any).eq('id' as any, id as any);
       if (error) throw error;
     } else if (operation === 'delete') {
-      const { error } = await supabase.from(table).delete().eq('id', payload.id);
+      const { error } = await (supabase as any).from(table).delete().eq('id' as any, (payload as any).id as any);
       if (error) throw error;
     }
   },
 
   async pullLatest(table: string, tenantId: string): Promise<void> {
     // Fetch latest from cloud and update IndexedDB
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from(table)
       .select('*')
       .eq('tenant_id', tenantId)

@@ -14,7 +14,7 @@ interface Patient {
   id: string;
   full_name: string;
   phone_primary: string | null;
-  patient_status: string;
+  patient_status: string | null;
 }
 
 interface SessionInfo {
@@ -34,11 +34,11 @@ interface Doctor {
 
 interface AgendaEvent {
   id: string;
-  patient_id: string;
-  doctor_id: string;
+  patient_id: string | null;
+  doctor_id: string | null;
   scheduled_start: string;
   scheduled_end: string;
-  status: string;
+  status: string | null;
 }
 
 export default function ReceptionDashboard() {
@@ -82,7 +82,7 @@ export default function ReceptionDashboard() {
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('clinic_visit_sessions')
         .select('id, patient_id, session_status, created_at, core_score_backend, patient_class')
-        .eq('tenant_id', tenant_id)
+        .eq('tenant_id', tenant_id!)
         .not('session_status', 'in', '("completed","cancelled")')
         .order('created_at', { ascending: true });
 
@@ -95,7 +95,7 @@ export default function ReceptionDashboard() {
         const { data: patientsData, error: patientsError } = await supabase
           .from('clinic_patients')
           .select('id, full_name, phone_primary, patient_status')
-          .eq('tenant_id', tenant_id)
+          .eq('tenant_id', tenant_id!)
           .in('id', patientIds);
 
         if (patientsError) throw patientsError;
@@ -108,7 +108,7 @@ export default function ReceptionDashboard() {
       const { data: doctorsData, error: doctorsError } = await supabase
         .from('clinic_users')
         .select('id, full_name, specialization')
-        .eq('tenant_id', tenant_id)
+        .eq('tenant_id', tenant_id!)
         .eq('role', 'doctor')
         .eq('is_active', true);
 
@@ -120,7 +120,7 @@ export default function ReceptionDashboard() {
       const { data: agendaData, error: agendaError } = await supabase
         .from('master_agenda_events')
         .select('id, patient_id, doctor_id, scheduled_start, scheduled_end, status')
-        .eq('tenant_id', tenant_id)
+        .eq('tenant_id', tenant_id!)
         .gte('scheduled_start', `${today}T00:00:00`)
         .lt('scheduled_start', `${today}T23:59:59`)
         .not('status', 'in', '("cancelled","no_show")')
@@ -146,7 +146,7 @@ export default function ReceptionDashboard() {
       const { data, error } = await supabase
         .from('clinic_patients')
         .select('id, full_name, phone_primary, patient_status')
-        .eq('tenant_id', tenant_id)
+        .eq('tenant_id', tenant_id!)
         .ilike('phone_primary', `%${searchPhone}%`)
         .is('deleted_at', null)
         .limit(1)
@@ -189,7 +189,8 @@ export default function ReceptionDashboard() {
         const { data: newPatient, error: patientError } = await supabase
           .from('clinic_patients')
           .insert({
-            tenant_id,
+            tenant_id: tenant_id!,
+            mrn: `MRN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`,
             first_name: bookingForm.firstName,
             last_name: bookingForm.lastName,
             full_name: `${bookingForm.firstName} ${bookingForm.lastName}`.trim(),
@@ -206,7 +207,7 @@ export default function ReceptionDashboard() {
 
         // Create longitudinal profile
         await supabase.from('patient_longitudinal_profiles').insert({
-          tenant_id,
+          tenant_id: tenant_id!,
           patient_id: patientId,
           loyalty_tier: 'standard'
         });
@@ -219,7 +220,7 @@ export default function ReceptionDashboard() {
       const { data: agendaEvent, error: agendaError } = await supabase
         .from('master_agenda_events')
         .insert({
-          tenant_id,
+          tenant_id: tenant_id!,
           patient_id: patientId,
           doctor_id: bookingForm.doctorId,
           scheduled_start: scheduledStart,
@@ -240,12 +241,12 @@ export default function ReceptionDashboard() {
       const { error: sessionError } = await supabase
         .from('clinic_visit_sessions')
         .insert({
-          tenant_id,
+          tenant_id: tenant_id!,
           patient_id: patientId,
           doctor_id: bookingForm.doctorId,
           agenda_event_id: agendaEvent.id,
           session_status: 'waiting',
-          initialized_by_receptionist: userData.user?.id,
+          initialized_by_receptionist: userData.user?.id ?? null,
           is_insured: false
         });
 
@@ -280,12 +281,13 @@ export default function ReceptionDashboard() {
     }
   };
 
-  const getPatientName = (patientId: string) => {
+  const getPatientName = (patientId: string | null) => {
+    if (!patientId) return 'مريض غير معروف';
     const p = patients.find(p => p.id === patientId);
     return p?.full_name || 'مريض غير معروف';
   };
 
-  const getDoctorName = (doctorId: string) => {
+  const getDoctorName = (doctorId: string | null) => {
     const d = doctors.find(d => d.id === doctorId);
     return d?.full_name || 'طبيب غير معروف';
   };

@@ -1,149 +1,153 @@
-// ============================================================
-// CORE SYSTEM v2.1 — PinAuthProvider
-// Kiosk Mode: 4-digit PIN fast-switch between staff members.
-// Constitution §9.6: PIN Auth — 4-digit PIN, hash verification, rate limiting.
-//
-// CRITICAL RULE: PinAuthProvider does NOT create an independent session.
-// It COMPLETES the existing session by setting the user in AuthStore.
-// The session source remains: AuthStore → AuthProvider → Supabase.
-//
-// ARCHITECTURE NOTE: This is a THIN WRAPPER around useAuth.loginWithPin.
-// It exists ONLY to provide a dedicated context for Kiosk UI components.
-// ALL business logic lives in useAuth.ts — DO NOT duplicate here.
-//
-// Flow:
-//   1. License validated → tenant_id stored in AuthStore
-//   2. User taps avatar → PinPadOverlay opens
-//   3. User enters 4-digit PIN → validate_pin RPC (via useAuth)
-//   4. On success → user set in AuthStore → session complete
-//   5. All queries use tenant_id from AuthStore (single source)
-// ============================================================
+// src/core/auth/PinAuthProvider.tsx
+// UPDATED: 2026-06-24 — Fixed validate_pin params (p_pin + p_role)
 
-import { useCallback, createContext, useContext } from 'react';
-import { useAuth } from '@/core/auth/useAuth';
-import { useAuthStore } from '@/shared/store/authStore';
-import type { PinLoginResult } from '@/shared/types/auth';
+import React, { createContext, useContext, useCallback, useState } from 'react';
+import { supabase } from '../../infrastructure/supabase/client';
 
-interface PinAuthContextValue {
-  authenticatePin: (pinCode: string) => Promise<{ 
-    success: boolean; 
-    error?: string; 
-    user?: PinLoginResult 
-  }>;
-  switchUser: () => void;
+interface PinAuthContextType {
+  verifyPin: (params: PinVerificationParams) => Promise<PinVerificationResult>;
+  isVerifying: boolean;
+  lastError: string | null;
+  clearError: () => void;
 }
 
-const PinAuthContext = createContext<PinAuthContextValue | null>(null);
-
-interface PinAuthProviderProps {
-  children: React.ReactNode;
+export interface PinVerificationParams {
+  pinCode: string;
+  tenantId: string;
+  userId?: string;
+  employeeCode?: string;
+  role: string;
 }
 
-// ── Error Helper ──
-function isErrorWithMessage(err: unknown): err is { message: string } {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    'message' in err &&
-    typeof (err as Record<string, unknown>).message === 'string'
-  );
+export interface PinVerificationResult {
+  success: boolean;
+  userId?: string;
+  fullName?: string;
+  role?: string;
+  employeeCode?: string;
+  error?: string;
 }
 
-function getErrorMessage(err: unknown, fallback: string): string {
-  if (isErrorWithMessage(err)) return err.message;
-  return fallback;
+interface PinAttemptLog {
+  tenantId: string;
+  attemptedPin: string;
+  success: boolean;
+  userId: string | null;
+  role: string | null;
 }
 
-export function PinAuthProvider({ children }: PinAuthProviderProps) {
-  // ── Delegate ALL business logic to useAuth ──
-  const { loginWithPin } = useAuth();
+interface PinRpcResponse {
+  success?: boolean;
+  message?: string;
+  user_id?: string;
+  full_name?: string;
+  role?: string;
+  employee_code?: string;
+}
 
-  /**
-   * Authenticate with 4-digit PIN.
-   * THIN WRAPPER around useAuth.loginWithPin.
-   * Adds kiosk-specific UX: isLoading management + error formatting.
-   */
-  const authenticatePin = useCallback(async (pinCode: string) => {
-    const store = useAuthStore.getState();
-    const tenantId = store.tenant_id;
+const PinAuthContext = createContext<PinAuthContextType | null>(null);
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 
-    if (!tenantId) {
-      return { 
-        success: false, 
-        error: 'معرف المستأجر مفقود. يرجى إدخال مفتاح الترخيص أولاً.' 
-      };
-    }
+export function PinAuthProvider({ children }: { children: React.ReactNode }) {
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
-    // Rate limiting check (read from store directly)
-    const pinLockedUntil = store.pinLockedUntil;
-    if (pinLockedUntil && Date.now() < pinLockedUntil) {
-      const remaining = Math.ceil((pinLockedUntil - Date.now()) / 60000);
-      return { 
-        success: false, 
-        error: `تم قفل المحاولات. يرجى الانتظار ${remaining} دقيقة.` 
-      };
-    }
-
-    // Input validation
-    const trimmedPin = pinCode.trim();
-    if (!/^\d{4}$/.test(trimmedPin)) {
-      return {
-        success: false,
-        error: 'رمز PIN يجب أن يكون 4 أرقام.',
-      };
-    }
-
-    // Delegate to useAuth (single source of business logic)
-    store.setLoading(true);
-    store.setError(null);
-
+  const logPinAttempt = useCallback(async (log: PinAttemptLog) => {
     try {
-      const result = await loginWithPin(trimmedPin);
-
-      if (!result.success) {
-        return {
-          success: false,
-          error: result.error || 'فشل في التحقق من PIN.',
-        };
-      }
-
-      return {
-        success: true,
-        user: result.user,
-      };
-    } catch (err: unknown) {
-      const message = getErrorMessage(err, 'حدث خطأ أثناء التحقق من PIN.');
-      return { success: false, error: message };
-    } finally {
-      store.setLoading(false);
-    }
-  }, [loginWithPin]);
-
-  /**
-   * Quick-switch: Logout current user but keep tenant/license.
-   * Used in Kiosk mode when staff member taps "Switch User".
-   */
-  const switchUser = useCallback(() => {
-    const store = useAuthStore.getState();
-    // Keep tenant_id and license, clear user only
-    store.setUser(null);
-    store.setAuthenticated(false);
-    store.setStatus('license_valid');
-    store.resetPinAttempts();
-    store.clearError();
+      await supabase.from('pin_attempt_log').insert({
+        tenant_id: log.tenantId,
+        attempted_pin: log.attemptedPin,
+        success: log.success,
+        user_id: log.userId,
+        role: log.role,
+        attempted_at: new Date().toISOString(),
+      } as any);
+    } catch { /* Silent fail */ }
   }, []);
 
+  const checkRateLimit = useCallback(async (tenantId: string, pinCode: string): Promise<boolean> => {
+    const { data: attempts } = await supabase
+      .from('pin_attempt_log')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('attempted_pin', pinCode)
+      .eq('success', false)
+      .gte('attempted_at', new Date(Date.now() - LOCKOUT_DURATION_MS).toISOString())
+      .order('attempted_at', { ascending: false })
+      .limit(MAX_ATTEMPTS);
+    return (attempts?.length || 0) >= MAX_ATTEMPTS;
+  }, []);
+
+  const performPinVerification = useCallback(
+    async (pinCode: string, tenantId: string, _userId: string | undefined, _employeeCode: string | undefined, role: string): Promise<PinVerificationResult> => {
+      const isLocked = await checkRateLimit(tenantId, pinCode);
+      if (isLocked) {
+        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, userId: null, role });
+        return { success: false, error: 'ACCOUNT_LOCKED: Too many failed attempts. Try again in 15 minutes.' };
+      }
+
+      const validRoles = ['doctor', 'receptionist', 'clinic_admin', 'super_admin'];
+      if (!validRoles.includes(role)) {
+        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, userId: null, role });
+        return { success: false, error: 'INVALID_ROLE: Role must be one of: doctor, receptionist, clinic_admin, super_admin' };
+      }
+
+      const { data: pinResult, error: pinError } = await supabase.rpc('validate_pin', {
+        p_tenant_id: tenantId, p_pin: pinCode, p_role: role,
+      });
+
+      if (pinError) {
+        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, userId: null, role });
+        return { success: false, error: `INVALID_PIN: ${pinError.message}` };
+      }
+
+      const pinData = pinResult as PinRpcResponse | null;
+      if (!pinData?.success) {
+        await logPinAttempt({ tenantId, attemptedPin: pinCode, success: false, userId: null, role });
+        return { success: false, error: `INVALID_PIN: ${pinData?.message || 'Incorrect PIN code'}` };
+      }
+
+      await logPinAttempt({ tenantId, attemptedPin: pinCode, success: true, userId: pinData.user_id ?? null, role: pinData.role ?? null });
+
+      const result: PinVerificationResult = { success: true };
+      if (pinData.user_id) result.userId = pinData.user_id;
+      if (pinData.full_name) result.fullName = pinData.full_name;
+      if (pinData.role) result.role = pinData.role;
+      if (pinData.employee_code) result.employeeCode = pinData.employee_code;
+      return result;
+    }, [checkRateLimit, logPinAttempt],
+  );
+
+  const verifyPin = useCallback(async (params: PinVerificationParams): Promise<PinVerificationResult> => {
+    setIsVerifying(true);
+    setLastError(null);
+    try {
+      if (!params.pinCode?.trim()) return { success: false, error: 'PIN_REQUIRED' };
+      if (!params.tenantId?.trim()) return { success: false, error: 'TENANT_REQUIRED' };
+      if (!params.role?.trim()) return { success: false, error: 'ROLE_REQUIRED' };
+
+      const result = await performPinVerification(params.pinCode.trim(), params.tenantId.trim(), params.userId, params.employeeCode, params.role.trim());
+      if (!result.success) setLastError(result.error || 'Verification failed');
+      return result;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setLastError(msg);
+      return { success: false, error: msg };
+    } finally { setIsVerifying(false); }
+  }, [performPinVerification]);
+
+  const clearError = useCallback(() => { setLastError(null); }, []);
+
   return (
-    <PinAuthContext.Provider value={{ authenticatePin, switchUser }}>
+    <PinAuthContext.Provider value={{ verifyPin, isVerifying, lastError, clearError }}>
       {children}
     </PinAuthContext.Provider>
   );
 }
 
-export function usePinAuth() {
-  const ctx = useContext(PinAuthContext);
-  if (!ctx) {
-    throw new Error('usePinAuth must be used within PinAuthProvider');
-  }
-  return ctx;
+export function usePinAuth(): PinAuthContextType {
+  const context = useContext(PinAuthContext);
+  if (!context) throw new Error('usePinAuth must be used within PinAuthProvider');
+  return context;
 }

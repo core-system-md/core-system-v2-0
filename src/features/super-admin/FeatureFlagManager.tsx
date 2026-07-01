@@ -10,9 +10,10 @@ interface FeatureFlag {
   flag_name: string;
   description: string | null;
   is_enabled: boolean;
-  allowed_tiers: string[];
-  config_json: Record<string, unknown>;
+  allowed_tiers: string[] | null;
+  config_json: Record<string, unknown> | null;
 }
+
 
 interface Tenant {
   id: string;
@@ -54,7 +55,17 @@ export default function FeatureFlagManager() {
         .order('flag_key');
 
       if (flagsError) throw flagsError;
-      setFlags(flagsData || []);
+      const flagRows: any[] = (flagsData || []) as any[];
+      setFlags(flagRows.map(r => ({
+        id: r.id,
+        tenant_id: r.tenant_id ?? null,
+        flag_key: r.flag_key,
+        flag_name: r.flag_name,
+        description: r.description ?? null,
+        is_enabled: !!r.is_enabled,
+        allowed_tiers: r.allowed_tiers ?? null,
+        config_json: r.config_json ?? null,
+      })));
 
       // Fetch tenants for dropdown
       const { data: tenantsData, error: tenantsError } = await supabase
@@ -64,7 +75,8 @@ export default function FeatureFlagManager() {
         .order('clinic_name');
 
       if (tenantsError) throw tenantsError;
-      setTenants(tenantsData || []);
+      const tenantRows: any[] = (tenantsData || []) as any[];
+      setTenants(tenantRows.map(t => ({ id: t.id, clinic_name: t.clinic_name, subscription_tier: t.subscription_tier })));
 
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'فشل في تحميل البيانات');
@@ -245,13 +257,14 @@ export default function FeatureFlagManager() {
                     <div className="flex flex-wrap gap-2">
                       {ALL_TIERS.map(tier => (
                         <button key={tier} onClick={() => {
-                          const newTiers = flag.allowed_tiers.includes(tier)
-                            ? flag.allowed_tiers.filter(t => t !== tier)
-                            : [...flag.allowed_tiers, tier];
+                          const current = Array.isArray(flag.allowed_tiers) ? flag.allowed_tiers : [];
+                          const newTiers = current.includes(tier)
+                            ? current.filter(t => t !== tier)
+                            : [...current, tier];
                           updateTiers(flag.id, newTiers);
                         }} disabled={saving}
                           className={`px-2 py-1 rounded text-xs transition-colors ${
-                            flag.allowed_tiers.includes(tier)
+                            (Array.isArray(flag.allowed_tiers) && flag.allowed_tiers.includes(tier))
                               ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                               : 'bg-white/5 text-white/30 border border-white/10'
                           }`}>

@@ -1,233 +1,258 @@
-// ============================================================
-// CORE SYSTEM v2.1 — AuthProvider
-// SINGLE SOURCE OF SESSION for the entire application.
-// Constitution §1: React 18+ + Vite + TypeScript (strict)
-// Constitution §9: Security — RLS, JWT Claims, PIN Auth.
-// 
-// Responsibilities:
-//   1. Initialize auth state from persisted store (license/tenant only)
-//   2. Sync with Supabase session on mount
-//   3. Provide Context for backward compatibility
-//   4. Handle session expiry and refresh.
-//
-// DOES NOT:
-//   - Handle PIN logic (that's PinAuthProvider + useAuth)
-//   - Read from LocalStorage directly (Zustand persist handles that)
-//   - Create multiple session sources.
-// ============================================================
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { Session, User } from "@supabase/supabase-js";
+import { supabase } from "@/infrastructure/supabase/client";
 
-import { useEffect, useRef, createContext, useContext } from 'react';
-import { useAuthStore } from '@/shared/store/authStore';
-import { supabase, getCurrentSession } from '@/infrastructure/supabase/client';
-import type { UserRole, AuthUser } from '@/shared/types/auth';
-
-interface AuthProviderProps {
-  children: React.ReactNode;
-}
-
-// ── Context for backward compatibility ──
-interface AuthContextValue {
-  user: AuthUser | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  userId: string | null;
+  email: string | null;
+  fullName: string | null;
   tenantId: string | null;
-  role: UserRole | null;
-  fullName: string;
-  logout: () => void;
+  userRole: string | null;
+  role: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  isPinAuthenticated: boolean;
+  pinExpiry: number | null;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithPin: (pin: string, role: string) => Promise<{ success: boolean; role?: string; error?: string }>; 
+  signOut: () => Promise<void>;
+  logout: () => Promise<void>;
+  setUser: (user: User | null) => void;
+  refreshTenantId: () => string | null;
 }
 
-const AuthContext = createContext<AuthContextValue>({
-  user: null,
-  isAuthenticated: false,
-  isLoading: false,
-  tenantId: null,
-  role: null,
-  fullName: '',
-  logout: () => {},
-});
-
-// ── Hook: useAuthContext (backward compatibility) ──
-export function useAuthContext(): AuthContextValue {
-  return useContext(AuthContext);
+interface PinAuthPayload {
+  user_id: string | null;
+  role: string | null;
+  full_name: string | null;
+  tenant_id: string | null;
+  expiry: number | null;
 }
 
-// ── Hook: useAuth (backward compatibility) ──
-export function useAuth() {
-  const store = useAuthStore();
-  return {
-    user: store.user,
-    isAuthenticated: store.isAuthenticated,
-    isLoading: store.isLoading,
-    tenantId: store.tenant_id,
-    role: store.user?.role ?? null,
-    userRole: store.user?.role ?? null,
-    fullName: store.user?.full_name ?? '',
-    login: () => { /* delegated to useAuth hook */ },
-    logout: () => store.logout(),
-    signOut: () => store.logout(),
-  };
+interface RpcPinResponse {
+  success?: boolean;
+  message?: string;
+  user_id?: string;
+  role?: string;
+  full_name?: string | null;
+  employee_code?: string;
 }
 
-// ── Type Guard: Validate JWT role against allowed roles ──
-const VALID_ROLES: readonly UserRole[] = ['super_admin', 'clinic_admin', 'doctor', 'receptionist'];
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const PIN_AUTH_KEY = "core_pin_auth";
+const LEGACY_TENANT_KEY = "tenant_id";
+const PIN_EXPIRY_HOURS = 24;
 
-function isValidUserRole(role: unknown): role is UserRole {
-  return typeof role === 'string' && VALID_ROLES.includes(role as UserRole);
+function getFromAppMeta(session: Session | null, key: string): string | null {
+  if (!session) return null;
+  return (session.user.app_metadata?.[key] as string) || null;
 }
 
-// ── Error Helper ──
-function isErrorWithMessage(err: unknown): err is { message: string } {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    'message' in err &&
-    typeof (err as Record<string, unknown>).message === 'string'
-  );
+function getTenantIdFromLocalStorage(): string | null {
+  const directTenantId = localStorage.getItem(LEGACY_TENANT_KEY);
+  if (directTenantId && directTenantId !== "null" && directTenantId !== "undefined") {
+    return directTenantId;
+  }
+  const pinData = localStorage.getItem(PIN_AUTH_KEY);
+  if (pinData) {
+    try {
+      const parsed = JSON.parse(pinData);
+      if (parsed.tenant_id && parsed.tenant_id !== "null" && parsed.tenant_id !== "undefined") {
+        return parsed.tenant_id;
+      }
+    } catch { /* ignore */ }
+  }
+  return null;
 }
 
-function getErrorMessage(err: unknown, fallback: string): string {
-  if (isErrorWithMessage(err)) return err.message;
-  return fallback;
+function getPinAuthData(): PinAuthPayload {
+  const pinData = localStorage.getItem(PIN_AUTH_KEY);
+  if (!pinData) return { user_id: null, role: null, full_name: null, tenant_id: null, expiry: null };
+  try {
+    const parsed = JSON.parse(pinData) as Partial<PinAuthPayload>;
+    return {
+      user_id: parsed.user_id || null,
+      role: parsed.role || null,
+      full_name: parsed.full_name || null,
+      tenant_id: parsed.tenant_id || null,
+      expiry: parsed.expiry || null,
+    };
+  } catch {
+    return { user_id: null, role: null, full_name: null, tenant_id: null, expiry: null };
+  }
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const initialized = useRef(false);
-  
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const user = useAuthStore((s) => s.user);
-  const isLoading = useAuthStore((s) => s.isLoading);
-  const tenantId = useAuthStore((s) => s.tenant_id);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPinAuthenticated, setIsPinAuthenticated] = useState(false);
+  const [pinExpiry, setPinExpiry] = useState<number | null>(null);
+  const [pinRole, setPinRole] = useState<string | null>(null);
+  const [pinTenantId, setPinTenantId] = useState<string | null>(null);
+  const [storageVersion, setStorageVersion] = useState(0);
+
+  const tenantIdFromSession = getFromAppMeta(session, "tenant_id");
+  const tenantIdFromStorage = getTenantIdFromLocalStorage();
+  const tenantId = tenantIdFromSession || tenantIdFromStorage || pinTenantId;
+  const userRole = getFromAppMeta(session, "user_role") || pinRole;
+  const isAuthenticated = !!user || isPinAuthenticated;
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-
-    const initAuth = async () => {
-      const store = useAuthStore.getState();
-      store.setLoading(true);
-
-      try {
-        const session = await getCurrentSession();
-
-        if (session?.user) {
-          const jwtTenantId = session.user.user_metadata?.tenant_id;
-          const jwtRole = session.user.user_metadata?.user_role;
-
-          if (
-            typeof jwtTenantId === 'string' &&
-            isValidUserRole(jwtRole)
-          ) {
-            store.setUser({
-              id: session.user.id,
-              full_name: String(session.user.user_metadata?.full_name || ''),
-              role: jwtRole,
-              tenant_id: jwtTenantId,
-              email: session.user.email || undefined,
-            });
-            store.setStatus('authenticated');
-          } else {
-            await supabase.auth.signOut();
-            store.logout();
-          }
-        } else {
-          const currentTenantId = store.tenant_id;
-          if (currentTenantId) {
-            store.setStatus('license_valid');
-          } else {
-            store.setStatus('idle');
-          }
-        }
-      } catch (err: unknown) {
-        console.error('AuthProvider init error:', getErrorMessage(err, 'Unknown error'));
-        const store = useAuthStore.getState();
-        store.setError('فشل في تهيئة المصادقة. يرجى تحديث الصفحة.');
-        store.setStatus('error');
-      } finally {
-        const store = useAuthStore.getState();
-        store.setLoading(false);
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === PIN_AUTH_KEY || e.key === LEGACY_TENANT_KEY) {
+        console.log("[AuthProvider] localStorage changed:", e.key);
+        setStorageVersion(v => v + 1);
       }
     };
-
-    initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        const store = useAuthStore.getState();
-
-        if (event === 'SIGNED_OUT') {
-          store.logout();
-        } else if (event === 'TOKEN_REFRESHED' && session) {
-          const jwtTenantId = session.user.user_metadata?.tenant_id;
-          const jwtRole = session.user.user_metadata?.user_role;
-
-          if (
-            typeof jwtTenantId === 'string' &&
-            isValidUserRole(jwtRole) &&
-            store.user
-          ) {
-            store.setUser({
-              ...store.user,
-              id: session.user.id,
-              tenant_id: jwtTenantId,
-              role: jwtRole,
-            });
-          }
-        } else if (event === 'INITIAL_SESSION' && session) {
-          const jwtTenantId = session.user.user_metadata?.tenant_id;
-          const jwtRole = session.user.user_metadata?.user_role;
-
-          if (
-            typeof jwtTenantId === 'string' &&
-            isValidUserRole(jwtRole)
-          ) {
-            store.setUser({
-              id: session.user.id,
-              full_name: String(session.user.user_metadata?.full_name || ''),
-              role: jwtRole,
-              tenant_id: jwtTenantId,
-              email: session.user.email || undefined,
-            });
-            store.setStatus('authenticated');
-          }
-        }
-      }
-    );
-
-    return () => {
-      subscription?.unsubscribe();
-    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (!isAuthenticated) return;
-      
-      try {
-        const session = await getCurrentSession();
-        if (!session) {
-          useAuthStore.getState().logout();
-        }
-      } catch (err: unknown) {
-        console.error('Periodic session sync error:', getErrorMessage(err, 'Unknown error'));
+    const pinData = getPinAuthData();
+    if (pinData.expiry && Date.now() < pinData.expiry) {
+      setIsPinAuthenticated(true);
+      setPinExpiry(pinData.expiry);
+      setPinRole(pinData.role);
+      setPinTenantId(pinData.tenant_id);
+    } else if (pinData.expiry && Date.now() >= pinData.expiry) {
+      localStorage.removeItem(PIN_AUTH_KEY);
+      setIsPinAuthenticated(false);
+      setPinExpiry(null);
+      setPinRole(null);
+      setPinTenantId(null);
+    }
+  }, [storageVersion]);
+
+  useEffect(() => {
+    const init = async () => {
+      setIsLoading(true);
+      const { data: { session: s } } = await supabase.auth.getSession();
+      setSession(s);
+      setUser(s?.user ?? null);
+
+      const pinData = getPinAuthData();
+      if (pinData.expiry && Date.now() < pinData.expiry) {
+        setIsPinAuthenticated(true);
+        setPinExpiry(pinData.expiry);
+        setPinRole(pinData.role);
+        setPinTenantId(pinData.tenant_id);
       }
-    }, 5 * 60 * 1000);
+      setIsLoading(false);
+    };
+    init();
 
-    return () => clearInterval(interval);
-  }, [isAuthenticated]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const contextValue: AuthContextValue = {
-    user,
-    isAuthenticated,
-    isLoading,
-    tenantId,
-    role: user?.role ?? null,
-    fullName: user?.full_name ?? '',
-    logout: () => useAuthStore.getState().logout(),
+  const signInWithEmail = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (!data.session) throw new Error("No session");
+    try {
+      await supabase.functions.invoke("auth-metadata-sync", {
+        headers: { Authorization: `Bearer ${data.session.access_token}` }
+      });
+      await supabase.auth.refreshSession();
+    } catch (e) {
+      console.error("Metadata sync failed:", e);
+    }
   };
 
+  const signInWithPin = async (pin: string, role: string) => {
+    const currentTenantId = tenantId || getTenantIdFromLocalStorage();
+    if (!currentTenantId) {
+      return { success: false, error: "No tenant context. Please validate license first." };
+    }
+
+    const { data, error } = await supabase.rpc("validate_pin", { p_tenant_id: currentTenantId, p_pin: pin, p_role: role });
+
+    if (error) {
+      console.error("validate_pin RPC error:", error);
+      return { success: false, error: error.message || "Invalid PIN" };
+    }
+
+    const d: any = data;
+    let pinData: RpcPinResponse | null = null;
+    if (d && typeof d === "object") {
+      if (Array.isArray(d) && d.length > 0) pinData = d[0] as RpcPinResponse;
+      else if (d.data !== undefined) pinData = d.data as RpcPinResponse;
+      else pinData = d as RpcPinResponse;
+    } else {
+      return { success: false, error: "Invalid PIN response format" };
+    }
+
+    if (!pinData?.success) {
+      return { success: false, error: pinData?.message || "Invalid PIN" };
+    }
+
+    const expiry = Date.now() + PIN_EXPIRY_HOURS * 60 * 60 * 1000;
+    localStorage.setItem(PIN_AUTH_KEY, JSON.stringify({
+      user_id: pinData.user_id,
+      role: pinData.role,
+      full_name: pinData.full_name,
+      tenant_id: currentTenantId,
+      employee_code: pinData.employee_code,
+      expiry,
+    }));
+    localStorage.setItem(LEGACY_TENANT_KEY, currentTenantId);
+
+    setIsPinAuthenticated(true);
+    setPinExpiry(expiry);
+    setPinRole(pinData.role ?? null);
+    setPinTenantId(currentTenantId);
+    setStorageVersion(v => v + 1);
+
+    if (pinData.role) {
+      return { success: true, role: pinData.role };
+    }
+    return { success: true };
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem(PIN_AUTH_KEY);
+    localStorage.removeItem(LEGACY_TENANT_KEY);
+    setUser(null);
+    setSession(null);
+    setIsPinAuthenticated(false);
+    setPinExpiry(null);
+    setPinRole(null);
+    setPinTenantId(null);
+  };
+
+  const logout = signOut;
+  const refreshTenantId = useCallback(() => getTenantIdFromLocalStorage(), []);
+
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={{
+      user, session,
+      userId: user?.id || getPinAuthData().user_id,
+      email: user?.email || null,
+      fullName: getFromAppMeta(session, "full_name") || getPinAuthData().full_name,
+      tenantId, userRole, role: userRole,
+      isLoading, isAuthenticated, isPinAuthenticated, pinExpiry,
+      signInWithEmail, signInWithPin, signOut, logout, setUser, refreshTenantId,
+    }}>
       {children}
     </AuthContext.Provider>
   );
 }
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
+}
+
+export const useAuthContext = useAuth;
+export default AuthProvider;

@@ -7,7 +7,7 @@
 
 // ─── Providers ───
 export { AuthProvider, useAuthContext } from "./AuthProvider";
-export { PinAuthProvider, usePinAuth } from "./pinAuth.types";  // ✅ ENABLED: verify_pin_hash RPC + pin_hash now exist (Migration 032 + 033)
+export { PinAuthProvider, usePinAuth } from "./PinAuthProvider";  // ✅ ENABLED: verify_pin_hash RPC + pin_hash now exist (Migration 032 + 033)
 
 // ─── Hooks ───
 export { useAuth } from "./useAuth";

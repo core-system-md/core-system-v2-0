@@ -13,7 +13,8 @@ export class SlaRadar {
   private async loadThresholds() {
     const { data } = await supabase.from('core_rules_config').select('rule_value').eq('rule_key', 'wait_times').is('tenant_id', null).single();
     if (data?.rule_value) {
-      this.thresholds = { greenMax: data.rule_value.green_max_minutes ?? 14, yellowMax: data.rule_value.yellow_max_minutes ?? 24, redMin: data.rule_value.red_min_minutes ?? 25 };
+      const rv: any = data.rule_value;
+      this.thresholds = { greenMax: rv.green_max_minutes ?? 14, yellowMax: rv.yellow_max_minutes ?? 24, redMin: rv.red_min_minutes ?? 25 };
     }
   }
 

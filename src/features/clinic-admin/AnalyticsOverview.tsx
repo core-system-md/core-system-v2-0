@@ -26,25 +26,25 @@ export default function AnalyticsOverview() {
 
   async function fetchDashboardKPI() {
     setLoading(true);
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0]!;
 
     const { data: snapshot } = await supabase
       .from('analytics_daily_snapshots')
       .select('*')
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', tenantId!)
       .eq('snapshot_date', today)
       .single();
 
     const { count: activeSessions } = await supabase
       .from('clinic_visit_sessions')
       .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', tenantId!)
       .in('session_status', ['waiting', 'in_consultation']);
 
     const { count: totalPatients } = await supabase
       .from('clinic_patients')
       .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', tenantId!)
       .is('deleted_at', null);
 
     setKpi({

@@ -202,7 +202,7 @@ export default function AuthScreen() {
               {/* Role Selection */}
               <div className="space-y-2">
                 <Label>الدور الوظيفي</Label>
-                <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as UserRole)}>
+                <Select value={selectedRole} onValueChange={(v: any) => setSelectedRole(v as UserRole)}>
                   <SelectTrigger>
                     <SelectValue placeholder="اختر الدور..." />
                   </SelectTrigger>

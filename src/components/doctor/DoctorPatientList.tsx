@@ -64,7 +64,7 @@ export default function DoctorPatientList() {
         const { data: patientsData, error: patientsError } = await supabase
           .from('clinic_patients')
           .select('id, full_name, phone_primary, tenant_id')
-          .eq('tenant_id', tenant_id)
+          .eq('tenant_id', tenant_id!)
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
 
@@ -80,7 +80,7 @@ export default function DoctorPatientList() {
         const { data: profilesData, error: profilesError } = await supabase
           .from('patient_longitudinal_profiles')
           .select('patient_id, historical_core_score_avg, dominant_disc_profile')
-          .eq('tenant_id', tenant_id)
+          .eq('tenant_id', tenant_id!)
           .in('patient_id', patientIds);
 
         if (profilesError) throw profilesError;
@@ -88,7 +88,7 @@ export default function DoctorPatientList() {
         const { data: sessionsData, error: sessionsError } = await supabase
           .from('clinic_visit_sessions')
           .select('id, session_status, created_at, patient_id, core_score_display')
-          .eq('tenant_id', tenant_id)
+          .eq('tenant_id', tenant_id!)
           .in('patient_id', patientIds)
           .not('session_status', 'in', '("completed","cancelled")')
           .order('created_at', { ascending: false });

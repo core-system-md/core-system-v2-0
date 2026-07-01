@@ -20,12 +20,12 @@ export function useAuditLog() {
       action: payload.action,
       entity_type: payload.entityType,
       entity_id: payload.entityId,
-      old_values: payload.oldValues ?? {},
-      new_values: payload.newValues ?? {},
+      old_values: (payload.oldValues ?? {}) as any,
+      new_values: (payload.newValues ?? {}) as any,
       changed_fields: payload.changedFields ?? [],
       metadata: payload.metadata ?? {},
       created_at: new Date().toISOString(),
-    });
+    } as any);
 
     if (error) {
       console.error('Audit write failed:', error);
