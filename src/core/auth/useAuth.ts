@@ -3,6 +3,7 @@
 // Purpose: Email + PIN + License validation
 // FIXED: 2026-07-01 — Sync login/logout with authStore (Zustand single source of truth)
 // FIXED: 2026-07-01 — Handle SETOF responses (array of rows) from RPCs
+// FIXED: 2026-07-01 — Validate tenant_id before saving to localStorage
 
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -28,9 +29,6 @@ interface LoginResult {
 }
 
 // ─── Helpers for SETOF responses ───
-/**
- * SETOF returns an array of rows. We take the first row.
- */
 function parseSetofResponse<T>(response: unknown): T | null {
   if (Array.isArray(response) && response.length > 0) {
     return response[0] as T;
@@ -39,6 +37,13 @@ function parseSetofResponse<T>(response: unknown): T | null {
     return response as T;
   }
   return null;
+}
+
+// ─── Validate tenant_id ───
+function isValidTenantId(tenantId: unknown): tenantId is string {
+  if (!tenantId) return false;
+  const str = String(tenantId).trim();
+  return str !== '' && str !== 'null' && str !== 'undefined';
 }
 
 const PIN_AUTH_KEY = 'core_pin_auth';
@@ -87,7 +92,7 @@ export function useAuth() {
 
       const tenantId = String(licenseData.id);
 
-      if (!tenantId || tenantId === 'null' || tenantId === 'undefined' || tenantId === '') {
+      if (!isValidTenantId(tenantId)) {
         throw new Error('TENANT_MISSING: Tenant ID was not returned by license validation');
       }
 
@@ -233,6 +238,12 @@ export function useAuth() {
         return { success: false, message: msg };
       }
       const tenantId = String(licenseData.id);
+      if (!isValidTenantId(tenantId)) {
+        const msg = 'Invalid tenant ID returned';
+        setStatus('error');
+        setError(msg);
+        return { success: false, message: msg };
+      }
       localStorage.setItem('tenant_id', tenantId);
       // ✅ Sync to Zustand
       storeSetTenant(tenantId, null);
@@ -251,13 +262,13 @@ export function useAuth() {
     setError(null);
     try {
       const tenantId = localStorage.getItem('tenant_id');
-      if (!tenantId) {
+      if (!isValidTenantId(tenantId)) {
         const msg = 'TENANT_NOT_AVAILABLE';
         setStatus('error');
         setError(msg);
         return { success: false, error: msg };
       }
-      const { data: pinResult, error: pinError } = await supabase.rpc('validate_pin', { p_tenant_id: tenantId, p_pin: pin.trim(), p_role: role ?? null });
+      const { data: pinResult, error: pinError } = await supabase.rpc('validate_pin', { p_tenant_id: tenantId!, p_pin: pin.trim(), p_role: role ?? null });
       if (pinError) {
         setStatus('error');
         setError(pinError.message);
@@ -285,7 +296,7 @@ export function useAuth() {
         id: String(pinData.id),
         full_name: pinData.full_name || 'Staff User',
         role: (pinData.role || 'receptionist') as UserRole,
-        tenant_id: tenantId,
+        tenant_id: tenantId!,
       });
       storeSetAuthenticated(true);
       storeSetStatus('authenticated');
