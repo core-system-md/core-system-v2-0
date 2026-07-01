@@ -42,7 +42,7 @@ export const rpc = {
   // PostgreSQL RPC functions (via supabase.rpc)
   async releaseAbandonedLocks(timeoutMinutes: number = 10) {
     const { data, error } = await supabase.rpc('release_abandoned_locks', {
-      timeout_minutes: timeoutMinutes,
+      p_timeout_minutes: timeoutMinutes,
     });
     if (error) throw error;
     return data as number;
@@ -64,7 +64,7 @@ export const rpc = {
 
   async processNotifications(batchSize: number = 50) {
     const { data, error } = await supabase.rpc('process_pending_notifications', {
-      batch_size: batchSize,
+      p_batch_size: batchSize,
     });
     if (error) throw error;
     return data as number;
