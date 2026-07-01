@@ -2,8 +2,7 @@
 // CORE SYSTEM v2.1 — AuthScreen
 // VIEW ONLY. NO Business Logic. NO supabase.rpc(). NO supabase.from().
 // Constitution §12: AuthScreen → useAuth → Supabase. NOT AuthScreen → Supabase directly.
-// Blueprint: AuthScreen is a View. useAuth is the Controller.
-// FIXED: 2026-07-01 — Read tenant_id from authStore + localStorage fallback
+// FIXED: 2026-07-02 — Add DEV MODE button for instant access
 // ============================================================
 
 import { useState, useCallback, useEffect } from 'react';
@@ -13,7 +12,6 @@ import { useAuthStore, selectIsPinLocked, selectPinAttemptsRemaining } from '@/s
 import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
 import type { UserRole } from '@/shared/types/auth';
 
-// UI Components (Shadcn/UI per Constitution §1)
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,9 +36,7 @@ export default function AuthScreen() {
     clearError,
   } = useAuth();
 
-  // ✅ Read from authStore (primary) + localStorage (fallback)
-  const storeTenantId = useAuthStore((s) => s.tenant_id);
-  const tenant_id = storeTenantId || localStorage.getItem('tenant_id');
+  const tenant_id = useAuthStore((s) => s.tenant_id);
   const authStatus = useAuthStore((s) => s.status);
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -105,6 +101,17 @@ export default function AuthScreen() {
     setSelectedRole('');
   }, [logout, clearError]);
 
+  // ── DEV MODE: Instant login ──
+  const handleDevMode = useCallback(async (role: UserRole) => {
+    clearError();
+    await validateLicense('DEV-MODE-2026');
+    const result = await loginWithPin('1234', role);
+    if (result.success && result.user) {
+      const route = getDefaultRoute(result.user.role as UserRole);
+      navigate(route, { replace: true });
+    }
+  }, [validateLicense, loginWithPin, clearError, navigate]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
       <Card className="w-full max-w-md">
@@ -129,6 +136,19 @@ export default function AuthScreen() {
                 تم تسجيل الدخول بالدور الصحيح من قاعدة البيانات.
               </AlertDescription>
             </Alert>
+          )}
+
+          {/* ── DEV MODE Buttons ── */}
+          {import.meta.env.DEV && step === 1 && (
+            <div className="space-y-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-600 font-bold text-center">🚀 وضع التطوير — تسجيل الدخول الفوري</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => handleDevMode('doctor')} className="text-xs">طبيب</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => handleDevMode('receptionist')} className="text-xs">استقبال</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => handleDevMode('clinic_admin')} className="text-xs">مدير العيادة</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => handleDevMode('super_admin')} className="text-xs">مدير النظام</Button>
+              </div>
+            </div>
           )}
 
           {step === 1 && (
