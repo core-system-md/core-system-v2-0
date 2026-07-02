@@ -33,11 +33,9 @@ function PageLoader() {
  * TODO: Connect to featureFlagStore when implemented.
  */
 function FeatureFlagGuard({ 
-  children, 
-  featureName: _featureName 
+  children,
 }: { 
-  children: React.ReactNode; 
-  featureName: string;
+  children: React.ReactNode;
 }) {
   // For now, all features are enabled. 
   const isEnabled = true; 
@@ -64,7 +62,7 @@ export function Router() {
         path="/doctor/*" 
         element={
           <RoleGuard allowedRoles={['doctor', 'clinic_admin', 'super_admin']}>
-            <FeatureFlagGuard featureName="doctor_dashboard">
+            <FeatureFlagGuard>
               <Suspense fallback={<PageLoader />}>
                 <DoctorDashboard />
               </Suspense>
@@ -78,7 +76,7 @@ export function Router() {
         path="/reception/*" 
         element={
           <RoleGuard allowedRoles={['receptionist', 'clinic_admin', 'super_admin']}>
-            <FeatureFlagGuard featureName="reception_dashboard">
+            <FeatureFlagGuard>
               <Suspense fallback={<PageLoader />}>
                 <ReceptionDashboard />
               </Suspense>
@@ -92,7 +90,7 @@ export function Router() {
         path="/clinic-admin/*" 
         element={
           <RoleGuard allowedRoles={['clinic_admin', 'super_admin']}>
-            <FeatureFlagGuard featureName="admin_dashboard">
+            <FeatureFlagGuard>
               <Suspense fallback={<PageLoader />}>
                 <AdminLayout />
               </Suspense>
@@ -106,7 +104,7 @@ export function Router() {
         path="/super-admin/*" 
         element={
           <RoleGuard allowedRoles={['super_admin']}>
-            <FeatureFlagGuard featureName="super_admin_dashboard">
+            <FeatureFlagGuard>
               <Suspense fallback={<PageLoader />}>
                 <SuperAdminDashboard />
               </Suspense>
