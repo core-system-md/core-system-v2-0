@@ -45,7 +45,7 @@ function isValidUUID(str: string): boolean {
 }
 
 const DEV_MODE = import.meta.env.DEV;
-const DEV_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+const DEV_TENANT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const DEV_LICENSE_KEY = 'DEV-MODE-2026';
 const PIN_AUTH_KEY = 'core_pin_auth';
 const PIN_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
