@@ -16,6 +16,13 @@ interface TenantState {
   clearTenant: () => void;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUUID(id?: string | null) {
+  if (!id) return false;
+  return UUID_REGEX.test(id);
+}
+
 export const useTenantStore = create<TenantState>((set, get) => ({
   tenantId: null,
   clinicName: null,
@@ -29,6 +36,16 @@ export const useTenantStore = create<TenantState>((set, get) => ({
     const { tenantId } = get();
     if (!tenantId) return;
 
+    if (!isValidUUID(tenantId)) {
+      console.error('[tenantStore] Invalid tenantId, skipping fetch:', tenantId);
+      set({
+        error: 'INVALID_TENANT_ID',
+        isLoading: false,
+        subscriptionTier: 'trial',
+      });
+      return;
+    }
+
     set({ isLoading: true, error: null });
 
     try {
@@ -39,7 +56,10 @@ export const useTenantStore = create<TenantState>((set, get) => ({
         .is('deleted_at', null)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[tenantStore] Supabase error fetching tenant:', error);
+        throw error;
+      }
 
       const row: any = data as any;
       set({
