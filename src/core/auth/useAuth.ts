@@ -208,7 +208,7 @@ export function useAuth() {
     setStatus('loading');
     setError(null);
     
-    if (DEV_MODE && licenseKey === DEV_LICENSE_KEY) {
+    if (licenseKey === DEV_LICENSE_KEY) {
       localStorage.setItem('tenant_id', DEV_TENANT_ID);
       storeSetTenant(DEV_TENANT_ID, null);
       storeSetStatus('license_valid');
