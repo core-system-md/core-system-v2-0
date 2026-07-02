@@ -54,11 +54,26 @@ export const useTenantStore = create<TenantState>((set, get) => ({
         .select('id, clinic_name, subscription_tier, primary_color, logo_url')
         .eq('id', tenantId)
         .is('deleted_at', null)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('[tenantStore] Supabase error fetching tenant:', error);
-        throw error;
+        set({
+          error: error?.message || 'SUPABASE_ERROR',
+          isLoading: false,
+          subscriptionTier: 'trial',
+        });
+        return;
+      }
+
+      if (!data) {
+        console.warn('[tenantStore] Tenant not found for id:', tenantId);
+        set({
+          error: 'TENANT_NOT_FOUND',
+          isLoading: false,
+          subscriptionTier: 'trial',
+        });
+        return;
       }
 
       const row: any = data as any;
