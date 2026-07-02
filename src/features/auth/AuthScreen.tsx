@@ -180,7 +180,7 @@ export default function AuthScreen() {
             <form onSubmit={handlePinSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>الدور الوظيفي</Label>
-                <Select value={selectedRole} onValueChange={(v: any) => setSelectedRole(v as UserRole)}>
+                <Select value={selectedRole} onValueChange={(v: string) => setSelectedRole(v as UserRole)}>
                   <SelectTrigger>
                     <SelectValue placeholder="اختر الدور..." />
                   </SelectTrigger>
