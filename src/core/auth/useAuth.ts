@@ -260,7 +260,7 @@ export function useAuth() {
     }
   };
 
-  const loginWithPin = async (pin: string, role?: string): Promise<{ success: boolean; user?: any; error?: string }> => {
+  const loginWithPin = async (pin: string, _role?: string): Promise<{ success: boolean; user?: any; error?: string }> => {
     setStatus('loading');
     setError(null);
     try {

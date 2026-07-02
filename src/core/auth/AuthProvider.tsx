@@ -226,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signInWithPin = async (pin: string, role: string) => {
+const signInWithPin = async (pin: string, _role: string) => {
     const currentTenantId = tenantId || getTenantIdFromLocalStorage();
     if (!currentTenantId) {
       return { success: false, error: "No tenant context. Please validate license first." };
