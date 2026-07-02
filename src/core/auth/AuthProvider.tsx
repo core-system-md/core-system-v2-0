@@ -232,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: "No tenant context. Please validate license first." };
     }
 
-    const { data, error } = await supabase.rpc("validate_pin", { p_tenant_id: currentTenantId, p_pin: pin, p_role: role });
+    const { data, error } = await supabase.rpc("validate_pin", { p_tenant_id: currentTenantId, p_pin: pin });
 
     if (error) {
       console.error("validate_pin RPC error:", error);

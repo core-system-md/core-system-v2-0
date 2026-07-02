@@ -272,7 +272,7 @@ export function useAuth() {
       }
       const { data: pinResult, error: pinError } = await supabase.rpc(
         'validate_pin',
-        { p_tenant_id: tenantId!, p_pin: pin.trim(), p_role: role ?? null }
+        { p_tenant_id: tenantId!, p_pin: pin.trim() }
       );
       if (pinError) {
         setStatus('error'); setError(pinError.message);

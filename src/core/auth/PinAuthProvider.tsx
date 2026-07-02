@@ -94,7 +94,7 @@ export function PinAuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const { data: pinResult, error: pinError } = await supabase.rpc('validate_pin', {
-        p_tenant_id: tenantId, p_pin: pinCode, p_role: role,
+        p_tenant_id: tenantId, p_pin: pinCode,
       });
 
       if (pinError) {
