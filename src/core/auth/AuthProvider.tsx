@@ -239,6 +239,8 @@ const signInWithPin = async (pin: string, _role: string) => {
       return { success: false, error: error.message || "Invalid PIN" };
     }
 
+    console.info('[AuthProvider] validate_pin returned data:', data);
+
     const d: any = data;
     let pinData: RpcPinResponse | null = null;
     if (d && typeof d === "object") {

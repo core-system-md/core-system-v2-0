@@ -83,6 +83,7 @@ export function useAuth() {
             tenant_id: result.tenantId,
             expiry: Date.now() + PIN_SESSION_DURATION_MS,
           }));
+          console.info('[useAuth] set tenant_id (DEV):', DEV_TENANT_ID);
           localStorage.setItem('tenant_id', result.tenantId);
           storeSetTenant(result.tenantId, null);
           storeSetUser({
@@ -142,7 +143,9 @@ export function useAuth() {
           tenant_id: result.tenantId,
           expiry: Date.now() + PIN_SESSION_DURATION_MS,
         }));
-        localStorage.setItem('tenant_id', result.tenantId);
+          console.info('[useAuth] set core_pin_auth (email login):', result.userId, result.tenantId);
+          localStorage.setItem('tenant_id', result.tenantId);
+          console.info('[useAuth] set tenant_id (email login):', result.tenantId);
 
         storeSetTenant(result.tenantId, null);
         storeSetUser({
@@ -183,7 +186,9 @@ export function useAuth() {
           tenant_id: result.tenantId,
           expiry: Date.now() + PIN_SESSION_DURATION_MS,
         }));
-        localStorage.setItem('tenant_id', result.tenantId);
+          console.info('[useAuth] set core_pin_auth (pin login):', result.userId, result.tenantId);
+          localStorage.setItem('tenant_id', result.tenantId);
+          console.info('[useAuth] set tenant_id (pin login):', result.tenantId);
 
         storeSetTenant(result.tenantId, null);
         storeSetUser({
