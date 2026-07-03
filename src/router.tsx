@@ -1,184 +1,209 @@
+// ============================================================
+// CORE SYSTEM v2.1 — Router Configuration
+// Phase 2: Real Dashboards (Placeholder Replacement)
+// Date: 2026-07-03
+// FIXED: Router component export, inline LoadingScreen, correct feature imports, status-based loading
+// ============================================================
+
 import { Suspense, lazy } from 'react';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
 import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
-import type { ClinicRole } from '@/core/auth/RoleGuard';
 
-// ── Lazy-loaded layouts ──
-const AdminLayout = lazy(() => import('@/features/clinic-admin/AdminLayout'));
-const DoctorLayout = lazy(() => import('@/features/doctor/DoctorLayout'));
-const ReceptionLayout = lazy(() => import('@/features/reception/ReceptionLayout'));
-const SuperAdminLayout = lazy(() => import('@/features/super-admin/SuperAdminLayout'));
+// ────────────────────────────────────────────────────────────
+// INLINE: LoadingScreen (no external file dependency)
+// ────────────────────────────────────────────────────────────
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50" dir="rtl">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#1B2A4A] border-t-transparent" />
+        <p className="text-sm text-gray-600">جاري التحميل...</p>
+      </div>
+    </div>
+  );
+}
 
-// ── Lazy-loaded pages ──
+// ────────────────────────────────────────────────────────────
+// LAZY LOAD: Auth
+// ────────────────────────────────────────────────────────────
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
 
-// ── Loading fallback ──
-const LoadingFallback = () => (
-  <div className="flex h-screen items-center justify-center">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-  </div>
-);
+// ────────────────────────────────────────────────────────────
+// LAZY LOAD: Layouts (Shell wrappers with <Outlet />)
+// ────────────────────────────────────────────────────────────
+const AdminLayout      = lazy(() => import('@/features/clinic-admin/AdminLayout'));
+const DoctorLayout     = lazy(() => import('@/features/doctor/DoctorLayout'));
+const ReceptionLayout  = lazy(() => import('@/features/reception/ReceptionLayout'));
+const SuperAdminLayout = lazy(() => import('@/features/super-admin/SuperAdminLayout'));
 
-// ── Simple dashboard placeholders ──
-function AdminDashboard() {
-  return <div className="p-8"><h1 className="text-2xl font-bold">Admin Dashboard</h1></div>;
-}
-function DoctorDashboard() {
-  return <div className="p-8"><h1 className="text-2xl font-bold">Doctor Dashboard</h1></div>;
-}
-function ReceptionDashboard() {
-  return <div className="p-8"><h1 className="text-2xl font-bold">Reception Dashboard</h1></div>;
-}
-function SuperAdminDashboard() {
-  return <div className="p-8"><h1 className="text-2xl font-bold">Super Admin Dashboard</h1></div>;
-}
+// ────────────────────────────────────────────────────────────
+// LAZY LOAD: Role Dashboard Pages (index routes inside layouts)
+// ────────────────────────────────────────────────────────────
+// Admin: AnalyticsOverview exists
+const AnalyticsOverview = lazy(() => import('@/features/clinic-admin/AnalyticsOverview'));
+// Doctor: MyQueueView does NOT exist — use DoctorLayout as index
+const DoctorIndex = lazy(() => import('@/features/doctor/DoctorLayout'));
+// Reception: LiveQueueBoard does NOT exist — use ReceptionDashboard as index
+const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDashboard'));
+// Super Admin: TenantRegistry exists
+const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
 
-// ── Auth wrapper: redirects based on auth state ──
+// ────────────────────────────────────────────────────────────
+// WRAPPERS
+// ────────────────────────────────────────────────────────────
+
 function AuthWrapper() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const status = useAuthStore((s) => s.status);
-  const role = useAuthStore((s) => s.user?.role);
-
-  if (status === 'loading') {
-    return <LoadingFallback />;
+  const { isAuthenticated, user } = useAuthStore();
+  if (isAuthenticated && user) {
+    return <Navigate to={getDefaultRoute(user.role)} replace />;
   }
-
-  if (!isAuthenticated) {
-    return <Outlet />;
-  }
-
-  const defaultRoute = getDefaultRoute(role);
-  return <Navigate to={defaultRoute} replace />;
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <AuthScreen />
+    </Suspense>
+  );
 }
 
-// ── Protected wrapper: requires auth + correct role ──
-function ProtectedWrapper({ allowedRoles }: { allowedRoles: ClinicRole[] }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const role = useAuthStore((s) => s.user?.role);
-  const status = useAuthStore((s) => s.status);
+function ProtectedWrapper({ allowedRoles }: { allowedRoles: string[] }) {
+  const { isAuthenticated, user, status } = useAuthStore();
 
-  if (status === 'loading') {
-    return <LoadingFallback />;
+  if (status === 'loading') return <LoadingScreen />;
+  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+  if (!allowedRoles.includes(user.role)) {
+    return <Navigate to={getDefaultRoute(user.role)} replace />;
   }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!role || !allowedRoles.includes(role)) {
-    const defaultRoute = getDefaultRoute(role);
-    return <Navigate to={defaultRoute} replace />;
-  }
-
   return <Outlet />;
 }
 
-// ── Router definition ──
+function RootRedirect() {
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+  return <Navigate to={getDefaultRoute(user.role)} replace />;
+}
+
+// ────────────────────────────────────────────────────────────
+// ROUTER OBJECT
+// ────────────────────────────────────────────────────────────
 const router = createBrowserRouter([
-  {
-    path: '/login',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <AuthWrapper />
-      </Suspense>
-    ),
-    children: [
-      { index: true, element: <AuthScreen /> },
-    ],
-  },
-  {
-    path: '/admin',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <ProtectedWrapper allowedRoles={['clinic_admin', 'super_admin']} />
-      </Suspense>
-    ),
-    children: [
-      {
-        element: <AdminLayout />,
-        children: [{ index: true, element: <AdminDashboard /> }],
-      },
-    ],
-  },
-  {
-    path: '/doctor',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <ProtectedWrapper allowedRoles={['doctor']} />
-      </Suspense>
-    ),
-    children: [
-      {
-        element: <DoctorLayout />,
-        children: [{ index: true, element: <DoctorDashboard /> }],
-      },
-    ],
-  },
-  {
-    path: '/reception',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <ProtectedWrapper allowedRoles={['receptionist']} />
-      </Suspense>
-    ),
-    children: [
-      {
-        element: <ReceptionLayout />,
-        children: [{ index: true, element: <ReceptionDashboard /> }],
-      },
-    ],
-  },
-  {
-    path: '/super-admin',
-    element: (
-      <Suspense fallback={<LoadingFallback />}>
-        <ProtectedWrapper allowedRoles={['super_admin']} />
-      </Suspense>
-    ),
-    children: [
-      {
-        element: <SuperAdminLayout />,
-        children: [{ index: true, element: <SuperAdminDashboard /> }],
-      },
-    ],
-  },
   {
     path: '/',
     element: <RootRedirect />,
   },
   {
+    path: '/login',
+    element: <AuthWrapper />,
+  },
+  // ─── Clinic Admin ─────────────────────────────────────────
+  {
+    path: '/admin',
+    element: <ProtectedWrapper allowedRoles={['clinic_admin']} />,
+    children: [
+      {
+        path: '',
+        element: (
+          <Suspense fallback={<LoadingScreen />}>
+            <AdminLayout />
+          </Suspense>
+        ),
+        children: [
+          {
+            index: true,
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <AnalyticsOverview />
+              </Suspense>
+            ),
+          },
+        ],
+      },
+    ],
+  },
+  // ─── Doctor ───────────────────────────────────────────────
+  {
+    path: '/doctor',
+    element: <ProtectedWrapper allowedRoles={['doctor']} />,
+    children: [
+      {
+        path: '',
+        element: (
+          <Suspense fallback={<LoadingScreen />}>
+            <DoctorLayout />
+          </Suspense>
+        ),
+        children: [
+          {
+            index: true,
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <DoctorIndex />
+              </Suspense>
+            ),
+          },
+        ],
+      },
+    ],
+  },
+  // ─── Reception ────────────────────────────────────────────
+  {
+    path: '/reception',
+    element: <ProtectedWrapper allowedRoles={['receptionist']} />,
+    children: [
+      {
+        path: '',
+        element: (
+          <Suspense fallback={<LoadingScreen />}>
+            <ReceptionLayout />
+          </Suspense>
+        ),
+        children: [
+          {
+            index: true,
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <ReceptionDashboard />
+              </Suspense>
+            ),
+          },
+        ],
+      },
+    ],
+  },
+  // ─── Super Admin ──────────────────────────────────────────
+  {
+    path: '/super-admin',
+    element: <ProtectedWrapper allowedRoles={['super_admin']} />,
+    children: [
+      {
+        path: '',
+        element: (
+          <Suspense fallback={<LoadingScreen />}>
+            <SuperAdminLayout />
+          </Suspense>
+        ),
+        children: [
+          {
+            index: true,
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <TenantRegistry />
+              </Suspense>
+            ),
+          },
+        ],
+      },
+    ],
+  },
+  // ─── Catch-all ────────────────────────────────────────────
+  {
     path: '*',
-    element: <NotFound />,
+    element: <Navigate to="/" replace />,
   },
 ]);
 
-// ── Root redirect ──
-function RootRedirect() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const role = useAuthStore((s) => s.user?.role);
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  const defaultRoute = getDefaultRoute(role);
-  return <Navigate to={defaultRoute} replace />;
-}
-
-function NotFound() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const role = useAuthStore((s) => s.user?.role);
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  const defaultRoute = getDefaultRoute(role);
-  return <Navigate to={defaultRoute} replace />;
-}
-
-// ── Export Router component for App.tsx ──
+// ────────────────────────────────────────────────────────────
+// ROUTER COMPONENT (exported for App.tsx)
+// ────────────────────────────────────────────────────────────
 export function Router() {
   return <RouterProvider router={router} />;
 }
