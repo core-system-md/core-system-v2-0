@@ -26,4 +26,4 @@ export {
 export * from './infrastructure';
 
 // Types
-export * from './shared/types';
+// export * from './shared/types'; // UserRole re-exported from core/auth/types.ts

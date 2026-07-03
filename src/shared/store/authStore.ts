@@ -1,127 +1,125 @@
-// ============================================================
-// CORE SYSTEM v2.1 — Auth Store (Zustand)
-// SINGLE SOURCE OF TRUTH for Authentication State
-// Constitution §1: No Redux, no Context overuse. Zustand only.
-// Constitution §9.6: PIN Auth — 4-digit PIN, rate limiting.
-// FIXED: 2026-07-01 — Persist user, isAuthenticated, status for session recovery
-// ============================================================
-
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { AuthUser, AuthStatus, LicenseValidationResult } from '@/shared/types/auth';
+import { supabase } from '@/infrastructure/supabase/client';
+import type { User, Session } from '@supabase/supabase-js';
 
-interface AuthState {
-  // ── Core State ──
-  user: AuthUser | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-  status: AuthStatus;
+export type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
 
-  // ── Tenant State (Single Source) ──
-  tenant_id: string | null;
-  license: LicenseValidationResult | null;
-
-  // ── PIN State ──
-  pinAttempts: number;
-  pinLockedUntil: number | null;
-
-  // ── Actions ──
-  setUser: (user: AuthUser | null) => void;
-  setAuthenticated: (value: boolean) => void;
-  setLoading: (value: boolean) => void;
-  setError: (error: string | null) => void;
-  setStatus: (status: AuthStatus) => void;
-  setTenant: (tenant_id: string | null, license: LicenseValidationResult | null) => void;
-  incrementPinAttempt: () => void;
-  resetPinAttempts: () => void;
-  lockPin: (until: number) => void;
-  clearError: () => void;
-  logout: () => void;
+export interface AuthUser {
+  id: string;
+  email?: string | null;
+  full_name: string;
+  full_name_ar?: string | null;
+  role: 'super_admin' | 'clinic_admin' | 'doctor' | 'receptionist';
+  tenant_id: string;
+  employee_code?: string | null;
+  pin_code?: string | null;
+  phone?: string | null;
+  specialization?: string | null;
+  avatar_url?: string | null;
 }
 
-const PIN_MAX_ATTEMPTS = 5;
-const PIN_LOCK_DURATION_MS = 15 * 60 * 1000;
+interface AuthState {
+  user: AuthUser | null;
+  supabaseUser: User | null;
+  session: Session | null;
+  status: AuthStatus;
+  isAuthenticated: boolean;
+  error: string | null;
+  isPinAuthenticated: boolean;
+  pinAttempts: number;
+  pinLockedUntil: number | null;
+  tenant_id: string;
+  setUser: (user: AuthUser | null) => void;
+  setSupabaseUser: (user: User | null) => void;
+  setSession: (session: Session | null) => void;
+  setStatus: (status: AuthStatus) => void;
+  setError: (error: string | null) => void;
+  setPinAuthenticated: (val: boolean) => void;
+  incrementPinAttempt: () => void;
+  resetPinAttempts: () => void;
+  login: (authUser: AuthUser, supabaseUser: User | null, session: Session | null) => void;
+  logout: () => Promise<void>;
+  clearError: () => void;
+}
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      isAuthenticated: false,
-      isLoading: false,
-      error: null,
+      supabaseUser: null,
+      session: null,
       status: 'idle',
-      tenant_id: null,
-      license: null,
+      isAuthenticated: false,
+      error: null,
+      isPinAuthenticated: false,
       pinAttempts: 0,
       pinLockedUntil: null,
-
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
-      setAuthenticated: (value) => set({ isAuthenticated: value }),
-      setLoading: (value) => set({ isLoading: value }),
-      setError: (error) => set({ error }),
+      tenant_id: '',
+      setUser: (user) => set({ user, tenant_id: user?.tenant_id ?? '' }),
+      setSupabaseUser: (supabaseUser) => set({ supabaseUser }),
+      setSession: (session) => set({ session }),
       setStatus: (status) => set({ status }),
-      
-      setTenant: (tenant_id, license) => set({ 
-        tenant_id, 
-        license,
-        status: tenant_id ? 'license_valid' : 'idle'
-      }),
-
+      setError: (error) => set({ error }),
+      setPinAuthenticated: (isPinAuthenticated) => set({ isPinAuthenticated }),
       incrementPinAttempt: () => {
         const attempts = get().pinAttempts + 1;
-        if (attempts >= PIN_MAX_ATTEMPTS) {
-          set({ 
-            pinAttempts: attempts, 
-            pinLockedUntil: Date.now() + PIN_LOCK_DURATION_MS,
-            error: 'تم تجاوز الحد الأقصى للمحاولات. يرجى الانتظار 15 دقيقة.'
-          });
-        } else {
-          set({ pinAttempts: attempts });
-        }
+        const locked = attempts >= 5 ? Date.now() + 15 * 60 * 1000 : null;
+        set({ pinAttempts: attempts, pinLockedUntil: locked });
       },
-
       resetPinAttempts: () => set({ pinAttempts: 0, pinLockedUntil: null }),
-      
-      lockPin: (until) => set({ pinLockedUntil: until }),
-      
+      login: (authUser, supabaseUser, session) =>
+        set({
+          user: authUser,
+          supabaseUser,
+          session,
+          status: 'authenticated',
+          isAuthenticated: true,
+          error: null,
+          isPinAuthenticated: true,
+          pinAttempts: 0,
+          pinLockedUntil: null,
+          tenant_id: authUser.tenant_id,
+        }),
+      logout: async () => {
+        await supabase.auth.signOut();
+        set({
+          user: null,
+          supabaseUser: null,
+          session: null,
+          status: 'unauthenticated',
+          isAuthenticated: false,
+          error: null,
+          isPinAuthenticated: false,
+          pinAttempts: 0,
+          pinLockedUntil: null,
+          tenant_id: '',
+        });
+      },
       clearError: () => set({ error: null }),
-
-      logout: () => set({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: null,
-        status: 'idle',
-        tenant_id: null,
-        license: null,
-        pinAttempts: 0,
-        pinLockedUntil: null,
-      }),
     }),
     {
-      name: 'core_auth_store',
+      name: 'core-auth-storage',
       storage: createJSONStorage(() => localStorage),
-      // FIXED: Persist user, isAuthenticated, status — not just tenant_id + license
       partialize: (state) => ({
         user: state.user,
-        isAuthenticated: state.isAuthenticated,
+        supabaseUser: state.supabaseUser,
+        session: state.session,
         status: state.status,
+        isAuthenticated: state.isAuthenticated,
+        isPinAuthenticated: state.isPinAuthenticated,
+        pinAttempts: state.pinAttempts,
+        pinLockedUntil: state.pinLockedUntil,
         tenant_id: state.tenant_id,
-        license: state.license,
       }),
     }
   )
 );
 
-// ── Selectors ──
-export const selectUser = (state: AuthState) => state.user;
-export const selectTenantId = (state: AuthState) => state.tenant_id;
 export const selectUserRole = (state: AuthState) => state.user?.role ?? null;
 export const selectIsAuthenticated = (state: AuthState) => state.isAuthenticated;
 export const selectIsPinLocked = (state: AuthState) => {
   if (!state.pinLockedUntil) return false;
   return Date.now() < state.pinLockedUntil;
 };
-export const selectPinAttemptsRemaining = (state: AuthState) => 
-  Math.max(0, PIN_MAX_ATTEMPTS - state.pinAttempts);
+export const selectPinAttemptsRemaining = (state: AuthState) => Math.max(0, 5 - state.pinAttempts);

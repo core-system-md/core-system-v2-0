@@ -1,18 +1,22 @@
-// src/core/auth/useRole.ts
-// Blueprint: src/core/auth/useRole.ts
-// Purpose: Role-based permission check
-
-import { useAuthContext } from './AuthProvider';
+import { useAuthStore } from '@/shared/store/authStore';
 
 export function useRole() {
-  const { role } = useAuthContext();
-  
+  const user = useAuthStore((s) => s.user);
+  const role = user?.role ?? null;
+
+  const isSuperAdmin = role === 'super_admin';
+  const isClinicAdmin = role === 'clinic_admin';
+  const isDoctor = role === 'doctor';
+  const isReceptionist = role === 'receptionist';
+  const isAdmin = isSuperAdmin || isClinicAdmin;
+
   return {
     role,
-    isSuperAdmin: role === 'super_admin',
-    isClinicAdmin: role === 'clinic_admin',
-    isDoctor: role === 'doctor',
-    isReceptionist: role === 'receptionist',
-    hasRole: (roles: string[]) => roles.includes(role ?? 'receptionist'),
+    isSuperAdmin,
+    isClinicAdmin,
+    isDoctor,
+    isReceptionist,
+    isAdmin,
+    isStaff: !!role,
   };
 }
