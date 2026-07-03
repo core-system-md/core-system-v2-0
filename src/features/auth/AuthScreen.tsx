@@ -31,7 +31,7 @@ export default function AuthScreen() {
     validateLicense, 
     loginWithPin, 
     logout,
-    isLoading, 
+    isChecking, 
     error, 
     clearError,
   } = useAuth();
@@ -161,7 +161,7 @@ export default function AuthScreen() {
                   placeholder="أدخل مفتاح الترخيص..."
                   value={licenseKey}
                   onChange={(e) => setLicenseKey(e.target.value)}
-                  disabled={isLoading}
+                  disabled={isChecking}
                   className="text-center tracking-widest"
                   autoComplete="off"
                 />
@@ -169,9 +169,9 @@ export default function AuthScreen() {
               <Button 
                 type="submit" 
                 className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
-                disabled={isLoading || !licenseKey.trim()}
+                disabled={isChecking || !licenseKey.trim()}
               >
-                {isLoading ? 'جاري التحقق...' : 'التحقق من الترخيص'}
+                {isChecking ? 'جاري التحقق...' : 'التحقق من الترخيص'}
               </Button>
             </form>
           )}
@@ -207,7 +207,7 @@ export default function AuthScreen() {
                   placeholder="• • • •"
                   value={pinCode}
                   onChange={(e) => handlePinChange(e.target.value)}
-                  disabled={isLoading || isPinLocked}
+                  disabled={isChecking || isPinLocked}
                   className="text-center text-2xl tracking-[0.5em]"
                   autoComplete="off"
                 />
@@ -222,9 +222,9 @@ export default function AuthScreen() {
               <Button 
                 type="submit" 
                 className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
-                disabled={isLoading || pinCode.length !== 4 || !selectedRole || isPinLocked}
+                disabled={isChecking || pinCode.length !== 4 || !selectedRole || isPinLocked}
               >
-                {isLoading ? 'جاري التحقق...' : 'تسجيل الدخول'}
+                {isChecking ? 'جاري التحقق...' : 'تسجيل الدخول'}
               </Button>
 
               <Button 
@@ -232,7 +232,7 @@ export default function AuthScreen() {
                 variant="ghost" 
                 className="w-full"
                 onClick={handleReset}
-                disabled={isLoading}
+                disabled={isChecking}
               >
                 العودة — إدخال ترخيص آخر
               </Button>

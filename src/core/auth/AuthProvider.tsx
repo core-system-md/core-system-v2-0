@@ -15,7 +15,7 @@ export function useAuthContext() {
     isAuthenticated: store.isAuthenticated,
     isPinAuthenticated: store.isPinAuthenticated,
     error: store.error,
-    isLoading: store.status === 'loading',
+    isChecking: store.status === 'CHECKING_SESSION',
     fullName: store.user?.full_name ?? '',
     role: store.user?.role ?? null,
     tenant_id: store.user?.tenant_id ?? '',
@@ -37,18 +37,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (initialized.current) return;
     initialized.current = true;
 
-    store.setStatus('loading');
+    // ─── STATE MACHINE: BOOTING → CHECKING_SESSION ────────
+    store.startChecking();
 
+    // ─── Check existing session ───────────────────────────
     supabase.auth.getUser().then(({ data: { user }, error }) => {
       if (error || !user) {
-        store.setStatus('unauthenticated');
-        if (error) store.setError(error.message);
+        store.unauthenticate(error?.message ?? null);
         return;
       }
 
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) {
-          store.setStatus('unauthenticated');
+          store.unauthenticate();
           return;
         }
 
@@ -62,8 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single()
           .then(({ data: profile, error: profileError }) => {
             if (profileError || !profile) {
-              store.setError(profileError?.message || 'Profile not found');
-              store.setStatus('unauthenticated');
+              store.unauthenticate(profileError?.message || 'Profile not found');
               return;
             }
 
@@ -81,20 +81,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               avatar_url: user.user_metadata?.avatar_url ?? null,
             };
 
-            store.login(authUser, user, session);
+            store.authenticate(authUser, user, session);
           });
       });
     });
 
+    // ─── Listen for auth state changes ────────────────────
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        store.setSession(null);
-        store.setSupabaseUser(null);
-        store.setUser(null);
-        store.setStatus('unauthenticated');
-        store.setPinAuthenticated(false);
+        store.unauthenticate();
         return;
       }
 
@@ -122,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 specialization: profile.specialization ?? null,
                 avatar_url: session.user.user_metadata?.avatar_url ?? null,
               };
-              store.login(authUser, session.user, session);
+              store.authenticate(authUser, session.user, session);
             }
           });
       }

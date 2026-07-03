@@ -13,7 +13,7 @@ export function useAuth() {
   const isAuthenticated = store.isAuthenticated;
   const isPinAuthenticated = store.isPinAuthenticated;
   const error = store.error;
-  const isLoading = status === 'loading';
+  const isChecking = status === 'CHECKING_SESSION';
 
   const fullName = user?.full_name ?? '';
   const userRole = user?.role ?? null;
@@ -136,8 +136,8 @@ export function useAuth() {
           };
           store.setUser(authUser);
           store.setSupabaseUser(data.session.user);
-          store.setStatus('authenticated');
           store.setPinAuthenticated(true);
+          // Note: status stays as-is; caller should handle state machine
         }
       }
     }
@@ -151,7 +151,7 @@ export function useAuth() {
     status,
     isAuthenticated,
     isPinAuthenticated,
-    isLoading,
+    isChecking,
     error,
     fullName,
     userRole,

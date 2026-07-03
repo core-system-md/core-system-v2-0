@@ -17,7 +17,7 @@ export default function PinPad({
   title = "Staff Login",
   subtitle = "Enter your 4-digit PIN",
 }: PinPadProps) {
-  const { isLoading } = useAuth();
+  const { isChecking } = useAuth();
   const [pin, setPin] = useState<string[]>(["", "", "", ""]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [shake, setShake] = useState(false);
@@ -48,7 +48,7 @@ export default function PinPad({
 
   const handleKeyPress = useCallback(
     (key: string) => {
-      if (isLocked || isLoading) return;
+      if (isLocked || isChecking) return;
 
       if (key === "backspace") {
         if (activeIndex > 0) {
@@ -79,7 +79,7 @@ export default function PinPad({
         }
       }
     },
-    [pin, activeIndex, isLocked, isLoading]
+    [pin, activeIndex, isLocked, isChecking]
   );
 
   const handleSubmit = async (fullPin: string) => {
@@ -118,14 +118,14 @@ export default function PinPad({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isLocked || isLoading) return;
+      if (isLocked || isChecking) return;
       if (e.key >= "0" && e.key <= "9") handleKeyPress(e.key);
       else if (e.key === "Backspace") handleKeyPress("backspace");
       else if (e.key === "Escape") onCancel?.();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyPress, isLocked, isLoading, onCancel]);
+  }, [handleKeyPress, isLocked, isChecking, onCancel]);
 
   const keypadKeys = [
     ["1", "2", "3"],
@@ -203,14 +203,14 @@ export default function PinPad({
               <button
                 key={key}
                 onClick={() => handleKeyPress(key)}
-                disabled={isLocked || isLoading}
+                disabled={isLocked || isChecking}
                 className={`h-16 md:h-20 text-white font-bold rounded-xl transition-all duration-150 active:scale-95 border border-white/20 ${
                   key === "backspace" || key === "clear"
                     ? "bg-white/10 hover:bg-white/20"
                     : "bg-white/15 hover:bg-white/25 text-2xl md:text-4xl"
                 } disabled:opacity-30 disabled:cursor-not-allowed`}
               >
-                {isLoading && key === "0" ? (
+                {isChecking && key === "0" ? (
                   <div className="w-6 h-6 md:w-8 md:h-8 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto" />
                 ) : (
                   getKeyIcon(key)

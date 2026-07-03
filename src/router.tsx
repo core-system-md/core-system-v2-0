@@ -1,8 +1,7 @@
 // ============================================================
 // CORE SYSTEM v2.1 — Router Configuration
-// Phase 2: Real Dashboards (Placeholder Replacement)
+// Phase 3: Auth State Machine (BOOTING → CHECKING_SESSION → FINAL)
 // Date: 2026-07-03
-// FIXED: Router component export, inline LoadingScreen, correct feature imports, status-based loading
 // ============================================================
 
 import { Suspense, lazy } from 'react';
@@ -40,14 +39,10 @@ const SuperAdminLayout = lazy(() => import('@/features/super-admin/SuperAdminLay
 // ────────────────────────────────────────────────────────────
 // LAZY LOAD: Role Dashboard Pages (index routes inside layouts)
 // ────────────────────────────────────────────────────────────
-// Admin: AnalyticsOverview exists
 const AnalyticsOverview = lazy(() => import('@/features/clinic-admin/AnalyticsOverview'));
-// Doctor: MyQueueView does NOT exist — use DoctorLayout as index
-const DoctorIndex = lazy(() => import('@/features/doctor/DoctorLayout'));
-// Reception: LiveQueueBoard does NOT exist — use ReceptionDashboard as index
+const DoctorIndex       = lazy(() => import('@/features/doctor/DoctorLayout'));
 const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDashboard'));
-// Super Admin: TenantRegistry exists
-const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
+const TenantRegistry    = lazy(() => import('@/features/super-admin/TenantRegistry'));
 
 // ────────────────────────────────────────────────────────────
 // WRAPPERS
@@ -66,19 +61,37 @@ function AuthWrapper() {
 }
 
 function ProtectedWrapper({ allowedRoles }: { allowedRoles: string[] }) {
-  const { isAuthenticated, user, status } = useAuthStore();
+  const { status, isAuthenticated, user } = useAuthStore();
 
-  if (status === 'loading') return <LoadingScreen />;
-  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+  // STATE MACHINE: Never redirect during BOOTING or CHECKING_SESSION
+  if (status === 'BOOTING' || status === 'CHECKING_SESSION') {
+    return <LoadingScreen />;
+  }
+
+  // After CHECKING_SESSION completes, evaluate auth state
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
   if (!allowedRoles.includes(user.role)) {
     return <Navigate to={getDefaultRoute(user.role)} replace />;
   }
+
   return <Outlet />;
 }
 
 function RootRedirect() {
-  const { isAuthenticated, user } = useAuthStore();
-  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+  const { status, isAuthenticated, user } = useAuthStore();
+
+  // STATE MACHINE: Wait for session check to complete
+  if (status === 'BOOTING' || status === 'CHECKING_SESSION') {
+    return <LoadingScreen />;
+  }
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
   return <Navigate to={getDefaultRoute(user.role)} replace />;
 }
 

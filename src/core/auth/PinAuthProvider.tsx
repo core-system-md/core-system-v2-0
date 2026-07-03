@@ -12,7 +12,7 @@ export function usePinAuth() {
 
   const validatePin = useCallback(
     async (employeeCode: string, pin: string, tenantId: string) => {
-      store.setStatus('loading');
+      store.startChecking();
       store.setError(null);
 
       try {
@@ -24,7 +24,7 @@ export function usePinAuth() {
 
         if (rpcError) {
           store.setError(rpcError.message);
-          store.setStatus('unauthenticated');
+          store.unauthenticate();
           store.incrementPinAttempt();
           return { success: false, error: rpcError.message };
         }
@@ -33,7 +33,7 @@ export function usePinAuth() {
         if (!result || !result.success) {
           const msg = result?.message || 'Invalid PIN or employee code';
           store.setError(msg);
-          store.setStatus('unauthenticated');
+          store.unauthenticate();
           store.incrementPinAttempt();
           return { success: false, error: msg };
         }
@@ -48,7 +48,7 @@ export function usePinAuth() {
 
         if (profileError || !profile) {
           store.setError(profileError?.message || 'Profile not found');
-          store.setStatus('unauthenticated');
+          store.unauthenticate();
           return { success: false, error: profileError?.message || 'Profile not found' };
         }
 
@@ -75,7 +75,7 @@ export function usePinAuth() {
       } catch (err: any) {
         const msg = err?.message || 'PIN validation failed';
         store.setError(msg);
-        store.setStatus('unauthenticated');
+        store.unauthenticate();
         store.incrementPinAttempt();
         return { success: false, error: msg };
       }
@@ -89,7 +89,7 @@ export function usePinAuth() {
       store.setSupabaseUser(null);
       store.setSession(null);
       store.setPinAuthenticated(false);
-      store.setStatus('idle');
+      store.boot();
       store.resetPinAttempts();
       return validatePin(employeeCode, pin, tenantId);
     },
@@ -99,7 +99,7 @@ export function usePinAuth() {
   return {
     validatePin,
     switchUser,
-    isLoading: store.status === 'loading',
+    isChecking: store.status === 'CHECKING_SESSION',
     error: store.error,
     isPinAuthenticated: store.isPinAuthenticated,
   };
