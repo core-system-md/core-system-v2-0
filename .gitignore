@@ -5,3 +5,4 @@ supabase/.temp/
 dist/
 .env.local
 .env*
+*.backup
