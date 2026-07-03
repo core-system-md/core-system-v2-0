@@ -1,38 +1,26 @@
-// src/core/realtime/useQueueChannel.ts
-// Live queue updates broadcast
-
 import { useEffect } from 'react';
-import { useRealtimeContext } from './RealtimeProvider';
-import { useQueueStore } from '../../shared/store/queueStore';
+import { supabase } from '@/infrastructure/supabase/client';
+import { useAuthStore } from '@/shared/store/authStore';
 
-export function useQueueChannel(tenantId: string) {
-  const { subscribeToTable } = useRealtimeContext();
-  const { updateItem, removeItem } = useQueueStore();
+export function useQueueChannel(tenantId: string, callback?: (payload: unknown) => void) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !isAuthenticated) return;
 
-    const unsubscribe = subscribeToTable('clinic_visit_sessions', (payload) => {
-      const { eventType, new: newRecord, old: oldRecord } = payload as {
-        eventType: string;
-        new: Record<string, unknown>;
-        old: Record<string, unknown>;
-      };
+    const channel = supabase
+      .channel(`queue_${tenantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'clinic_visit_sessions', filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          if (callback) callback(payload);
+        }
+      )
+      .subscribe();
 
-      if (eventType === 'UPDATE' && newRecord) {
-        updateItem(newRecord.id as string, {
-          lockHolderId: newRecord.lock_holder_id as string | null,
-          lockHolderName: newRecord.lock_holder_name as string | null,
-          waitMinutes: newRecord.wait_time_minutes as number,
-          coreScoreDisplay: newRecord.core_score_display as number | null,
-        });
-      }
-
-      if (eventType === 'DELETE' && oldRecord) {
-        removeItem(oldRecord.id as string);
-      }
-    });
-
-    return unsubscribe;
-  }, [tenantId, subscribeToTable, updateItem, removeItem]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, isAuthenticated, callback]);
 }

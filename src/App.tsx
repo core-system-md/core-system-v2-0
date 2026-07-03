@@ -11,6 +11,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/core/auth/AuthProvider';
 import { TenantProvider } from '@/core/providers/TenantProvider';
+import { RealtimeProvider } from '@/core/providers/RealtimeProvider';
 import { Router } from '@/router';
 import { Toaster } from 'sonner';
 
@@ -70,10 +71,10 @@ export function App() {
       <BrowserRouter>
         <AuthProvider>
           <TenantProvider>
-            <AppErrorBoundary>
+            <RealtimeProvider>\n            <AppErrorBoundary>
               <Router />
               <Toaster position="top-right" richColors />
-            </AppErrorBoundary>
+            </AppErrorBoundary>\n          </RealtimeProvider>
           </TenantProvider>
         </AuthProvider>
       </BrowserRouter>

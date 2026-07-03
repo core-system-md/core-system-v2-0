@@ -1,29 +1,26 @@
-// src/core/realtime/useAlertChannel.ts
-// Breach + SLA alerts broadcast
-
 import { useEffect } from 'react';
-import { useRealtimeContext } from './RealtimeProvider';
-import { useUiStore } from '../../shared/store/uiStore';
+import { supabase } from '@/infrastructure/supabase/client';
+import { useAuthStore } from '@/shared/store/authStore';
 
-export function useAlertChannel(tenantId: string) {
-  const { subscribeToTable } = useRealtimeContext();
-  const { addToast } = useUiStore();
+export function useAlertChannel(tenantId: string, callback?: (payload: unknown) => void) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !isAuthenticated) return;
 
-    const unsubscribe = subscribeToTable('system_delivery_breaches', (payload) => {
-      const { eventType, new: newRecord } = payload as {
-        eventType: string;
-        new: { severity: string; description: string };
-      };
+    const channel = supabase
+      .channel(`alerts_${tenantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'system_delivery_breaches', filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          if (callback) callback(payload);
+        }
+      )
+      .subscribe();
 
-      if (eventType === 'INSERT' && newRecord) {
-        const type = newRecord.severity === 'critical' ? 'error' : 'warning';
-        addToast(newRecord.description, type, 8000);
-      }
-    });
-
-    return unsubscribe;
-  }, [tenantId, subscribeToTable, addToast]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, isAuthenticated, callback]);
 }

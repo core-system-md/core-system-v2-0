@@ -1,26 +1,26 @@
-// src/core/realtime/useSessionChannel.ts
-// Session status changes broadcast
-
 import { useEffect } from 'react';
-import { useRealtimeContext } from './RealtimeProvider';
+import { supabase } from '@/infrastructure/supabase/client';
+import { useAuthStore } from '@/shared/store/authStore';
 
-export function useSessionChannel(sessionId: string, onChange: (status: string) => void) {
-  const { subscribeToTable } = useRealtimeContext();
+export function useSessionChannel(tenantId: string, callback?: (payload: unknown) => void) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!tenantId || !isAuthenticated) return;
 
-    const unsubscribe = subscribeToTable('clinic_visit_sessions', (payload) => {
-      const { eventType, new: newRecord } = payload as {
-        eventType: string;
-        new: { id: string; session_status: string };
-      };
+    const channel = supabase
+      .channel(`sessions_${tenantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'clinic_visit_sessions', filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          if (callback) callback(payload);
+        }
+      )
+      .subscribe();
 
-      if (eventType === 'UPDATE' && newRecord?.id === sessionId) {
-        onChange(newRecord.session_status);
-      }
-    });
-
-    return unsubscribe;
-  }, [sessionId, onChange, subscribeToTable]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, isAuthenticated, callback]);
 }
