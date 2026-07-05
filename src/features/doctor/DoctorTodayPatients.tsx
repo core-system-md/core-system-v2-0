@@ -5,9 +5,9 @@ import { toast } from 'sonner';
 
 interface Patient {
   id: string;
-  first_name: string;
-  last_name: string;
-  phone_primary: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone_primary: string | null;
   created_at: string;
   notes: string | null;
 }

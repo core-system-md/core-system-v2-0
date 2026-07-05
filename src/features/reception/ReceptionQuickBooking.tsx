@@ -47,7 +47,9 @@ export function ReceptionQuickBooking() {
           tenant_id: tenantId,
           first_name: form.patient_name.trim(),
           last_name: '',
+          full_name: form.patient_name.trim(),
           phone_primary: form.phone_number.trim(),
+          mrn: '',
           notes: form.reason_for_visit.trim() || null,
         })
         .select()
