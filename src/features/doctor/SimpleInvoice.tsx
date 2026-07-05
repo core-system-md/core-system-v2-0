@@ -203,4 +203,4 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
       </button>
     </div>
   );
-}A
+}
