@@ -11,9 +11,14 @@ interface CloseSessionProps {
 }
 
 export function CloseSession({ sessionId, onClose }: CloseSessionProps) {
+  // ═══ ALL HOOKS FIRST (React Rules of Hooks) ═══
+  const [isClosing, setIsClosing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const navigate = useNavigate();
+
+  // ═══ TENANT GUARD (AFTER all hooks) ═══
   const tenantId = useAuthStore((state) => state.tenant_id);
   const user = useAuthStore((state) => state.user);
-  const navigate = useNavigate();
 
   if (!tenantId) {
     return (
@@ -22,9 +27,6 @@ export function CloseSession({ sessionId, onClose }: CloseSessionProps) {
       </div>
     );
   }
-
-  const [isClosing, setIsClosing] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleClose = async () => {
     setIsClosing(true);

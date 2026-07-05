@@ -65,20 +65,11 @@ const DEFAULT_INDICATORS = {
 };
 
 export default function DecisionCard() {
+  // ═══ ALL HOOKS FIRST (React Rules of Hooks) ═══
   const { id } = useParams<{ id: string }>();
-
-  // ─── TENANT GUARD ───
+  const navigate = useNavigate();
   const tenant_id = useAuthStore((s) => s.tenant_id);
 
-  if (!tenant_id) {
-    return (
-      <div className="p-8 text-center text-red-500" dir="rtl">
-        <p>Tenant not initialized</p>
-      </div>
-    );
-  }
-
-  const navigate = useNavigate();
   const [session, setSession] = useState<SessionData | null>(null);
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [longitudinal, setLongitudinal] = useState<LongitudinalData | null>(null);
@@ -98,6 +89,15 @@ export default function DecisionCard() {
   });
 
   useEffect(() => { if (id) fetchSessionData(); }, [id]);
+
+  // ═══ TENANT GUARD (AFTER all hooks) ═══
+  if (!tenant_id) {
+    return (
+      <div className="p-8 text-center text-red-500" dir="rtl">
+        <p>Tenant not initialized</p>
+      </div>
+    );
+  }
 
   const fetchSessionData = async () => {
     if (!tenant_id) { toast.error('معرف المستأجر مفقود'); return; }

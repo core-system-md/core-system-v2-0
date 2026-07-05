@@ -11,7 +11,16 @@ interface BookingForm {
 }
 
 export function ReceptionQuickBooking() {
-  // ─── TENANT GUARD ONLY ───
+  // ═══ ALL HOOKS FIRST (React Rules of Hooks) ═══
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState<BookingForm>({
+    patient_name: '',
+    phone_number: '',
+    age: '',
+    reason_for_visit: '',
+  });
+
+  // ═══ TENANT GUARD (AFTER all hooks) ═══
   const tenantId = useAuthStore((state) => state.tenant_id);
 
   if (!tenantId) {
@@ -21,14 +30,6 @@ export function ReceptionQuickBooking() {
       </div>
     );
   }
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form, setForm] = useState<BookingForm>({
-    patient_name: '',
-    phone_number: '',
-    age: '',
-    reason_for_visit: '',
-  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

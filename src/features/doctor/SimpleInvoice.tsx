@@ -31,7 +31,13 @@ function subunitsToDisplay(subunits: number): string {
 }
 
 export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoiceProps) {
-  // ─── TENANT GUARD ───
+  // ═══ ALL HOOKS FIRST (React Rules of Hooks) ═══
+  const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [customName, setCustomName] = useState('');
+  const [customPrice, setCustomPrice] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ═══ TENANT GUARD (AFTER all hooks) ═══
   const tenantId = useAuthStore((state) => state.tenant_id);
 
   if (!tenantId) {
@@ -41,11 +47,6 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
       </div>
     );
   }
-
-  const [items, setItems] = useState<InvoiceItem[]>([]);
-  const [customName, setCustomName] = useState('');
-  const [customPrice, setCustomPrice] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addPresetItem = (procedure: string, priceSubunits: number) => {
     setItems([...items, { procedure, priceSubunits }]);
@@ -202,4 +203,4 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
       </button>
     </div>
   );
-}
+}A
