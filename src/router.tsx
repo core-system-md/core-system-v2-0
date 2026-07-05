@@ -1,156 +1,85 @@
-// ============================================================
-// CORE SYSTEM v2.1 — Router Configuration
-// Phase 3: Auth State Machine (BOOTING → CHECKING_SESSION → FINAL)
-// Date: 2026-07-03
-// ============================================================
-
 import { Suspense, lazy } from 'react';
-import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
-import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
+import App from '@/App';
+import LoadingScreen from '@/shared/components/LoadingScreen';
 
-// ────────────────────────────────────────────────────────────
-// INLINE: LoadingScreen (no external file dependency)
-// ────────────────────────────────────────────────────────────
-function LoadingScreen() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50" dir="rtl">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#1B2A4A] border-t-transparent" />
-        <p className="text-sm text-gray-600">جاري التحميل...</p>
-      </div>
-    </div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────
-// LAZY LOAD: Auth
-// ────────────────────────────────────────────────────────────
+// ─── Lazy Feature Pages ──────────────────────────────────────────
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
-
-// ────────────────────────────────────────────────────────────
-// LAZY LOAD: Layouts (Shell wrappers with <Outlet />)
-// ────────────────────────────────────────────────────────────
-const AdminLayout      = lazy(() => import('@/features/clinic-admin/AdminLayout'));
-const DoctorLayout     = lazy(() => import('@/features/doctor/DoctorLayout'));
-const ReceptionLayout  = lazy(() => import('@/features/reception/ReceptionLayout'));
-const SuperAdminLayout = lazy(() => import('@/features/super-admin/SuperAdminLayout'));
-
-// ────────────────────────────────────────────────────────────
-// LAZY LOAD: Role Dashboard Pages (index routes inside layouts)
-// ────────────────────────────────────────────────────────────
-const AnalyticsOverview = lazy(() => import('@/features/clinic-admin/AnalyticsOverview'));
-const DoctorIndex       = lazy(() => import('@/features/doctor/DoctorLayout'));
 const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDashboard'));
-const TenantRegistry    = lazy(() => import('@/features/super-admin/TenantRegistry'));
+const AdminLayout = lazy(() => import('@/features/clinic-admin/AdminLayout'));
+const SuperAdminLayout = lazy(() => import('@/features/super-admin/SuperAdminLayout'));
+const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
+const AnalyticsOverview = lazy(() => import('@/features/clinic-admin/AnalyticsOverview'));
+const DoctorIndex = lazy(() => import('@/features/doctor/DoctorLayout'));
+const DoctorSessionView = lazy(() => import('@/features/doctor/DoctorSessionView'));
 
-// ────────────────────────────────────────────────────────────
-// WRAPPERS
-// ────────────────────────────────────────────────────────────
-
-function AuthWrapper() {
-  const { status, isAuthenticated, user } = useAuthStore();
-
-  // STATE MACHINE: Never show login during BOOTING or CHECKING_SESSION
-  if (status === 'BOOTING' || status === 'CHECKING_SESSION') {
-    return <LoadingScreen />;
-  }
-
-  if (isAuthenticated && user) {
-    return <Navigate to={getDefaultRoute(user.role)} replace />;
-  }
-
-  return (
-    <Suspense fallback={<LoadingScreen />}>
-      <AuthScreen />
-    </Suspense>
-  );
-}
-
+// ─── Route Guards ────────────────────────────────────────────────
 function ProtectedWrapper({ allowedRoles }: { allowedRoles: string[] }) {
-  const { status, isAuthenticated, user } = useAuthStore();
+  const { status, user } = useAuthStore();
+  const userRole = user?.role;
 
-  // STATE MACHINE: Never redirect during BOOTING or CHECKING_SESSION
   if (status === 'BOOTING' || status === 'CHECKING_SESSION') {
     return <LoadingScreen />;
   }
 
-  // After CHECKING_SESSION completes, evaluate auth state
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
+  if (status === 'UNAUTHENTICATED' || status === 'PIN_REQUIRED') {
+    return <Navigate to="/auth" replace />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
-    return <Navigate to={getDefaultRoute(user.role)} replace />;
+  if (status === 'LOCKED') {
+    return <div>Account locked. Contact admin.</div>;
+  }
+
+  if (!userRole || !allowedRoles.includes(userRole)) {
+    return <Navigate to="/unauthorized" replace />;
   }
 
   return <Outlet />;
 }
 
-function RootRedirect() {
-  const { status, isAuthenticated, user } = useAuthStore();
+function PublicOnlyWrapper() {
+  const { status } = useAuthStore();
 
-  // STATE MACHINE: Wait for session check to complete
   if (status === 'BOOTING' || status === 'CHECKING_SESSION') {
     return <LoadingScreen />;
   }
 
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
+  if (status === 'AUTHENTICATED') {
+    return <Navigate to="/" replace />;
   }
 
-  return <Navigate to={getDefaultRoute(user.role)} replace />;
+  return <Outlet />;
 }
 
-// ────────────────────────────────────────────────────────────
-// ROUTER OBJECT
-// ────────────────────────────────────────────────────────────
-const router = createBrowserRouter([
+// ─── Router Definition ───────────────────────────────────────────
+export const router = createBrowserRouter([
   {
     path: '/',
-    element: <RootRedirect />,
-  },
-  {
-    path: '/login',
-    element: <AuthWrapper />,
-  },
-  // ─── Clinic Admin ─────────────────────────────────────────
-  {
-    path: '/admin',
-    element: <ProtectedWrapper allowedRoles={['clinic_admin']} />,
+    element: <App />,
     children: [
       {
-        path: '',
-        element: (
-          <Suspense fallback={<LoadingScreen />}>
-            <AdminLayout />
-          </Suspense>
-        ),
+        index: true,
+        element: <Navigate to="/auth" replace />,
+      },
+      {
+        path: 'auth',
+        element: <PublicOnlyWrapper />,
         children: [
           {
-            index: true,
+            path: '',
             element: (
               <Suspense fallback={<LoadingScreen />}>
-                <AnalyticsOverview />
+                <AuthScreen />
               </Suspense>
             ),
           },
         ],
       },
-    ],
-  },
-  // ─── Doctor ───────────────────────────────────────────────
-  {
-    path: '/doctor',
-    element: <ProtectedWrapper allowedRoles={['doctor']} />,
-    children: [
+      // ─── Doctor ───────────────────────────────────────────────
       {
-        path: '',
-        element: (
-          <Suspense fallback={<LoadingScreen />}>
-            <DoctorLayout />
-          </Suspense>
-        ),
+        path: '/doctor',
+        element: <ProtectedWrapper allowedRoles={['doctor']} />,
         children: [
           {
             index: true,
@@ -162,20 +91,25 @@ const router = createBrowserRouter([
           },
         ],
       },
-    ],
-  },
-  // ─── Reception ────────────────────────────────────────────
-  {
-    path: '/reception',
-    element: <ProtectedWrapper allowedRoles={['receptionist']} />,
-    children: [
+      // ─── Doctor Session Detail ────────────────────────────────
       {
-        path: '',
-        element: (
-          <Suspense fallback={<LoadingScreen />}>
-            <ReceptionLayout />
-          </Suspense>
-        ),
+        path: '/doctor/session/:sessionId',
+        element: <ProtectedWrapper allowedRoles={['doctor']} />,
+        children: [
+          {
+            path: '',
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <DoctorSessionView />
+              </Suspense>
+            ),
+          },
+        ],
+      },
+      // ─── Reception ────────────────────────────────────────────
+      {
+        path: '/reception',
+        element: <ProtectedWrapper allowedRoles={['receptionist', 'clinic_admin']} />,
         children: [
           {
             index: true,
@@ -187,23 +121,44 @@ const router = createBrowserRouter([
           },
         ],
       },
-    ],
-  },
-  // ─── Super Admin ──────────────────────────────────────────
-  {
-    path: '/super-admin',
-    element: <ProtectedWrapper allowedRoles={['super_admin']} />,
-    children: [
+      // ─── Clinic Admin ─────────────────────────────────────────
       {
-        path: '',
-        element: (
-          <Suspense fallback={<LoadingScreen />}>
-            <SuperAdminLayout />
-          </Suspense>
-        ),
+        path: '/admin',
+        element: <ProtectedWrapper allowedRoles={['clinic_admin']} />,
         children: [
           {
             index: true,
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <AdminLayout />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'analytics',
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <AnalyticsOverview />
+              </Suspense>
+            ),
+          },
+        ],
+      },
+      // ─── Super Admin ──────────────────────────────────────────
+      {
+        path: '/super-admin',
+        element: <ProtectedWrapper allowedRoles={['super_admin']} />,
+        children: [
+          {
+            index: true,
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <SuperAdminLayout />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'tenants',
             element: (
               <Suspense fallback={<LoadingScreen />}>
                 <TenantRegistry />
@@ -212,18 +167,16 @@ const router = createBrowserRouter([
           },
         ],
       },
+      // ─── Unauthorized ─────────────────────────────────────────
+      {
+        path: '/unauthorized',
+        element: <div className="p-8 text-center">Unauthorized access</div>,
+      },
+      // ─── Catch All ────────────────────────────────────────────
+      {
+        path: '*',
+        element: <Navigate to="/auth" replace />,
+      },
     ],
   },
-  // ─── Catch-all ────────────────────────────────────────────
-  {
-    path: '*',
-    element: <Navigate to="/" replace />,
-  },
 ]);
-
-// ────────────────────────────────────────────────────────────
-// ROUTER COMPONENT (exported for App.tsx)
-// ────────────────────────────────────────────────────────────
-export function Router() {
-  return <RouterProvider router={router} />;
-}

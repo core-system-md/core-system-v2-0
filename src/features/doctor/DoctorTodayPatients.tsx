@@ -1,124 +1,182 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { User, Calendar, Clock, AlertCircle } from 'lucide-react';
 
+// ─── Types ─────────────────────────────────────────────────────────
 interface Patient {
   id: string;
-  first_name: string | null;
-  last_name: string | null;
-  phone_primary: string | null;
+  first_name: string;
+  last_name: string;
+  phone_primary: string;
   created_at: string;
-  notes: string | null;
+  session_status?: string;
+  waiting_time_minutes?: number | null;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════
 export function DoctorTodayPatients() {
-  // ─── TENANT GUARD ONLY ───
+  const navigate = useNavigate();
   const tenantId = useAuthStore((state) => state.tenant_id);
   const user = useAuthStore((state) => state.user);
 
-  if (!tenantId) {
-    return (
-      <div className="p-6 text-center" dir="rtl">
-        <p className="text-red-500 font-semibold">Tenant not initialized</p>
-      </div>
-    );
-  }
-
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // ── Fetch Today's Patients ────────────────────────────────────
   useEffect(() => {
-    fetchTodayPatients();
-  }, [tenantId]);
+    async function fetchPatients() {
+      if (!tenantId || !user?.id) return;
 
-  const fetchTodayPatients = async () => {
-    setIsLoading(true);
-    try {
+      setLoading(true);
+      setError(null);
+
       const today = new Date().toISOString().split('T')[0];
 
-      const { data, error } = await supabase
-        .from('clinic_patients')
-        .select('id, first_name, last_name, phone_primary, created_at, notes')
+      const { data, error: dbError } = await supabase
+        .from('clinic_visit_sessions')
+        .select(`
+          id,
+          session_status,
+          waiting_time_minutes,
+          created_at,
+          clinic_patients!inner(
+            id,
+            first_name,
+            last_name,
+            phone_primary
+          )
+        `)
         .eq('tenant_id', tenantId)
+        .eq('doctor_id', user.id)
+        .eq('session_status', 'waiting')
         .gte('created_at', `${today}T00:00:00`)
         .lte('created_at', `${today}T23:59:59`)
         .is('deleted_at', null)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
-      if (error) {
-        toast.error(`خطأ في جلب البيانات: ${error.message}`);
+      if (dbError) {
+        setError(dbError.message);
+        setLoading(false);
         return;
       }
 
-      setPatients(data || []);
-    } catch (err: any) {
-      toast.error(err?.message || 'حدث خطأ');
-    } finally {
-      setIsLoading(false);
+      const formatted = (data || []).map((row: any) => ({
+        id: row.clinic_patients.id,
+        first_name: row.clinic_patients.first_name,
+        last_name: row.clinic_patients.last_name,
+        phone_primary: row.clinic_patients.phone_primary,
+        created_at: row.created_at,
+        session_status: row.session_status,
+        waiting_time_minutes: row.waiting_time_minutes,
+      }));
+
+      setPatients(formatted);
+      setLoading(false);
     }
-  };
 
-  const handlePatientClick = (patient: Patient) => {
-    toast.info(`فتح ملف المريض: ${patient.first_name}`);
-  };
+    fetchPatients();
+  }, [tenantId, user?.id]);
 
-  if (isLoading) {
+  // ── Loading State ─────────────────────────────────────────────
+  if (loading) {
     return (
-      <div className="p-6 text-center" dir="rtl">
-        <p className="text-gray-500">جاري تحميل قائمة المرضى...</p>
+      <div className="max-w-4xl mx-auto p-6 space-y-4" dir="rtl">
+        <div className="h-20 w-full rounded-xl bg-slate-200 animate-pulse" />
+        <div className="h-20 w-full rounded-xl bg-slate-200 animate-pulse" />
+        <div className="h-20 w-full rounded-xl bg-slate-200 animate-pulse" />
       </div>
     );
   }
 
-  return (
-    <div className="p-6" dir="rtl">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-[#1B2A4A]">
-          مرضى اليوم — {user?.full_name || 'الطبيب'}
-        </h2>
-        <span className="text-sm text-gray-500">
-          {patients.length} مريض
-        </span>
+  // ── Error State ───────────────────────────────────────────────
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6" dir="rtl">
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex items-center gap-3 pt-6">
+            <AlertCircle className="h-6 w-6 text-red-600" />
+            <p className="text-red-800">{error}</p>
+          </CardContent>
+        </Card>
       </div>
+    );
+  }
 
-      {patients.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">لا يوجد مرضى مسجلين اليوم</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {patients.map((patient) => (
-            <button
-              key={patient.id}
-              onClick={() => handlePatientClick(patient)}
-              className="w-full text-right p-4 bg-white rounded-lg shadow-sm border border-gray-200 hover:border-[#1B2A4A] hover:shadow-md transition-all"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-semibold text-[#1B2A4A]">
-                    {patient.first_name} {patient.last_name}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {patient.phone_primary}
-                  </p>
-                  {patient.notes && (
-                    <p className="text-sm text-gray-400 mt-1 truncate">
-                      {patient.notes}
-                    </p>
+  // ── Empty State ───────────────────────────────────────────────
+  if (patients.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center" dir="rtl">
+        <User className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+        <h2 className="text-xl font-bold text-slate-700">لا يوجد مرضى اليوم</h2>
+        <p className="text-slate-500 mt-2">لم يتم تسجيل أي مرضى في قائمة الانتظار</p>
+      </div>
+    );
+  }
+
+  // ── Patient Click Handler ─────────────────────────────────────
+  const handlePatientClick = (patient: Patient) => {
+    navigate(`/doctor/session/${patient.id}`);
+  };
+
+  // ── Render ────────────────────────────────────────────────────
+  return (
+    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4" dir="rtl">
+      <h1 className="text-2xl font-bold text-slate-900 mb-6">مرضى اليوم</h1>
+
+      {patients.map((patient) => (
+        <Card
+          key={patient.id}
+          className="border-slate-200 hover:border-sky-300 hover:shadow-md transition-all cursor-pointer"
+          onClick={() => handlePatientClick(patient)}
+        >
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              {/* Avatar */}
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
+                {patient.first_name.charAt(0)}
+              </div>
+
+              {/* Patient Info */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-900">
+                  {patient.first_name} {patient.last_name}
+                </h3>
+                <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {new Date(patient.created_at).toLocaleDateString('ar-JO')}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    {new Date(patient.created_at).toLocaleTimeString('ar-JO', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                  {patient.waiting_time_minutes !== null && (
+                    <span className="text-amber-600 font-medium">
+                      انتظار: {patient.waiting_time_minutes} د
+                    </span>
                   )}
                 </div>
-                <span className="text-xs text-gray-400">
-                  {new Date(patient.created_at).toLocaleTimeString('ar-JO', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
               </div>
-            </button>
-          ))}
-        </div>
-      )}
+
+              {/* Action */}
+              <Button variant="outline" size="sm" className="shrink-0">
+                فتح الجلسة
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

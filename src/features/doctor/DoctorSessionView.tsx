@@ -8,17 +8,22 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
-import { supabase } from '@/core/infrastructure/supabase/client';
-import DecisionCard from './DecisionCard';
-import ClinicalNotes from './ClinicalNotes';
-import SimpleInvoice from './SimpleInvoice';
-import CloseSession from './CloseSession';
+import { supabase } from '@/infrastructure/supabase/client';
+import DecisionCard from '@/components/doctor/DecisionCard';
+import { ClinicalNotes } from './ClinicalNotes';
+import { SimpleInvoice } from './SimpleInvoice';
+import { CloseSession } from './CloseSession';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, User, Calendar, Clock, Shield } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────
+interface Note {
+  id: string;
+  content: string;
+  type: 'subjective' | 'objective' | 'assessment' | 'plan';
+  created_at: string;
+}
+
 interface SessionData {
   id: string;
   patient_id: string;
@@ -83,6 +88,39 @@ const STATUS_LABELS_AR: Record<string, string> = {
   auto_closed: 'إغلاق تلقائي',
 };
 
+// ─── Loading Skeleton Component (inline) ───────────────────────────
+function LoadingSkeleton() {
+  return (
+    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4" dir="rtl">
+      <div className="h-24 w-full rounded-xl bg-slate-200 animate-pulse" />
+      <div className="h-56 w-full rounded-xl bg-slate-200 animate-pulse" />
+      <div className="h-72 w-full rounded-xl bg-slate-200 animate-pulse" />
+      <div className="h-48 w-full rounded-xl bg-slate-200 animate-pulse" />
+      <div className="h-32 w-full rounded-xl bg-slate-200 animate-pulse" />
+    </div>
+  );
+}
+
+// ─── Status Badge Component (inline) ─────────────────────────────
+function StatusBadge({ status, isInsured }: { status: string; isInsured: boolean }) {
+  const statusClass = STATUS_COLORS[status] || STATUS_COLORS.waiting;
+  const statusLabel = STATUS_LABELS_AR[status] || status;
+
+  return (
+    <div className="flex flex-col items-end gap-2">
+      <span className={`inline-flex items-center rounded-full border px-3.5 py-1 text-sm font-bold ${statusClass}`}>
+        {statusLabel}
+      </span>
+      {isInsured && (
+        <span className="inline-flex items-center rounded-full border bg-sky-50 text-sky-700 border-sky-200 text-xs px-2.5 py-0.5 font-medium">
+          <Shield className="h-3 w-3 ml-1" />
+          تأمين
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
@@ -96,6 +134,7 @@ export default function DoctorSessionView() {
 
   // ── Local State ──────────────────────────────────────────────────
   const [session, setSession] = useState<SessionData | null>(null);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -193,6 +232,22 @@ export default function DoctorSessionView() {
     fetchSession();
   }, [fetchSession, refreshKey]);
 
+  // ── Notes Handlers ─────────────────────────────────────────────
+  const handleAddNote = useCallback((note: Omit<Note, 'id' | 'created_at'>) => {
+    const newNote: Note = {
+      ...note,
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+    };
+    setNotes((prev) => [...prev, newNote]);
+  }, []);
+
+  const handleUpdateNote = useCallback((id: string, content: string) => {
+    setNotes((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, content } : n))
+    );
+  }, []);
+
   // ── Handle Session Closed ──────────────────────────────────────
   const handleSessionClosed = useCallback(() => {
     setSession((prev) => prev ? { ...prev, session_status: 'completed' } : prev);
@@ -201,15 +256,7 @@ export default function DoctorSessionView() {
 
   // ── Loading State ──────────────────────────────────────────────
   if (loading) {
-    return (
-      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4" dir="rtl">
-        <Skeleton className="h-24 w-full rounded-xl" />
-        <Skeleton className="h-56 w-full rounded-xl" />
-        <Skeleton className="h-72 w-full rounded-xl" />
-        <Skeleton className="h-48 w-full rounded-xl" />
-        <Skeleton className="h-32 w-full rounded-xl" />
-      </div>
-    );
+    return <LoadingSkeleton />;
   }
 
   // ── Error State ────────────────────────────────────────────────
@@ -236,8 +283,6 @@ export default function DoctorSessionView() {
   }
 
   // ── Derived Values ─────────────────────────────────────────────
-  const statusClass = STATUS_COLORS[session.session_status] || STATUS_COLORS.waiting;
-  const statusLabel = STATUS_LABELS_AR[session.session_status] || session.session_status;
   const isCompleted = session.session_status === 'completed' || session.session_status === 'auto_closed';
 
   return (
@@ -284,20 +329,7 @@ export default function DoctorSessionView() {
             </div>
 
             {/* Status & Badges */}
-            <div className="flex flex-col items-end gap-2">
-              <Badge
-                variant="outline"
-                className={`${statusClass} text-sm px-3.5 py-1 font-bold`}
-              >
-                {statusLabel}
-              </Badge>
-              {session.is_insured && (
-                <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-200 text-xs px-2.5 py-0.5 font-medium">
-                  <Shield className="h-3 w-3 ml-1" />
-                  تأمين
-                </Badge>
-              )}
-            </div>
+            <StatusBadge status={session.session_status} isInsured={session.is_insured} />
           </div>
 
           {/* Metrics Bar */}
@@ -328,18 +360,10 @@ export default function DoctorSessionView() {
       </Card>
 
       {/* ═══════════════════════════════════════════════════════════
-          2. DECISION CARD
+          2. DECISION CARD (uses useParams internally)
          ═══════════════════════════════════════════════════════════ */}
       <section aria-label="Decision Card">
-        <DecisionCard
-          sessionId={session.id}
-          patientId={session.patient_id}
-          initialScore={session.core_score_display ?? undefined}
-          initialClass={session.patient_class ?? undefined}
-          initialDiscProfile={session.dominant_disc_profile ?? undefined}
-          initialParResult={session.par_result ?? undefined}
-          isReadOnly={isCompleted}
-        />
+        <DecisionCard />
       </section>
 
       {/* ═══════════════════════════════════════════════════════════
@@ -347,10 +371,10 @@ export default function DoctorSessionView() {
          ═══════════════════════════════════════════════════════════ */}
       <section aria-label="Clinical Notes">
         <ClinicalNotes
-          sessionId={session.id}
-          patientId={session.patient_id}
-          initialNotes={session.doctor_notes ?? undefined}
-          isReadOnly={isCompleted}
+          notes={notes}
+          onAddNote={handleAddNote}
+          onUpdateNote={handleUpdateNote}
+          patientName={session.patient_name}
         />
       </section>
 
@@ -359,9 +383,9 @@ export default function DoctorSessionView() {
          ═══════════════════════════════════════════════════════════ */}
       <section aria-label="Invoice">
         <SimpleInvoice
-          sessionId={session.id}
           patientId={session.patient_id}
-          isReadOnly={isCompleted}
+          sessionId={session.id}
+          onComplete={handleSessionClosed}
         />
       </section>
 
@@ -371,9 +395,7 @@ export default function DoctorSessionView() {
       <section aria-label="Close Session">
         <CloseSession
           sessionId={session.id}
-          patientId={session.patient_id}
-          currentStatus={session.session_status}
-          onClosed={handleSessionClosed}
+          onClose={handleSessionClosed}
         />
       </section>
 
