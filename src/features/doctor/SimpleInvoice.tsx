@@ -92,7 +92,7 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
           total_subunits: totalSubunits,
           amount_paid_subunits: 0,
           invoice_status: 'draft',
-          invoice_date: new Date().toISOString().split('T')[0],
+          invoice_date: new Date().toISOString().slice(0, 10),
         });
 
       if (error) {
