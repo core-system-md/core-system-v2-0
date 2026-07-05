@@ -30,9 +30,52 @@ export function useAuth() {
   const signOut = logout;
   const clearError = useCallback(() => store.clearError(), [store]);
 
-  const validateLicense = useCallback(async (_key?: string) => {
-    return { success: true };
-  }, []);
+  // ─── FIX #3: validateLicense restored from stub ───
+  // Was: const validateLicense = useCallback(async (_key?: string) => { return { success: true }; }, []);
+  const validateLicense = useCallback(async (key?: string) => {
+    const licenseKey = key?.trim();
+    if (!licenseKey) {
+      store.setError('LICENSE_REQUIRED: Clinic license key is required');
+      return { success: false, error: 'LICENSE_REQUIRED' };
+    }
+
+    // ─── DEV MODE ───
+    const devTenantId = '00000000-0000-0000-0000-000000000001';
+    if (licenseKey === 'DEV-MODE-2026') {
+      store.setTenant(devTenantId);
+      // COMPATIBILITY: localStorage for legacy consumers
+      localStorage.setItem('tenant_id', devTenantId);
+      return { success: true, tenant_id: devTenantId };
+    }
+
+    // ─── PRODUCTION: RPC ───
+    try {
+      const { data, error: rpcError } = await supabase.rpc('validate_license', {
+        p_license_key: licenseKey,
+      });
+
+      if (rpcError) {
+        store.setError(`INVALID_LICENSE: ${rpcError.message}`);
+        return { success: false, error: rpcError.message };
+      }
+
+      const licenseData = Array.isArray(data) ? data[0] : data;
+      if (!licenseData || !licenseData.id) {
+        store.setError('INVALID_LICENSE: License not found or inactive');
+        return { success: false, error: 'INVALID_LICENSE' };
+      }
+
+      const tenantId = licenseData.id;
+      store.setTenant(tenantId);
+      // COMPATIBILITY: localStorage for legacy consumers
+      localStorage.setItem('tenant_id', tenantId);
+      return { success: true, tenant_id: tenantId };
+    } catch (err: any) {
+      const msg = err?.message || 'License validation failed';
+      store.setError(msg);
+      return { success: false, error: msg };
+    }
+  }, [store]);
 
   const loginWithPin = useCallback(
     async (pin: string, selectedRole?: string) => {
