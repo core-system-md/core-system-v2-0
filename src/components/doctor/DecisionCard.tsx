@@ -55,7 +55,6 @@ const PAR_OPTIONS = [
   { value: 'rejection', label: 'رفض', color: 'bg-red-500/20 text-red-400' },
 ] as const;
 
-// Default indicator values for demo/testing
 const DEFAULT_INDICATORS = {
   APS: 850,
   DRI: 800,
@@ -67,8 +66,18 @@ const DEFAULT_INDICATORS = {
 
 export default function DecisionCard() {
   const { id } = useParams<{ id: string }>();
-  const tenant_id = useAuthStore((s: any) => s.user?.tenant_id);
-  if (!tenant_id) return null;
+
+  // ─── TENANT GUARD ───
+  const tenant_id = useAuthStore((s) => s.tenant_id);
+  const user = useAuthStore((s) => s.user);
+
+  if (!tenant_id) {
+    return (
+      <div className="p-8 text-center text-red-500" dir="rtl">
+        <p>Tenant not initialized</p>
+      </div>
+    );
+  }
 
   const navigate = useNavigate();
   const [session, setSession] = useState<SessionData | null>(null);
@@ -80,7 +89,6 @@ export default function DecisionCard() {
   const [saving, setSaving] = useState(false);
   const [calculating, setCalculating] = useState(false);
 
-  // Indicator inputs for score calculation
   const [indicators, setIndicators] = useState({
     APS: DEFAULT_INDICATORS.APS,
     DRI: DEFAULT_INDICATORS.DRI,
@@ -93,19 +101,17 @@ export default function DecisionCard() {
   useEffect(() => { if (id) fetchSessionData(); }, [id]);
 
   const fetchSessionData = async () => {
-    const tenant_id = localStorage.getItem('tenant_id');
-    if (!tenant_id) { toast.error('معرف المستأجر مفقود'); navigate('/login'); return; }
+    if (!tenant_id) { toast.error('معرف المستأجر مفقود'); return; }
 
     setLoading(true);
     try {
       const { data: sessionData, error: sessionError } = await supabase
-        .from('clinic_visit_sessions').select('*').eq('id', id!).eq('tenant_id', tenant_id!).single();
+        .from('clinic_visit_sessions').select('*').eq('id', id!).eq('tenant_id', tenant_id).single();
       if (sessionError) throw sessionError;
       setSession(sessionData);
       setNotes(sessionData.doctor_notes || '');
       setSelectedPar(sessionData.par_result);
 
-      // Load existing indicators from session OR use defaults
       setIndicators({
         APS: sessionData.score_aps ?? DEFAULT_INDICATORS.APS,
         DRI: sessionData.score_dri ?? DEFAULT_INDICATORS.DRI,
@@ -117,13 +123,13 @@ export default function DecisionCard() {
 
       const { data: patientData, error: patientError } = await supabase
         .from('clinic_patients').select('id, full_name, phone_primary, date_of_birth, gender')
-        .eq('id', sessionData.patient_id!).eq('tenant_id', tenant_id!).single();
+        .eq('id', sessionData.patient_id!).eq('tenant_id', tenant_id).single();
       if (patientError) throw patientError;
       setPatient(patientData);
 
       const { data: longData, error: longError } = await supabase
         .from('patient_longitudinal_profiles').select('dominant_disc_profile, total_visits, total_revenue_subunits, loyalty_tier, historical_core_score_avg, last_visit_date')
-        .eq('patient_id', sessionData.patient_id!).eq('tenant_id', tenant_id!).single();
+        .eq('patient_id', sessionData.patient_id!).eq('tenant_id', tenant_id).single();
       if (longError && longError.code !== 'PGRST116') throw longError;
       setLongitudinal(longData);
     } catch (err: unknown) {
@@ -150,15 +156,10 @@ export default function DecisionCard() {
     }
   };
 
-  // Constitution §4: Core Score Calculation via Edge Function
   const handleCalculateScore = async () => {
     if (!id || !session) return;
-
     setCalculating(true);
     try {
-      const tenant_id = localStorage.getItem('tenant_id');
-
-      // First save indicators to session
       const { error: updateError } = await supabase
         .from('clinic_visit_sessions')
         .update({
@@ -174,7 +175,6 @@ export default function DecisionCard() {
 
       if (updateError) throw updateError;
 
-      // Call Edge Function score-calculator
       const { data, error } = await supabase.functions.invoke('score-calculator', {
         body: {
           indicators: {
@@ -188,7 +188,7 @@ export default function DecisionCard() {
           historicalAvg: longitudinal?.historical_core_score_avg,
           lastVisitDate: longitudinal?.last_visit_date,
           sessionId: id,
-          tenantId: tenant_id!
+          tenantId: tenant_id
         }
       });
 
@@ -196,7 +196,6 @@ export default function DecisionCard() {
 
       if (data?.success) {
         toast.success(`تم حساب Core Score: ${data.display} (${data.patientClass})`);
-        // Refresh session data to show updated score
         fetchSessionData();
       } else {
         throw new Error(data?.error || 'فشل في حساب الدرجة');
@@ -245,7 +244,6 @@ export default function DecisionCard() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto" dir="rtl">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <button onClick={() => navigate('/doctor')} className="flex items-center gap-2 text-white/50 hover:text-white transition-colors">
           <ArrowRight className="w-5 h-5" /> <span>العودة للقائمة</span>
@@ -253,7 +251,6 @@ export default function DecisionCard() {
         <SlaTimer createdAt={session.created_at} />
       </div>
 
-      {/* Patient Info */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
         <div className="flex items-start justify-between">
           <div>
@@ -281,7 +278,6 @@ export default function DecisionCard() {
         )}
       </div>
 
-      {/* Score Calculation Section — Constitution §4 */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -331,7 +327,6 @@ export default function DecisionCard() {
         )}
       </div>
 
-      {/* PAR Decision */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold text-white mb-4">قرار القبول (PAR)</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -344,7 +339,6 @@ export default function DecisionCard() {
         </div>
       </div>
 
-      {/* Clinical Notes */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <FileText className="w-5 h-5 text-yellow-400" /> ملاحظات طبية
@@ -354,7 +348,6 @@ export default function DecisionCard() {
           placeholder="اكتب ملاحظاتك الطبية هنا..." />
       </div>
 
-      {/* Actions */}
       <div className="flex gap-3">
         <button onClick={handleSave} disabled={saving}
           className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
