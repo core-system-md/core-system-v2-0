@@ -30,8 +30,6 @@ export function useAuth() {
   const signOut = logout;
   const clearError = useCallback(() => store.clearError(), [store]);
 
-  // ─── FIX #3: validateLicense restored from stub ───
-  // Was: const validateLicense = useCallback(async (_key?: string) => { return { success: true }; }, []);
   const validateLicense = useCallback(async (key?: string) => {
     const licenseKey = key?.trim();
     if (!licenseKey) {
@@ -39,16 +37,13 @@ export function useAuth() {
       return { success: false, error: 'LICENSE_REQUIRED' };
     }
 
-    // ─── DEV MODE ───
     const devTenantId = '00000000-0000-0000-0000-000000000001';
     if (licenseKey === 'DEV-MODE-2026') {
       store.setTenant(devTenantId);
-      // COMPATIBILITY: localStorage for legacy consumers
       localStorage.setItem('tenant_id', devTenantId);
       return { success: true, tenant_id: devTenantId };
     }
 
-    // ─── PRODUCTION: RPC ───
     try {
       const { data, error: rpcError } = await supabase.rpc('validate_license', {
         p_license_key: licenseKey,
@@ -67,7 +62,6 @@ export function useAuth() {
 
       const tenantId = licenseData.id;
       store.setTenant(tenantId);
-      // COMPATIBILITY: localStorage for legacy consumers
       localStorage.setItem('tenant_id', tenantId);
       return { success: true, tenant_id: tenantId };
     } catch (err: any) {
@@ -180,7 +174,6 @@ export function useAuth() {
           store.setUser(authUser);
           store.setSupabaseUser(data.session.user);
           store.setPinAuthenticated(true);
-          // Note: status stays as-is; caller should handle state machine
         }
       }
     }

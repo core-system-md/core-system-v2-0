@@ -1,12 +1,7 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { supabase } from '@/infrastructure/supabase/client';
-import type { User, Session } from '@supabase/supabase-js';
+import { persist } from 'zustand/middleware';
+import type { User as SupabaseUser, Session as SupabaseSession } from '@supabase/supabase-js';
 
-// ────────────────────────────────────────────────────────────
-// STATE MACHINE: Auth Status
-// BOOTING → CHECKING_SESSION → AUTHENTICATED | UNAUTHENTICATED | PIN_REQUIRED | LOCKED
-// ────────────────────────────────────────────────────────────
 export type AuthStatus =
   | 'BOOTING'
   | 'CHECKING_SESSION'
@@ -15,165 +10,117 @@ export type AuthStatus =
   | 'PIN_REQUIRED'
   | 'LOCKED';
 
+export type UserRole = 'super_admin' | 'clinic_admin' | 'doctor' | 'receptionist';
+
 export interface AuthUser {
   id: string;
-  email?: string | null;
+  email: string | null;
   full_name: string;
-  full_name_ar?: string | null;
-  role: 'super_admin' | 'clinic_admin' | 'doctor' | 'receptionist';
+  full_name_ar: string | null;
+  role: UserRole;
   tenant_id: string;
-  employee_code?: string | null;
-  pin_code?: string | null;
-  phone?: string | null;
-  specialization?: string | null;
+  employee_code: string | null;
+  pin_code: string | null;
+  phone: string | null;
+  specialization: string | null;
   avatar_url?: string | null;
 }
 
-interface AuthState {
+export interface AuthState {
   user: AuthUser | null;
-  supabaseUser: User | null;
-  session: Session | null;
+  supabaseUser: SupabaseUser | null;
+  session: SupabaseSession | null;
   status: AuthStatus;
   isAuthenticated: boolean;
-  error: string | null;
   isPinAuthenticated: boolean;
-  pinAttempts: number;
-  pinLockedUntil: number | null;
   tenant_id: string;
+  error: string | null;
+  pinAttempts: number;
+  isLocked: boolean;
 
-  // ─── State Machine Actions ──────────────────────────────
-  boot: () => void;
-  startChecking: () => void;
-  authenticate: (authUser: AuthUser, supabaseUser: User | null, session: Session | null) => void;
-  unauthenticate: (error?: string | null) => void;
-  requirePin: () => void;
-  lock: () => void;
-
-  // ─── Legacy setters (for gradual migration) ─────────────
   setUser: (user: AuthUser | null) => void;
-  setSupabaseUser: (user: User | null) => void;
-  setSession: (session: Session | null) => void;
+  setSupabaseUser: (user: SupabaseUser | null) => void;
+  setSession: (session: SupabaseSession | null) => void;
   setStatus: (status: AuthStatus) => void;
+  setPinAuthenticated: (value: boolean) => void;
+  setTenant: (tenantId: string) => void;
   setError: (error: string | null) => void;
-  setPinAuthenticated: (val: boolean) => void;
+  clearError: () => void;
   incrementPinAttempt: () => void;
   resetPinAttempts: () => void;
-  login: (authUser: AuthUser, supabaseUser: User | null, session: Session | null) => void;
-  logout: () => Promise<void>;
-  clearError: () => void;
+  login: (authUser: AuthUser, sbUser: SupabaseUser | null, sbSession: SupabaseSession | null) => void;
+  logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      // ─── Initial State ──────────────────────────────────
       user: null,
       supabaseUser: null,
       session: null,
       status: 'BOOTING',
       isAuthenticated: false,
-      error: null,
       isPinAuthenticated: false,
-      pinAttempts: 0,
-      pinLockedUntil: null,
       tenant_id: '',
+      error: null,
+      pinAttempts: 0,
+      isLocked: false,
 
-      // ─── State Machine Actions ──────────────────────────
-      boot: () => set({ status: 'BOOTING', isAuthenticated: false }),
+      setUser: (user) => set({ user, tenant_id: user?.tenant_id ?? '' }),
+      setSupabaseUser: (supabaseUser) => set({ supabaseUser }),
+      setSession: (session) => set({ session }),
+      setStatus: (status) => set({ status }),
+      setPinAuthenticated: (isPinAuthenticated) => set({ isPinAuthenticated }),
+      setTenant: (tenantId: string) => set({ tenant_id: tenantId }),
+      setError: (error) => set({ error }),
+      clearError: () => set({ error: null }),
 
-      startChecking: () => set({ status: 'CHECKING_SESSION', isAuthenticated: false }),
+      incrementPinAttempt: () => {
+        const current = get().pinAttempts + 1;
+        if (current >= 5) {
+          set({ pinAttempts: current, isLocked: true, status: 'LOCKED' });
+        } else {
+          set({ pinAttempts: current });
+        }
+      },
 
-      authenticate: (authUser, supabaseUser, session) =>
+      resetPinAttempts: () => set({ pinAttempts: 0, isLocked: false }),
+
+      login: (authUser, sbUser, sbSession) =>
         set({
           user: authUser,
-          supabaseUser,
-          session,
+          supabaseUser: sbUser,
+          session: sbSession,
           status: 'AUTHENTICATED',
           isAuthenticated: true,
-          error: null,
-          isPinAuthenticated: true,
-          pinAttempts: 0,
-          pinLockedUntil: null,
           tenant_id: authUser.tenant_id,
+          error: null,
+          pinAttempts: 0,
         }),
 
-      unauthenticate: (error = null) =>
+      logout: () =>
         set({
           user: null,
           supabaseUser: null,
           session: null,
           status: 'UNAUTHENTICATED',
           isAuthenticated: false,
-          error,
           isPinAuthenticated: false,
-          pinAttempts: 0,
-          pinLockedUntil: null,
           tenant_id: '',
+          error: null,
+          pinAttempts: 0,
+          isLocked: false,
         }),
-
-      requirePin: () =>
-        set({
-          status: 'PIN_REQUIRED',
-          isAuthenticated: false,
-          isPinAuthenticated: false,
-        }),
-
-      lock: () =>
-        set({
-          status: 'LOCKED',
-          isAuthenticated: false,
-          isPinAuthenticated: false,
-        }),
-
-      // ─── Legacy setters (for backward compat) ───────────
-      setUser: (user) => set({ user, tenant_id: user?.tenant_id ?? '' }),
-      setSupabaseUser: (supabaseUser) => set({ supabaseUser }),
-      setSession: (session) => set({ session }),
-      setStatus: (status) => set({ status }),
-      setError: (error) => set({ error }),
-      setPinAuthenticated: (isPinAuthenticated) => set({ isPinAuthenticated }),
-      incrementPinAttempt: () => {
-        const attempts = get().pinAttempts + 1;
-        const locked = attempts >= 5 ? Date.now() + 15 * 60 * 1000 : null;
-        set({ pinAttempts: attempts, pinLockedUntil: locked });
-      },
-      resetPinAttempts: () => set({ pinAttempts: 0, pinLockedUntil: null }),
-
-      // login() delegates to authenticate() for state machine compliance
-      login: (authUser, supabaseUser, session) => {
-        get().authenticate(authUser, supabaseUser, session);
-      },
-
-      logout: async () => {
-        await supabase.auth.signOut();
-        get().unauthenticate();
-      },
-
-      clearError: () => set({ error: null }),
     }),
     {
-      name: 'core-auth-storage',
-      storage: createJSONStorage(() => localStorage),
+      name: 'auth-storage',
       partialize: (state) => ({
         user: state.user,
-        supabaseUser: state.supabaseUser,
-        session: state.session,
-        status: state.status,
         isAuthenticated: state.isAuthenticated,
-        isPinAuthenticated: state.isPinAuthenticated,
-        pinAttempts: state.pinAttempts,
-        pinLockedUntil: state.pinLockedUntil,
+        status: state.status,
         tenant_id: state.tenant_id,
+        isPinAuthenticated: state.isPinAuthenticated,
       }),
     }
   )
 );
-
-// ─── Selectors ────────────────────────────────────────────
-export const selectUserRole = (state: AuthState) => state.user?.role ?? null;
-export const selectIsAuthenticated = (state: AuthState) => state.isAuthenticated;
-export const selectIsPinLocked = (state: AuthState) => {
-  if (!state.pinLockedUntil) return false;
-  return Date.now() < state.pinLockedUntil;
-};
-export const selectPinAttemptsRemaining = (state: AuthState) => Math.max(0, 5 - state.pinAttempts);
