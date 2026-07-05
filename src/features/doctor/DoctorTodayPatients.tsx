@@ -4,7 +4,6 @@ import { useAuthStore } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
 import { User, Calendar, Clock, AlertCircle } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -170,7 +169,7 @@ export function DoctorTodayPatients() {
               </div>
 
               {/* Action */}
-              <Button variant="outline" size="sm" className="shrink-0">
+              <Button variant="outline" className="shrink-0">
                 فتح الجلسة
               </Button>
             </div>

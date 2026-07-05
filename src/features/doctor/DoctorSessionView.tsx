@@ -17,13 +17,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, User, Calendar, Clock, Shield } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────
-interface Note {
-  id: string;
-  content: string;
-  type: 'subjective' | 'objective' | 'assessment' | 'plan';
-  created_at: string;
-}
-
 interface SessionData {
   id: string;
   patient_id: string;
@@ -134,7 +127,7 @@ export default function DoctorSessionView() {
 
   // ── Local State ──────────────────────────────────────────────────
   const [session, setSession] = useState<SessionData | null>(null);
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [notes, setNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -233,8 +226,8 @@ export default function DoctorSessionView() {
   }, [fetchSession, refreshKey]);
 
   // ── Notes Handlers ─────────────────────────────────────────────
-  const handleAddNote = useCallback((note: Omit<Note, 'id' | 'created_at'>) => {
-    const newNote: Note = {
+  const handleAddNote = useCallback((note: any) => {
+    const newNote = {
       ...note,
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
@@ -281,9 +274,6 @@ export default function DoctorSessionView() {
       </div>
     );
   }
-
-  // ── Derived Values ─────────────────────────────────────────────
-  const isCompleted = session.session_status === 'completed' || session.session_status === 'auto_closed';
 
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-5" dir="rtl">

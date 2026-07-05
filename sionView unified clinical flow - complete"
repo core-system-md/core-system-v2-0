@@ -43,7 +43,6 @@ const AnalyticsOverview = lazy(() => import('@/features/clinic-admin/AnalyticsOv
 const DoctorIndex       = lazy(() => import('@/features/doctor/DoctorLayout'));
 const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDashboard'));
 const TenantRegistry    = lazy(() => import('@/features/super-admin/TenantRegistry'));
-const DoctorSessionView = lazy(() => import('@/features/doctor/DoctorSessionView'));
 
 // ────────────────────────────────────────────────────────────
 // WRAPPERS
@@ -162,21 +161,6 @@ const router = createBrowserRouter([
             ),
           },
         ],
-      },
-    ],
-  },
-  // ─── Doctor Session Detail ─────────────────────────────────
-  {
-    path: '/doctor/session/:sessionId',
-    element: <ProtectedWrapper allowedRoles={['doctor']} />,
-    children: [
-      {
-        path: '',
-        element: (
-          <Suspense fallback={<LoadingScreen />}>
-            <DoctorSessionView />
-          </Suspense>
-        ),
       },
     ],
   },
