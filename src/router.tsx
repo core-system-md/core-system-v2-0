@@ -49,10 +49,17 @@ const TenantRegistry    = lazy(() => import('@/features/super-admin/TenantRegist
 // ────────────────────────────────────────────────────────────
 
 function AuthWrapper() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { status, isAuthenticated, user } = useAuthStore();
+
+  // STATE MACHINE: Never show login during BOOTING or CHECKING_SESSION
+  if (status === 'BOOTING' || status === 'CHECKING_SESSION') {
+    return <LoadingScreen />;
+  }
+
   if (isAuthenticated && user) {
     return <Navigate to={getDefaultRoute(user.role)} replace />;
   }
+
   return (
     <Suspense fallback={<LoadingScreen />}>
       <AuthScreen />
