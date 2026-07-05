@@ -1,277 +1,360 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAuthStore } from '@/shared/store/authStore';
-import { supabase } from '@/infrastructure/supabase/client';
+import { useAuthStore } from "@/shared/store/authStore";
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Stethoscope, ClipboardCheck, AlertCircle } from 'lucide-react';
+import { supabase } from '@/infrastructure/supabase/client';
+import CoreScoreMeter from '@/shared/components/ui/CoreScoreMeter';
+import SlaTimer from '@/shared/components/ui/SlaTimer';
+import { ArrowRight, Save, CheckCircle, FileText, Calculator, RefreshCw } from 'lucide-react';
 
-interface DecisionCardProps {
-  sessionId: string;
-  patientId: string;
-  onDecisionMade?: () => void;
-}
-
-interface Decision {
+interface SessionData {
   id: string;
-  type: 'medication' | 'procedure' | 'referral' | 'follow_up' | 'other';
-  description: string;
-  notes: string;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
+  patient_id: string;
+  session_status: string;
+  created_at: string;
+  score_aps: number | null;
+  score_dri: number | null;
+  score_tsi: number | null;
+  score_uri: number | null;
+  score_pqs: number | null;
+  score_rvs: number | null;
+  core_score_backend: number | null;
+  core_score_display: number | null;
+  patient_class: string | null;
+  doctor_notes: string | null;
+  par_result: string | null;
+  is_insured: boolean;
 }
 
-export function DecisionCard({ sessionId, patientId, onDecisionMade }: DecisionCardProps) {
-  // ALL HOOKS FIRST — before any conditional logic
-  const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [newDecision, setNewDecision] = useState<Partial<Decision>>({
-    type: 'medication',
-    priority: 'medium',
-    description: '',
-    notes: ''
+interface PatientData {
+  id: string;
+  full_name: string;
+  phone_primary: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+}
+
+interface LongitudinalData {
+  dominant_disc_profile: string | null;
+  total_visits: number | null;
+  total_revenue_subunits: number | null;
+  loyalty_tier: string | null;
+  historical_core_score_avg: number | null;
+  last_visit_date: string | null;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
+const PAR_OPTIONS = [
+  { value: 'full_acceptance', label: 'قبول كامل', color: 'bg-green-500/20 text-green-400' },
+  { value: 'partial_acceptance', label: 'قبول جزئي', color: 'bg-blue-500/20 text-blue-400' },
+  { value: 'deferred', label: 'مؤجل', color: 'bg-yellow-500/20 text-yellow-400' },
+  { value: 'rejection', label: 'رفض', color: 'bg-red-500/20 text-red-400' },
+] as const;
+
+const DEFAULT_INDICATORS = {
+  APS: 850,
+  DRI: 800,
+  RVS: 750,
+  URI: 700,
+  TSI: 650,
+  PQS: 300
+};
+
+export default function DecisionCard() {
+  // ═══ ALL HOOKS FIRST (React Rules of Hooks) ═══
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const tenant_id = useAuthStore((s) => s.tenant_id);
+
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [patient, setPatient] = useState<PatientData | null>(null);
+  const [longitudinal, setLongitudinal] = useState<LongitudinalData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState('');
+  const [selectedPar, setSelectedPar] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [calculating, setCalculating] = useState(false);
+
+  const [indicators, setIndicators] = useState({
+    APS: DEFAULT_INDICATORS.APS,
+    DRI: DEFAULT_INDICATORS.DRI,
+    RVS: DEFAULT_INDICATORS.RVS,
+    URI: DEFAULT_INDICATORS.URI,
+    TSI: DEFAULT_INDICATORS.TSI,
+    PQS: DEFAULT_INDICATORS.PQS
   });
 
-  // Auth store hooks
-  const tenantId = useAuthStore((state) => state.tenant_id);
-  const user = useAuthStore((state) => state.user);
+  useEffect(() => { if (id) fetchSessionData(); }, [id]);
 
-  // GUARD AFTER ALL HOOKS
-  if (!tenantId) {
+  // ═══ TENANT GUARD (AFTER all hooks) ═══
+  if (!tenant_id) {
     return (
-      <div className="p-6 text-center text-red-500" dir="rtl">
-        <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+      <div className="p-8 text-center text-red-500" dir="rtl">
         <p>Tenant not initialized</p>
       </div>
     );
   }
 
-  // Load existing decisions
-  useEffect(() => {
-    const loadDecisions = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('clinical_decisions')
-          .select('*')
-          .eq('session_id', sessionId)
-          .eq('tenant_id', tenantId)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false });
+  const fetchSessionData = async () => {
+    if (!tenant_id) { toast.error('معرف المستأجر مفقود'); return; }
 
-        if (error) {
-          toast.error(`خطأ في تحميل القرارات: ${error.message}`);
-          return;
-        }
+    setLoading(true);
+    try {
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('clinic_visit_sessions').select('*').eq('id', id!).eq('tenant_id', tenant_id).single();
+      if (sessionError) throw sessionError;
+      setSession(sessionData);
+      setNotes(sessionData.doctor_notes || '');
+      setSelectedPar(sessionData.par_result);
 
-        if (data) {
-          setDecisions(data.map(d => ({
-            id: d.id,
-            type: d.type,
-            description: d.description,
-            notes: d.notes,
-            priority: d.priority
-          })));
-        }
-      } catch (err: any) {
-        toast.error(err?.message || 'حدث خطأ');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      setIndicators({
+        APS: sessionData.score_aps ?? DEFAULT_INDICATORS.APS,
+        DRI: sessionData.score_dri ?? DEFAULT_INDICATORS.DRI,
+        RVS: sessionData.score_rvs ?? DEFAULT_INDICATORS.RVS,
+        URI: sessionData.score_uri ?? DEFAULT_INDICATORS.URI,
+        TSI: sessionData.score_tsi ?? DEFAULT_INDICATORS.TSI,
+        PQS: sessionData.score_pqs ?? DEFAULT_INDICATORS.PQS
+      });
 
-    if (sessionId && tenantId) {
-      loadDecisions();
+      const { data: patientData, error: patientError } = await supabase
+        .from('clinic_patients').select('id, full_name, phone_primary, date_of_birth, gender')
+        .eq('id', sessionData.patient_id!).eq('tenant_id', tenant_id).single();
+      if (patientError) throw patientError;
+      setPatient(patientData);
+
+      const { data: longData, error: longError } = await supabase
+        .from('patient_longitudinal_profiles').select('dominant_disc_profile, total_visits, total_revenue_subunits, loyalty_tier, historical_core_score_avg, last_visit_date')
+        .eq('patient_id', sessionData.patient_id!).eq('tenant_id', tenant_id).single();
+      if (longError && longError.code !== 'PGRST116') throw longError;
+      setLongitudinal(longData);
+    } catch (err: unknown) {
+      console.error('Session fetch error:', err);
+      toast.error(getErrorMessage(err, 'فشل في تحميل بيانات الجلسة'));
+    } finally {
+      setLoading(false);
     }
-  }, [sessionId, tenantId]);
-
-  const handleAddDecision = useCallback(() => {
-    if (!newDecision.description?.trim()) {
-      toast.error('يرجى إدخال وصف القرار');
-      return;
-    }
-
-    const decision: Decision = {
-      id: crypto.randomUUID(),
-      type: newDecision.type as Decision['type'],
-      description: newDecision.description || '',
-      notes: newDecision.notes || '',
-      priority: newDecision.priority as Decision['priority']
-    };
-
-    setDecisions(prev => [decision, ...prev]);
-    setNewDecision({ type: 'medication', priority: 'medium', description: '', notes: '' });
-    setShowForm(false);
-  }, [newDecision]);
+  };
 
   const handleSave = async () => {
-    setIsSaving(true);
+    if (!id) return;
+    setSaving(true);
     try {
-      // Delete existing decisions
-      await supabase
-        .from('clinical_decisions')
-        .delete()
-        .eq('session_id', sessionId)
-        .eq('tenant_id', tenantId);
-
-      // Insert new decisions
-      if (decisions.length > 0) {
-        const { error } = await supabase
-          .from('clinical_decisions')
-          .insert(decisions.map(d => ({
-            session_id: sessionId,
-            patient_id: patientId,
-            tenant_id: tenantId,
-            doctor_id: user?.id,
-            type: d.type,
-            description: d.description,
-            notes: d.notes,
-            priority: d.priority,
-            is_deleted: false
-          })));
-
-        if (error) {
-          toast.error(`خطأ في الحفظ: ${error.message}`);
-          return;
-        }
-      }
-
-      toast.success('تم حفظ القرارات بنجاح');
-      onDecisionMade?.();
-    } catch (err: any) {
-      toast.error(err?.message || 'حدث خطأ');
+      const { error } = await supabase.from('clinic_visit_sessions').update({
+        doctor_notes: notes, par_result: selectedPar, updated_at: new Date().toISOString()
+      }).eq('id', id).eq('tenant_id', tenant_id);
+      if (error) throw error;
+      toast.success('تم حفظ الملاحظات');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'فشل في الحفظ'));
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-700 border-red-300';
-      case 'high': return 'bg-orange-100 text-orange-700 border-orange-300';
-      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      default: return 'bg-green-100 text-green-700 border-green-300';
+  const handleCalculateScore = async () => {
+    if (!id || !session) return;
+    setCalculating(true);
+    try {
+      const { error: updateError } = await supabase
+        .from('clinic_visit_sessions')
+        .update({
+          score_aps: indicators.APS,
+          score_dri: indicators.DRI,
+          score_rvs: indicators.RVS,
+          score_uri: indicators.URI,
+          score_tsi: indicators.TSI,
+          score_pqs: indicators.PQS,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      const { data, error } = await supabase.functions.invoke('score-calculator', {
+        body: {
+          indicators: {
+            APS: indicators.APS,
+            DRI: indicators.DRI,
+            RVS: indicators.RVS,
+            URI: indicators.URI,
+            TSI: indicators.TSI,
+            PQS: indicators.PQS
+          },
+          historicalAvg: longitudinal?.historical_core_score_avg,
+          lastVisitDate: longitudinal?.last_visit_date,
+          sessionId: id,
+          tenantId: tenant_id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success(`تم حساب Core Score: ${data.display} (${data.patientClass})`);
+        fetchSessionData();
+      } else {
+        throw new Error(data?.error || 'فشل في حساب الدرجة');
+      }
+    } catch (err: unknown) {
+      console.error('Score calculation error:', err);
+      toast.error(getErrorMessage(err, 'فشل في حساب Core Score'));
+    } finally {
+      setCalculating(false);
     }
   };
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'medication': return 'دواء';
-      case 'procedure': return 'إجراء';
-      case 'referral': return 'إحالة';
-      case 'follow_up': return 'متابعة';
-      default: return 'آخر';
+  const handleCloseSession = async () => {
+    if (!id) return;
+    if (!confirm('هل أنت متأكد من إغلاق الجلسة؟')) return;
+    try {
+      const { error } = await supabase.from('clinic_visit_sessions').update({
+        session_status: 'completed', session_ended_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      }).eq('id', id).eq('tenant_id', tenant_id);
+      if (error) throw error;
+      toast.success('تم إغلاق الجلسة');
+      navigate('/doctor');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'فشل في إغلاق الجلسة'));
     }
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="p-6 text-center" dir="rtl">
-        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
-        <p className="text-gray-600">جاري التحميل...</p>
+      <div className="p-6 space-y-4" dir="rtl">
+        <div className="h-8 bg-white/10 rounded w-1/3 animate-pulse" />
+        <div className="h-32 bg-white/10 rounded animate-pulse" />
+        <div className="h-48 bg-white/10 rounded animate-pulse" />
+      </div>
+    );
+  }
+
+  if (!session || !patient) {
+    return (
+      <div className="p-8 text-center text-white/50" dir="rtl">
+        <p>لا توجد بيانات للجلسة</p>
+        <button onClick={() => navigate('/doctor')} className="mt-4 text-blue-400 hover:underline">العودة للقائمة</button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-lg" dir="rtl">
-      <div className="flex items-center gap-3 mb-6">
-        <Stethoscope className="w-6 h-6 text-blue-600" />
-        <h2 className="text-xl font-bold text-[#1B2A4A]">قرارات الطبيب</h2>
+    <div className="p-6 max-w-4xl mx-auto" dir="rtl">
+      <div className="flex items-center justify-between mb-6">
+        <button onClick={() => navigate('/doctor')} className="flex items-center gap-2 text-white/50 hover:text-white transition-colors">
+          <ArrowRight className="w-5 h-5" /> <span>العودة للقائمة</span>
+        </button>
+        <SlaTimer createdAt={session.created_at} />
       </div>
 
-      {decisions.length === 0 && !showForm && (
-        <div className="text-center py-8 text-gray-500">
-          <ClipboardCheck className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p>لا توجد قرارات مسجلة</p>
-        </div>
-      )}
-
-      <div className="space-y-3 mb-6">
-        {decisions.map((decision) => (
-          <div key={decision.id} className={`p-4 rounded-lg border ${getPriorityColor(decision.priority)}`}>
-            <div className="flex justify-between items-start mb-2">
-              <span className="font-semibold">{getTypeLabel(decision.type)}</span>
-              <span className="text-sm px-2 py-1 rounded-full bg-white/50">{decision.priority}</span>
+      <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white mb-2">{patient.full_name}</h1>
+            <div className="flex items-center gap-4 text-sm text-white/50">
+              {patient.phone_primary && <span>{patient.phone_primary}</span>}
+              {patient.gender && <span>{patient.gender === 'male' ? 'ذكر' : 'أنثى'}</span>}
+              {longitudinal && <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded">{longitudinal.loyalty_tier}</span>}
             </div>
-            <p className="text-gray-800 mb-2">{decision.description}</p>
-            {decision.notes && (
-              <p className="text-sm text-gray-600">{decision.notes}</p>
-            )}
           </div>
-        ))}
+          <CoreScoreMeter backendScore={session.core_score_backend} size="lg" />
+        </div>
+
+        {longitudinal?.dominant_disc_profile && (
+          <div className="mt-4 flex items-center gap-2">
+            <span className="text-white/50 text-sm">نمط السلوك:</span>
+            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-lg text-sm">{longitudinal.dominant_disc_profile}</span>
+          </div>
+        )}
+
+        {session.is_insured && (
+          <div className="mt-3 inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
+            <CheckCircle className="w-3 h-3" /> مؤمن
+          </div>
+        )}
       </div>
 
-      {showForm && (
-        <div className="p-4 bg-gray-50 rounded-lg mb-4 space-y-3">
-          <div className="flex gap-3">
-            <select
-              value={newDecision.type}
-              onChange={(e) => setNewDecision(prev => ({ ...prev, type: e.target.value as Decision['type'] }))}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="medication">دواء</option>
-              <option value="procedure">إجراء</option>
-              <option value="referral">إحالة</option>
-              <option value="follow_up">متابعة</option>
-              <option value="other">آخر</option>
-            </select>
-            <select
-              value={newDecision.priority}
-              onChange={(e) => setNewDecision(prev => ({ ...prev, priority: e.target.value as Decision['priority'] }))}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="low">منخفض</option>
-              <option value="medium">متوسط</option>
-              <option value="high">عالي</option>
-              <option value="urgent">عاجل</option>
-            </select>
-          </div>
-          <input
-            type="text"
-            value={newDecision.description}
-            onChange={(e) => setNewDecision(prev => ({ ...prev, description: e.target.value }))}
-            placeholder="وصف القرار الطبي"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <textarea
-            value={newDecision.notes}
-            onChange={(e) => setNewDecision(prev => ({ ...prev, notes: e.target.value }))}
-            placeholder="ملاحظات إضافية"
-            rows={2}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={handleAddDecision}
-              className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              إضافة
-            </button>
-            <button
-              onClick={() => setShowForm(false)}
-              className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-            >
-              إلغاء
-            </button>
-          </div>
+      <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Calculator className="w-5 h-5 text-blue-400" /> حساب Core Score
+          </h2>
+          <button onClick={handleCalculateScore} disabled={calculating}
+            className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 disabled:bg-white/5 text-blue-400 rounded-lg transition-colors flex items-center gap-2">
+            <RefreshCw className={`w-4 h-4 ${calculating ? 'animate-spin' : ''}`} />
+            {calculating ? 'جاري الحساب...' : 'حساب الدرجة'}
+          </button>
         </div>
-      )}
+
+        <p className="text-white/50 text-sm mb-4">Constitution §4: Formula MUST be in Backend (Edge Function)</p>
+
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: 'APS', key: 'APS' as const, weight: '28%' },
+            { label: 'DRI', key: 'DRI' as const, weight: '24%' },
+            { label: 'RVS', key: 'RVS' as const, weight: '20%' },
+            { label: 'URI', key: 'URI' as const, weight: '15%' },
+            { label: 'TSI', key: 'TSI' as const, weight: '13%' },
+            { label: 'PQS', key: 'PQS' as const, weight: 'Penalty' },
+          ].map((indicator) => (
+            <div key={indicator.label} className="bg-white/5 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-white/50 text-sm">{indicator.label}</span>
+                <span className="text-white/30 text-xs">{indicator.weight}</span>
+              </div>
+              <input 
+                type="number" 
+                min="0" 
+                max="1000"
+                value={indicators[indicator.key]}
+                onChange={(e) => setIndicators(prev => ({ ...prev, [indicator.key]: Number(e.target.value) }))}
+                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white text-center focus:outline-none focus:border-white/30"
+              />
+            </div>
+          ))}
+        </div>
+
+        {session.core_score_backend && (
+          <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <p className="text-green-400 text-sm">
+              ✓ آخر درجة محسوبة: <strong>{session.core_score_display}</strong> ({session.patient_class})
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+        <h2 className="text-lg font-semibold text-white mb-4">قرار القبول (PAR)</h2>
+        <div className="grid grid-cols-2 gap-3">
+          {PAR_OPTIONS.map((option) => (
+            <button key={option.value} onClick={() => setSelectedPar(option.value)}
+              className={`p-3 rounded-lg border transition-colors text-sm font-medium ${selectedPar === option.value ? `${option.color} border-white/30` : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}>
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-yellow-400" /> ملاحظات طبية
+        </h2>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={6}
+          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30 resize-none"
+          placeholder="اكتب ملاحظاتك الطبية هنا..." />
+      </div>
 
       <div className="flex gap-3">
-        {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex-1 py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium"
-          >
-            + إضافة قرار جديد
-          </button>
-        )}
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-semibold"
-        >
-          {isSaving ? 'جاري الحفظ...' : 'حفظ القرارات'}
+        <button onClick={handleSave} disabled={saving}
+          className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+          <Save className="w-4 h-4" /> {saving ? 'جاري الحفظ...' : 'حفظ الملاحظات'}
+        </button>
+        <button onClick={handleCloseSession}
+          className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+          <CheckCircle className="w-4 h-4" /> إغلاق الجلسة
         </button>
       </div>
     </div>

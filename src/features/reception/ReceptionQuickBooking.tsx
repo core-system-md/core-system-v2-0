@@ -1,254 +1,154 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useAuthStore } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
 import { toast } from 'sonner';
-import { Calendar, Clock, User, Phone, AlertCircle } from 'lucide-react';
 
-interface ReceptionQuickBookingProps {
-  onBookingComplete?: () => void;
+interface BookingForm {
+  patient_name: string;
+  phone_number: string;
+  age: string;
+  reason_for_visit: string;
 }
 
-interface PatientInfo {
-  name: string;
-  phone: string;
-  id_number: string;
-}
-
-export function ReceptionQuickBooking({ onBookingComplete }: ReceptionQuickBookingProps) {
-  // ALL HOOKS FIRST — before any conditional logic
-  const [patient, setPatient] = useState<PatientInfo>({
-    name: '',
-    phone: '',
-    id_number: ''
-  });
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
-  const [selectedDoctor, setSelectedDoctor] = useState('');
-  const [doctors, setDoctors] = useState<Array<{ id: string; name: string }>>([]);
-  const [isLoading, setIsLoading] = useState(false);
+export function ReceptionQuickBooking() {
+  // ═══ ALL HOOKS FIRST (React Rules of Hooks) ═══
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState<BookingForm>({
+    patient_name: '',
+    phone_number: '',
+    age: '',
+    reason_for_visit: '',
+  });
 
-  // Auth store hooks
+  // ═══ TENANT GUARD (AFTER all hooks) ═══
   const tenantId = useAuthStore((state) => state.tenant_id);
-  const user = useAuthStore((state) => state.user);
 
-  // GUARD AFTER ALL HOOKS
   if (!tenantId) {
     return (
-      <div className="p-6 text-center text-red-500" dir="rtl">
-        <AlertCircle className="w-8 h-8 mx-auto mb-2" />
-        <p>Tenant not initialized</p>
+      <div className="p-6 text-center" dir="rtl">
+        <p className="text-red-500 font-semibold">Tenant not initialized</p>
       </div>
     );
   }
 
-  // Load doctors list
-  useEffect(() => {
-    const loadDoctors = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('id, full_name')
-          .eq('tenant_id', tenantId)
-          .eq('role', 'doctor')
-          .eq('is_active', true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-        if (error) {
-          toast.error(`خطأ في تحميل الأطباء: ${error.message}`);
-          return;
-        }
-
-        if (data) {
-          setDoctors(data.map(d => ({ id: d.id, name: d.full_name })));
-        }
-      } catch (err: any) {
-        toast.error(err?.message || 'حدث خطأ');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (tenantId) {
-      loadDoctors();
-    }
-  }, [tenantId]);
-
-  // Set default date to today
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    setSelectedDate(today);
-  }, []);
-
-  const handleSubmit = async () => {
-    if (!patient.name.trim() || !patient.phone.trim()) {
-      toast.error('يرجى إدخال اسم المريض ورقم الهاتف');
-      return;
-    }
-
-    if (!selectedDoctor) {
-      toast.error('يرجى اختيار الطبيب');
+    if (!form.patient_name.trim() || !form.phone_number.trim()) {
+      toast.error('الاسم ورقم الهاتف مطلوبان');
       return;
     }
 
     setIsSubmitting(true);
+
     try {
-      // Create patient if not exists
-      const { data: patientData, error: patientError } = await supabase
-        .from('patients')
-        .upsert({
-          full_name: patient.name,
-          phone: patient.phone,
-          id_number: patient.id_number,
+      const { data: patient, error: patientError } = await supabase
+        .from('clinic_patients')
+        .insert({
           tenant_id: tenantId,
-          created_by: user?.id
-        }, { onConflict: 'phone' })
-        .select('id')
+          first_name: form.patient_name.trim(),
+          last_name: '',
+          full_name: form.patient_name.trim(),
+          phone_primary: form.phone_number.trim(),
+          mrn: '',
+          notes: form.reason_for_visit.trim() || null,
+        })
+        .select()
         .single();
 
       if (patientError) {
-        toast.error(`خطأ في إنشاء المريض: ${patientError.message}`);
+        toast.error(`خطأ في الحفظ: ${patientError.message}`);
         return;
       }
 
-      // Create appointment
-      const { error: appointmentError } = await supabase
-        .from('appointments')
+      await supabase
+        .from('clinic_inquiries')
         .insert({
-          patient_id: patientData.id,
-          doctor_id: selectedDoctor,
           tenant_id: tenantId,
-          appointment_date: selectedDate,
-          appointment_time: selectedTime,
-          status: 'scheduled',
-          created_by: user?.id
+          inquiry_type: 'walk_in',
+          patient_id: patient.id,
+          temp_patient_name: form.patient_name.trim(),
+          temp_phone: form.phone_number.trim(),
+          inquiry_reason: form.reason_for_visit.trim() || null,
+          status: 'pending',
         });
 
-      if (appointmentError) {
-        toast.error(`خطأ في الحجز: ${appointmentError.message}`);
-        return;
-      }
-
-      toast.success('تم الحجز بنجاح');
-
-      // Reset form
-      setPatient({ name: '', phone: '', id_number: '' });
-      setSelectedDoctor('');
-      setSelectedTime('');
-
-      onBookingComplete?.();
+      toast.success('تم حجز المريض بنجاح');
+      setForm({ patient_name: '', phone_number: '', age: '', reason_for_visit: '' });
     } catch (err: any) {
-      toast.error(err?.message || 'حدث خطأ');
+      toast.error(err?.message || 'حدث خطأ أثناء الحفظ');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-6 text-center" dir="rtl">
-        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
-        <p className="text-gray-600">جاري التحميل...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-xl mx-auto p-6 bg-white rounded-xl shadow-lg" dir="rtl">
-      <div className="flex items-center gap-3 mb-6">
-        <Calendar className="w-6 h-6 text-blue-600" />
-        <h2 className="text-xl font-bold text-[#1B2A4A]">حجز سريع</h2>
-      </div>
+    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md" dir="rtl">
+      <h2 className="text-xl font-bold text-[#1B2A4A] mb-6">حجز سريع — الاستقبال</h2>
 
-      <div className="space-y-4 mb-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">اسم المريض</label>
-          <div className="relative">
-            <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={patient.name}
-              onChange={(e) => setPatient(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="أدخل اسم المريض"
-              className="w-full pr-10 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف</label>
-          <div className="relative">
-            <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="tel"
-              value={patient.phone}
-              onChange={(e) => setPatient(prev => ({ ...prev, phone: e.target.value }))}
-              placeholder="05xxxxxxxx"
-              className="w-full pr-10 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">رقم الهوية (اختياري)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            اسم المريض <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
-            value={patient.id_number}
-            onChange={(e) => setPatient(prev => ({ ...prev, id_number: e.target.value }))}
-            placeholder="رقم الهوية / الإقامة"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={form.patient_name}
+            onChange={(e) => setForm({ ...form, patient_name: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]"
+            placeholder="أدخل اسم المريض"
+            required
           />
         </div>
 
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
-            <div className="relative">
-              <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full pr-10 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">الوقت</label>
-            <div className="relative">
-              <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="time"
-                value={selectedTime}
-                onChange={(e) => setSelectedTime(e.target.value)}
-                className="w-full pr-10 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            رقم الهاتف <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="tel"
+            value={form.phone_number}
+            onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]"
+            placeholder="07XXXXXXXX"
+            required
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">الطبيب</label>
-          <select
-            value={selectedDoctor}
-            onChange={(e) => setSelectedDoctor(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">اختر الطبيب</option>
-            {doctors.map(doctor => (
-              <option key={doctor.id} value={doctor.id}>{doctor.name}</option>
-            ))}
-          </select>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            العمر
+          </label>
+          <input
+            type="number"
+            value={form.age}
+            onChange={(e) => setForm({ ...form, age: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]"
+            placeholder="اختياري"
+          />
         </div>
-      </div>
 
-      <button
-        onClick={handleSubmit}
-        disabled={isSubmitting}
-        className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-semibold"
-      >
-        {isSubmitting ? 'جاري الحجز...' : 'تأكيد الحجز'}
-      </button>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            سبب الزيارة
+          </label>
+          <textarea
+            value={form.reason_for_visit}
+            onChange={(e) => setForm({ ...form, reason_for_visit: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]"
+            placeholder="اختياري"
+            rows={3}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full py-2 px-4 bg-[#1B2A4A] text-white rounded-md hover:bg-[#2a3d6b] transition-colors disabled:opacity-50"
+        >
+          {isSubmitting ? 'جاري الحفظ...' : 'حجز المريض'}
+        </button>
+      </form>
     </div>
   );
 }
