@@ -33,7 +33,6 @@ function subunitsToDisplay(subunits: number): string {
 export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoiceProps) {
   // ─── TENANT GUARD ───
   const tenantId = useAuthStore((state) => state.tenant_id);
-  const user = useAuthStore((state) => state.user);
 
   if (!tenantId) {
     return (

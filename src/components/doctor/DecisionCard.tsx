@@ -69,7 +69,6 @@ export default function DecisionCard() {
 
   // ─── TENANT GUARD ───
   const tenant_id = useAuthStore((s) => s.tenant_id);
-  const user = useAuthStore((s) => s.user);
 
   if (!tenant_id) {
     return (
