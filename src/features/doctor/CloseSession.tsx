@@ -11,15 +11,16 @@ interface CloseSessionProps {
 }
 
 export function CloseSession({ sessionId, onClose }: CloseSessionProps) {
-  // ═══ ALL HOOKS FIRST (React Rules of Hooks) ═══
+  // ALL HOOKS MUST BE FIRST — before any conditional logic
   const [isClosing, setIsClosing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const navigate = useNavigate();
 
-  // ═══ TENANT GUARD (AFTER all hooks) ═══
+  // Auth store hooks
   const tenantId = useAuthStore((state) => state.tenant_id);
   const user = useAuthStore((state) => state.user);
 
+  // GUARD AFTER ALL HOOKS
   if (!tenantId) {
     return (
       <div className="p-6 text-center text-red-500" dir="rtl">
