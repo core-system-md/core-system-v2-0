@@ -6,7 +6,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { User, Calendar, Clock, AlertCircle } from 'lucide-react';
 
-// ─── Types ─────────────────────────────────────────────────────────
 interface Patient {
   id: string;
   first_name: string;
@@ -17,10 +16,7 @@ interface Patient {
   waiting_time_minutes?: number | null;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════
-export function DoctorTodayPatients() {
+export default function DoctorTodayPatients() {
   const navigate = useNavigate();
   const tenantId = useAuthStore((state) => state.tenant_id);
   const user = useAuthStore((state) => state.user);
@@ -29,7 +25,6 @@ export function DoctorTodayPatients() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Fetch Today's Patients ────────────────────────────────────
   useEffect(() => {
     async function fetchPatients() {
       if (!tenantId || !user?.id) return;
@@ -84,7 +79,6 @@ export function DoctorTodayPatients() {
     fetchPatients();
   }, [tenantId, user?.id]);
 
-  // ── Loading State ─────────────────────────────────────────────
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-4" dir="rtl">
@@ -95,7 +89,6 @@ export function DoctorTodayPatients() {
     );
   }
 
-  // ── Error State ───────────────────────────────────────────────
   if (error) {
     return (
       <div className="max-w-4xl mx-auto p-6" dir="rtl">
@@ -109,7 +102,6 @@ export function DoctorTodayPatients() {
     );
   }
 
-  // ── Empty State ───────────────────────────────────────────────
   if (patients.length === 0) {
     return (
       <div className="max-w-4xl mx-auto p-6 text-center" dir="rtl">
@@ -120,12 +112,10 @@ export function DoctorTodayPatients() {
     );
   }
 
-  // ── Patient Click Handler ─────────────────────────────────────
   const handlePatientClick = (patient: Patient) => {
     navigate(`/doctor/session/${patient.id}`);
   };
 
-  // ── Render ────────────────────────────────────────────────────
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4" dir="rtl">
       <h1 className="text-2xl font-bold text-slate-900 mb-6">مرضى اليوم</h1>
@@ -138,12 +128,10 @@ export function DoctorTodayPatients() {
         >
           <CardContent className="p-5">
             <div className="flex items-center gap-4">
-              {/* Avatar */}
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
                 {patient.first_name.charAt(0)}
               </div>
 
-              {/* Patient Info */}
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-bold text-slate-900">
                   {patient.first_name} {patient.last_name}
@@ -168,7 +156,6 @@ export function DoctorTodayPatients() {
                 </div>
               </div>
 
-              {/* Action */}
               <Button variant="outline" className="shrink-0">
                 فتح الجلسة
               </Button>
