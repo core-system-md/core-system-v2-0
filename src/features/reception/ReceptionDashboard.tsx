@@ -68,7 +68,7 @@ export default function ReceptionDashboard() {
   });
   const [bookingLoading, setBookingLoading] = useState(false);
 
-  const tenant_id = useAuthStore((s: any) => s.user?.tenant_id);
+  const tenant_id = useAuthStore((s) => s.tenant_id);
 
   useEffect(() => {
     if (tenant_id) {
