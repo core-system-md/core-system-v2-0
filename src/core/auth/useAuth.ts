@@ -73,6 +73,34 @@ export function useAuth() {
 
   const loginWithPin = useCallback(
     async (pin: string, selectedRole?: string) => {
+      // ═══ DEV MODE BYPASS (first in function) ═══
+      const isDevMode =
+        import.meta.env.DEV ||
+        localStorage.getItem('tenant_id') === '00000000-0000-0000-0000-000000000001';
+
+      if (isDevMode && pin === '0000') {
+        const mockUser: AuthUser = {
+          id: 'dev-user',
+          email: 'dev@core.local',
+          full_name: 'Dev Doctor',
+          full_name_ar: null,
+          role: (selectedRole as AuthUser['role']) || 'doctor',
+          tenant_id: '00000000-0000-0000-0000-000000000001',
+          employee_code: 'DEV-EMP',
+          pin_code: null,
+          phone: null,
+          specialization: null,
+        };
+
+        store.login(mockUser, null, null);
+        store.setPinAuthenticated(true);
+
+        localStorage.setItem('employee_code', 'DEV-EMP');
+
+        return { success: true, user: mockUser };
+      }
+      // ═══ END DEV MODE BYPASS ═══
+
       const tenantId = store.user?.tenant_id || localStorage.getItem('tenant_id') || '';
       const employeeCode = localStorage.getItem('employee_code') || '';
 
