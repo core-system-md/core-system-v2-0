@@ -8,6 +8,7 @@ import { User, Calendar, Clock, AlertCircle } from 'lucide-react';
 
 interface Patient {
   id: string;
+  patient_id: string;
   first_name: string;
   last_name: string;
   phone_primary: string;
@@ -63,7 +64,8 @@ export default function DoctorTodayPatients() {
       }
 
       const formatted = (data || []).map((row: any) => ({
-        id: row.clinic_patients.id,
+        id: row.id,                          // ← FIXED: session ID (was: row.clinic_patients.id)
+        patient_id: row.clinic_patients.id,  // ← NEW: patient ID (for future use)
         first_name: row.clinic_patients.first_name,
         last_name: row.clinic_patients.last_name,
         phone_primary: row.clinic_patients.phone_primary,
@@ -113,7 +115,7 @@ export default function DoctorTodayPatients() {
   }
 
   const handlePatientClick = (patient: Patient) => {
-    navigate(`/doctor/session/${patient.id}`);
+    navigate(`/doctor/session/${patient.id}`);  // ← patient.id = session ID (FIXED)
   };
 
   return (
