@@ -350,10 +350,10 @@ export default function DoctorSessionView() {
       </Card>
 
       {/* ═══════════════════════════════════════════════════════════
-          2. DECISION CARD (uses useParams internally)
+          2. DECISION CARD (passes sessionId as prop)
          ═══════════════════════════════════════════════════════════ */}
       <section aria-label="Decision Card">
-        <DecisionCard />
+        <DecisionCard sessionId={session.id} />
       </section>
 
       {/* ═══════════════════════════════════════════════════════════
