@@ -29,6 +29,14 @@ export function useAuthContext() {
   };
 }
 
+// ═══ DEV MODE DETECTION HELPER ═══
+function isDevModeActive(): boolean {
+  return (
+    import.meta.env.DEV ||
+    localStorage.getItem('tenant_id') === '00000000-0000-0000-0000-000000000001'
+  );
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const store = useAuthStore();
   const initialized = useRef(false);
@@ -43,12 +51,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ─── Check existing session ───────────────────────────
     supabase.auth.getUser().then(({ data: { user }, error }) => {
       if (error || !user) {
+        // ═══ DEV MODE BYPASS #1 ═══
+        if (isDevModeActive() && store.isAuthenticated && store.user) {
+          // Dev Mode: keep Zustand state, skip Supabase session check
+          return;
+        }
+        // ═══ END DEV MODE BYPASS ═══
+
         store.unauthenticate(error?.message ?? null);
         return;
       }
 
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) {
+          // ═══ DEV MODE BYPASS #2 ═══
+          if (isDevModeActive() && store.isAuthenticated && store.user) {
+            // Dev Mode: keep Zustand state, skip Supabase session requirement
+            return;
+          }
+          // ═══ END DEV MODE BYPASS ═══
+
           store.unauthenticate();
           return;
         }
@@ -91,6 +113,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
+        // ═══ DEV MODE BYPASS #3 ═══
+        if (isDevModeActive() && store.isAuthenticated && store.user) {
+          // Dev Mode: preserve Zustand state on Supabase auth state change
+          return;
+        }
+        // ═══ END DEV MODE BYPASS ═══
+
         store.unauthenticate();
         return;
       }

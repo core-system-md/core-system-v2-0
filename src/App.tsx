@@ -1,13 +1,12 @@
 // ============================================================
 // CORE SYSTEM v2.1 — App.tsx
 // Root providers: Query, Auth, Tenant, PinAuth, Realtime, Router, Toaster.
-// FIXED: 2026-07-01 — Added TenantProvider + RealtimeProvider, fixed provider nesting order
+// FIXED: 2026-07-06 — Removed BrowserRouter (createBrowserRouter handles routing)
 // Constitution §1: React 18+ + Vite + TypeScript (strict)
 // Constitution §3: Folder structure — core/ NEVER imports from features/.
 // ============================================================
 
 import React from 'react';
-import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/core/auth/AuthProvider';
 import { TenantProvider } from '@/core/providers/TenantProvider';
@@ -68,16 +67,17 @@ const queryClient = new QueryClient({
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <TenantProvider>
-            <RealtimeProvider>\n            <AppErrorBoundary>
+      {/* BrowserRouter REMOVED — createBrowserRouter in router.tsx handles routing */}
+      <AuthProvider>
+        <TenantProvider>
+          <RealtimeProvider>
+            <AppErrorBoundary>
               <Router />
               <Toaster position="top-right" richColors />
-            </AppErrorBoundary>\n          </RealtimeProvider>
-          </TenantProvider>
-        </AuthProvider>
-      </BrowserRouter>
+            </AppErrorBoundary>
+          </RealtimeProvider>
+        </TenantProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
