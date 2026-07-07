@@ -13,7 +13,8 @@ import CoreScoreMeter from '@/shared/components/ui/CoreScoreMeter';
 
 interface Patient {
   id: string;
-  full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   phone_primary: string | null;
   patient_status: string | null;
 }
@@ -84,6 +85,7 @@ export default function ReceptionDashboard() {
         .from('clinic_visit_sessions')
         .select('id, patient_id, session_status, created_at, core_score_backend, patient_class')
         .eq('tenant_id', tenant_id)
+        .is('deleted_at', null)
         .not('session_status', 'in', '("completed","cancelled")')
         .order('created_at', { ascending: true });
 
@@ -95,8 +97,9 @@ export default function ReceptionDashboard() {
         const patientIds = sessionsData.map((s: SessionInfo) => s.patient_id);
         const { data: patientsData, error: patientsError } = await supabase
           .from('clinic_patients')
-          .select('id, full_name, phone_primary, patient_status')
+          .select('id, first_name, last_name, phone_primary, patient_status')
           .eq('tenant_id', tenant_id)
+          .is('deleted_at', null)
           .in('id', patientIds);
 
         if (patientsError) throw patientsError;
@@ -110,6 +113,7 @@ export default function ReceptionDashboard() {
         .from('clinic_users')
         .select('id, full_name, specialization')
         .eq('tenant_id', tenant_id)
+        .is('deleted_at', null)
         .eq('role', 'doctor')
         .eq('is_active', true);
 
@@ -122,6 +126,7 @@ export default function ReceptionDashboard() {
         .from('master_agenda_events')
         .select('id, patient_id, doctor_id, scheduled_start, scheduled_end, status')
         .eq('tenant_id', tenant_id)
+        .is('deleted_at', null)
         .gte('scheduled_start', `${today}T00:00:00`)
         .lt('scheduled_start', `${today}T23:59:59`)
         .not('status', 'in', '("cancelled","no_show")')
@@ -146,10 +151,10 @@ export default function ReceptionDashboard() {
     try {
       const { data, error } = await supabase
         .from('clinic_patients')
-        .select('id, full_name, phone_primary, patient_status')
+        .select('id, first_name, last_name, phone_primary, patient_status')
         .eq('tenant_id', tenant_id)
-        .ilike('phone_primary', `%${searchPhone}%`)
         .is('deleted_at', null)
+        .ilike('phone_primary', `%${searchPhone}%`)
         .limit(1)
         .single();
 
@@ -159,8 +164,8 @@ export default function ReceptionDashboard() {
         setFoundPatient(data);
         setBookingForm(prev => ({
           ...prev,
-          firstName: data.full_name.split(' ')[0] || '',
-          lastName: data.full_name.split(' ').slice(1).join(' ') || '',
+          firstName: data.first_name || '',
+          lastName: data.last_name || '',
           phone: data.phone_primary || '',
           isNewPatient: false
         }));
@@ -191,14 +196,14 @@ export default function ReceptionDashboard() {
           .from('clinic_patients')
           .insert({
             tenant_id: tenant_id,
-            mrn: `MRN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`,
             first_name: bookingForm.firstName,
             last_name: bookingForm.lastName,
             full_name: `${bookingForm.firstName} ${bookingForm.lastName}`.trim(),
             phone_primary: bookingForm.phone,
             gender: bookingForm.gender,
             patient_status: 'active',
-            preferred_channel: 'whatsapp'
+            preferred_channel: 'whatsapp',
+            mrn: `MRN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`
           })
           .select('id')
           .single();
@@ -229,8 +234,7 @@ export default function ReceptionDashboard() {
           buffer_end: scheduledEnd,
           event_type: 'appointment',
           visit_type: foundPatient ? 'follow_up' : 'first_time',
-          status: 'scheduled',
-          booking_notes: bookingForm.inquiryReason
+          status: 'scheduled'
         })
         .select('id')
         .single();
@@ -285,7 +289,7 @@ export default function ReceptionDashboard() {
   const getPatientName = (patientId: string | null) => {
     if (!patientId) return 'مريض غير معروف';
     const p = patients.find(p => p.id === patientId);
-    return p?.full_name || 'مريض غير معروف';
+    return p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'مريض غير معروف' : 'مريض غير معروف';
   };
 
   const getDoctorName = (doctorId: string | null) => {
@@ -402,7 +406,7 @@ export default function ReceptionDashboard() {
               </button>
             </div>
             {foundPatient && (
-              <p className="mt-2 text-green-400 text-sm">✓ مريض موجود: {foundPatient.full_name}</p>
+              <p className="mt-2 text-green-400 text-sm">✓ مريض موجود: {foundPatient.first_name || ''} {foundPatient.last_name || ''}</p>
             )}
           </div>
 

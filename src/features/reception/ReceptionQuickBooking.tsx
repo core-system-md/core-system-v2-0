@@ -50,8 +50,8 @@ export function ReceptionQuickBooking() {
           last_name: '',
           full_name: form.patient_name.trim(),
           phone_primary: form.phone_number.trim(),
-          mrn: '',
           notes: form.reason_for_visit.trim() || null,
+          mrn: `MRN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`
         })
         .select()
         .single();
