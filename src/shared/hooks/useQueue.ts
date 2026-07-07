@@ -8,24 +8,8 @@ import { useAuthStore } from '../../shared/store/authStore';
 const QUEUE_KEY = 'live-queue';
 
 export function useQueue() {
-  const authTenantId = useAuthStore((s) => s.tenant_id);
-  
-  let tenantId = authTenantId;
-  if (!tenantId) {
-    try {
-      const pinAuth = localStorage.getItem('pin_auth');
-      if (pinAuth) {
-        const parsed = JSON.parse(pinAuth);
-        if (parsed.tenantId && Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
-          tenantId = parsed.tenantId;
-        }
-      }
-    } catch { /* ignore */ }
-  }
-  
+  const tenantId = useAuthStore((s) => s.tenant_id);
   const { setItems, setLoading } = useQueueStore();
-
-  console.log('DEBUG: tenantId =', tenantId);
 
   useQueueChannel(tenantId || '');
 
@@ -37,11 +21,7 @@ export function useQueue() {
       const { data, error } = await supabase
         .rpc('get_queue_for_tenant', { p_tenant_id: tenantId });
 
-      if (error) {
-        console.error('DEBUG: Supabase error:', error);
-        throw error;
-      }
-      console.log('DEBUG: fetched', data?.length, 'rows');
+      if (error) throw error;
 
       return (data || []).map((row: Record<string, unknown>) => {
         const waitMinutes = row.wait_time_minutes as number ?? 0;

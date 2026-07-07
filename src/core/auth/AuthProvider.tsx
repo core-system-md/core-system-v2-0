@@ -31,10 +31,7 @@ export function useAuthContext() {
 
 // ═══ DEV MODE DETECTION HELPER ═══
 function isDevModeActive(): boolean {
-  return (
-    import.meta.env.DEV ||
-    localStorage.getItem('tenant_id') === '00000000-0000-0000-0000-000000000001'
-  );
+  return import.meta.env.DEV;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

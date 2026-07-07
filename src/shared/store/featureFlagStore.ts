@@ -10,11 +10,8 @@ interface FeatureFlag {
   description: string | null;
   is_enabled: boolean;
   allowed_tiers: string[] | null;
-  
-  
   config_json: Record<string, unknown>;
 }
-
 
 interface FeatureFlagState {
   flags: FeatureFlag[];
@@ -23,9 +20,9 @@ interface FeatureFlagState {
   lastFetched: number | null;
 
   // Actions
-  fetchFlags: () => Promise<void>;
+  fetchFlags: (tenantId: string) => Promise<void>;
   isFlagEnabled: (flagKey: string, currentTier: string) => boolean;
-  refreshFlags: () => Promise<void>;
+  refreshFlags: (tenantId: string) => Promise<void>;
 }
 
 // Cache duration: 5 minutes
@@ -37,7 +34,7 @@ export const useFeatureFlagStore = create<FeatureFlagState>((set, get) => ({
   error: null,
   lastFetched: null,
 
-  fetchFlags: async () => {
+  fetchFlags: async (tenantId: string) => {
     const { lastFetched } = get();
 
     // Return cached data if valid
@@ -48,8 +45,6 @@ export const useFeatureFlagStore = create<FeatureFlagState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const tenantId = localStorage.getItem('tenant_id');
-
       if (!tenantId) {
         set({ flags: [], isLoading: false, lastFetched: Date.now() });
         return;
@@ -108,8 +103,8 @@ export const useFeatureFlagStore = create<FeatureFlagState>((set, get) => ({
     return Array.isArray(flag.allowed_tiers) && flag.allowed_tiers.includes(currentTier);
   },
 
-  refreshFlags: async () => {
+  refreshFlags: async (tenantId: string) => {
     set({ lastFetched: null });
-    await get().fetchFlags();
+    await get().fetchFlags(tenantId);
   }
 }));

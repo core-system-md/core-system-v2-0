@@ -1,5 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/core/auth/AuthProvider';
+import { useTenantStore } from '@/shared/store/tenantStore';
 import { Users, ClipboardList, Settings, Shield, LogOut, Stethoscope, Menu, X } from 'lucide-react';
 import { useState, ReactNode } from 'react';
 
@@ -10,10 +11,6 @@ const NAV_ITEMS = [
   { path: '/super_admin', label: 'النظام', icon: Shield, roles: ['super_admin'] },
 ];
 
-// ============================================
-// CRITICAL FIX: AppLayout accepts children prop
-// This allows both <AppLayout><Outlet /></AppLayout> and direct usage
-// ============================================
 interface AppLayoutProps {
   children?: ReactNode;
 }
@@ -22,6 +19,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { userRole, role, fullName, signOut } = useAuth();
+  const primaryColor = useTenantStore((s) => s.primaryColor);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const effectiveRole = userRole || role || 'doctor';
@@ -29,15 +27,17 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const handleSignOut = () => {
     signOut?.();
-    localStorage.removeItem('tenant_id');
-    localStorage.removeItem('core_pin_auth');
+    // AuthProvider handles all cleanup including localStorage
     navigate('/login', { replace: true });
   };
 
   return (
     <div className="min-h-screen bg-[#0f172a] flex" dir="rtl">
-      {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-[#1B2A4A] border-l border-white/10 transition-all duration-300 flex flex-col`}>
+      {/* Sidebar — Tenant branding via inline style (Tailwind JIT safe) */}
+      <aside
+        className={`${sidebarOpen ? 'w-64' : 'w-16'} border-l border-white/10 transition-all duration-300 flex flex-col`}
+        style={{ backgroundColor: primaryColor }}
+      >
         {/* Logo */}
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -94,7 +94,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </aside>
 
-      {/* Main Content — Render children if provided, otherwise Outlet */}
+      {/* Main Content */}
       <main className="flex-1 overflow-auto">
         {children || <Outlet />}
       </main>

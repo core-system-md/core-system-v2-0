@@ -11,12 +11,17 @@ export interface AuditPayload {
   oldValues?: Record<string, unknown>;
   newValues?: Record<string, unknown>;
   changedFields?: string[];
-  tenantId?: string;
+  tenantId: string;  // ← REQUIRED: no longer optional
   metadata?: Record<string, unknown>;
 }
 
 export function useAuditLog() {
   const write = async (payload: AuditPayload) => {
+    if (!payload.tenantId) {
+      console.error('[useAuditLog] Refused: tenantId is required for audit trail');
+      throw new Error('Missing tenant_id: audit trail requires tenant isolation');
+    }
+
     const { error } = await supabase.from('audit_trail').insert({
       action: payload.action,
       entity_type: payload.entityType,
@@ -25,7 +30,7 @@ export function useAuditLog() {
       new_values: (payload.newValues ?? {}) as any,
       changed_fields: payload.changedFields ?? [],
       metadata: payload.metadata ?? {},
-      tenant_id: payload.tenantId ?? null,
+      tenant_id: payload.tenantId,
       created_at: new Date().toISOString(),
     } as any);
 

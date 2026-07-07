@@ -1,26 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useTenantStore } from '@/shared/store/tenantStore';
+import { useAuthStore } from '@/shared/store/authStore';
 
-// Constitution §8.1: Feature flags table structure
-// tenant_id: UUID (NULL = global)
-// flag_key: VARCHAR(100)
-// is_enabled: BOOLEAN
-// allowed_tiers: TEXT[]
+// Constitution §8.1: Feature flag types
 
-interface FeatureFlag {
-  flag_key: string;
-  is_enabled: boolean;
-  allowed_tiers: string[] | null;
-}
-
-/**
- * Check if a feature flag is enabled for current tenant
- * Constitution §8.2: Tier validation required
- * 
- * @param flagKey - The feature flag key (e.g., 'AI_REPORTS')
- * @returns boolean - true if enabled and tier allowed
- */
 export function useFeatureFlag(flagKey: string): {
   isEnabled: boolean;
   isLoading: boolean;
@@ -30,144 +14,139 @@ export function useFeatureFlag(flagKey: string): {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { subscriptionTier } = useTenantStore();
-  const tenantId = localStorage.getItem('tenant_id');
+  const tenantId = useAuthStore((s) => s.tenant_id);
+  const currentTier = useTenantStore((s) => s.subscriptionTier);
 
   useEffect(() => {
-    const checkFlag = async () => {
-      if (!tenantId) {
-        setIsEnabled(false);
-        setIsLoading(false);
-        return;
-      }
+    if (!tenantId) {
+      setIsEnabled(false);
+      setIsLoading(false);
+      return;
+    }
 
+    let cancelled = false;
+
+    async function check() {
       setIsLoading(true);
+      setError(null);
+
       try {
-        // Step 1: Check tenant-specific flag
-        const { data: tenantFlag, error: tenantError } = await supabase
+        // Fetch tenant-specific + global flags
+        const { data, error: supaError } = await supabase
           .from('feature_flags')
-          .select('flag_key, is_enabled, allowed_tiers')
-          .eq('tenant_id', tenantId!)
+          .select('id, tenant_id, flag_key, flag_name, description, is_enabled, allowed_tiers, config_json')
           .eq('flag_key', flagKey)
-          .single();
+          .or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
 
-        if (tenantError && tenantError.code !== 'PGRST116') {
-          throw tenantError;
-        }
+        if (supaError) throw supaError;
 
-        // Step 2: If no tenant-specific flag, check global flag
-        let flag: FeatureFlag | null = tenantFlag;
+        const rows: any[] = (data || []) as any[];
+
+        // Priority: tenant-specific > global
+        const tenantFlag = rows.find(r => r.tenant_id !== null);
+        const globalFlag = rows.find(r => r.tenant_id === null);
+        const flag = tenantFlag || globalFlag;
 
         if (!flag) {
-          const { data: globalFlag, error: globalError } = await supabase
-            .from('feature_flags')
-            .select('flag_key, is_enabled, allowed_tiers')
-            .is('tenant_id', null)
-            .eq('flag_key', flagKey)
-            .single();
-
-          if (globalError && globalError.code !== 'PGRST116') {
-            throw globalError;
-          }
-          flag = globalFlag;
+          if (!cancelled) setIsEnabled(false);
+          return;
         }
 
-        // Step 3: Validate tier + enabled status
-        // Constitution §8: current_tier IN allowed_tiers AND is_enabled = true
-        if (flag && flag.is_enabled) {
-          const currentTier = subscriptionTier || 'trial';
-          const tierAllowed = Array.isArray(flag.allowed_tiers) ? flag.allowed_tiers.includes(currentTier) : false;
-          setIsEnabled(tierAllowed);
-        } else {
-          setIsEnabled(false);
+        if (!flag.is_enabled) {
+          if (!cancelled) setIsEnabled(false);
+          return;
         }
+
+        // Constitution §8.2: Tier validation
+        const allowedTiers = flag.allowed_tiers ?? [];
+        const hasTierAccess = Array.isArray(allowedTiers) && allowedTiers.includes(currentTier || 'trial');
+
+        if (!cancelled) setIsEnabled(hasTierAccess);
 
       } catch (err: unknown) {
-        console.error(`[useFeatureFlag] Error checking ${flagKey}:`, err);
-        setError(err instanceof Error ? err.message : 'Failed to check feature flag');
-        setIsEnabled(false);
+        if (!cancelled) {
+          console.error(`[useFeatureFlag] Error checking ${flagKey}:`, err);
+          setError(err instanceof Error ? err.message : 'Failed to check feature flag');
+          setIsEnabled(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
-    };
+    }
 
-    checkFlag();
-  }, [flagKey, tenantId, subscriptionTier]);
+    check();
+    return () => { cancelled = true; };
+  }, [flagKey, tenantId, currentTier]);
 
   return { isEnabled, isLoading, error };
 }
 
-/**
- * Batch check multiple feature flags
- * Optimized: single query for all flags
- */
 export function useFeatureFlags(flagKeys: string[]): {
   flags: Record<string, boolean>;
   isLoading: boolean;
+  error: string | null;
 } {
   const [flags, setFlags] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const { subscriptionTier } = useTenantStore();
-  const tenantId = localStorage.getItem('tenant_id');
+  const [error, setError] = useState<string | null>(null);
+
+  const tenantId = useAuthStore((s) => s.tenant_id);
+  const currentTier = useTenantStore((s) => s.subscriptionTier);
 
   useEffect(() => {
-    const checkFlags = async () => {
-      if (!tenantId || flagKeys.length === 0) {
-        setFlags(Object.fromEntries(flagKeys.map(k => [k, false])));
-        setIsLoading(false);
-        return;
-      }
+    if (!tenantId || flagKeys.length === 0) {
+      setFlags({});
+      setIsLoading(false);
+      return;
+    }
 
+    let cancelled = false;
+
+    async function checkAll() {
       setIsLoading(true);
+      setError(null);
+
       try {
-        // Fetch tenant-specific flags
-        const { data: tenantFlags, error: tenantError } = await supabase
+        const { data, error: supaError } = await supabase
           .from('feature_flags')
-          .select('flag_key, is_enabled, allowed_tiers')
-          .eq('tenant_id', tenantId!)
-          .in('flag_key', flagKeys);
+          .select('id, tenant_id, flag_key, flag_name, description, is_enabled, allowed_tiers, config_json')
+          .in('flag_key', flagKeys)
+          .or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
 
-        if (tenantError) throw tenantError;
+        if (supaError) throw supaError;
 
-        // Fetch global flags for missing ones
-        const foundKeys = (tenantFlags || []).map((f: FeatureFlag) => f.flag_key);
-        const missingKeys = flagKeys.filter(k => !foundKeys.includes(k));
+        const rows: any[] = (data || []) as any[];
+        const result: Record<string, boolean> = {};
 
-        let globalFlags: FeatureFlag[] = [];
-        if (missingKeys.length > 0) {
-          const { data: gFlags, error: globalError } = await supabase
-            .from('feature_flags')
-            .select('flag_key, is_enabled, allowed_tiers')
-            .is('tenant_id', null)
-            .in('flag_key', missingKeys);
+        for (const key of flagKeys) {
+          const tenantFlag = rows.find(r => r.flag_key === key && r.tenant_id !== null);
+          const globalFlag = rows.find(r => r.flag_key === key && r.tenant_id === null);
+          const flag = tenantFlag || globalFlag;
 
-          if (globalError) throw globalError;
-          globalFlags = gFlags || [];
+          if (!flag || !flag.is_enabled) {
+            result[key] = false;
+            continue;
+          }
+
+          const allowedTiers = flag.allowed_tiers ?? [];
+          result[key] = Array.isArray(allowedTiers) && allowedTiers.includes(currentTier || 'trial');
         }
 
-        // Merge and validate tiers
-        const allFlags = [...(tenantFlags || []), ...globalFlags];
-        const currentTier = subscriptionTier || 'trial';
-
-        const result: Record<string, boolean> = {};
-        flagKeys.forEach(key => {
-          const flag = allFlags.find((f: FeatureFlag) => f.flag_key === key);
-          const allowed = Array.isArray(flag?.allowed_tiers) ? flag!.allowed_tiers!.includes(currentTier) : false;
-          result[key] = flag ? flag.is_enabled && allowed : false;
-        });
-
-        setFlags(result);
-
+        if (!cancelled) setFlags(result);
       } catch (err: unknown) {
-        console.error('[useFeatureFlags] Error:', err);
-        setFlags(Object.fromEntries(flagKeys.map(k => [k, false])));
+        if (!cancelled) {
+          console.error('[useFeatureFlags] Error:', err);
+          setError(err instanceof Error ? err.message : 'Unknown error');
+          setFlags({});
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
-    };
+    }
 
-    checkFlags();
-  }, [flagKeys.join(','), tenantId, subscriptionTier]);
+    checkAll();
+    return () => { cancelled = true; };
+  }, [flagKeys.join(','), tenantId, currentTier]);
 
-  return { flags, isLoading };
+  return { flags, isLoading, error };
 }
