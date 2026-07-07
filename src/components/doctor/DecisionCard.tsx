@@ -15,7 +15,7 @@ interface SessionData {
   patient_class: string | null; doctor_notes: string | null; par_result: string | null; is_insured: boolean;
 }
 interface PatientData {
-  id: string; full_name: string; phone_primary: string | null;
+  id: string; first_name: string | null; last_name: string | null; phone_primary: string | null;
   date_of_birth: string | null; gender: string | null;
 }
 interface LongitudinalData {
@@ -81,8 +81,11 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
         PQS: sessionData.score_pqs ?? DEFAULT_INDICATORS.PQS
       });
       const { data: patientData, error: patientError } = await supabase
-        .from('clinic_patients').select('id, full_name, phone_primary, date_of_birth, gender')
-        .eq('id', sessionData.patient_id!).eq('tenant_id', tenant_id).single();
+        .from('clinic_patients')
+        .select('id, first_name, last_name, phone_primary, date_of_birth, gender')
+        .eq('id', sessionData.patient_id!)
+        .eq('tenant_id', tenant_id)
+        .single();
       if (patientError) throw patientError;
       setPatient(patientData);
       const { data: longData, error: longError } = await supabase
@@ -117,7 +120,7 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
         score_aps: indicators.APS, score_dri: indicators.DRI, score_rvs: indicators.RVS,
         score_uri: indicators.URI, score_tsi: indicators.TSI, score_pqs: indicators.PQS,
         updated_at: new Date().toISOString()
-      }).eq('id', sessionId);
+      }).eq('id', sessionId).eq('tenant_id', tenant_id);
       if (updateError) throw updateError;
       const { data, error } = await supabase.functions.invoke('score-calculator', {
         body: {
@@ -181,7 +184,7 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
       <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-2">{patient.full_name}</h1>
+            <h1 className="text-2xl font-bold text-white mb-2">{patient.first_name || ''} {patient.last_name || ''}</h1>
             <div className="flex items-center gap-4 text-sm text-white/50">
               {patient.phone_primary && <span>{patient.phone_primary}</span>}
               {patient.gender && <span>{patient.gender === 'male' ? 'ذكر' : 'أنثى'}</span>}
