@@ -14,7 +14,6 @@ interface FeatureFlag {
   config_json: Record<string, unknown> | null;
 }
 
-
 interface Tenant {
   id: string;
   clinic_name: string;
@@ -91,7 +90,8 @@ export default function FeatureFlagManager() {
       const { error } = await supabase
         .from('feature_flags')
         .update({ is_enabled: !currentState, updated_at: new Date().toISOString() })
-        .eq('id', flagId);
+        .eq('id', flagId)
+        .is('deleted_at', null);
 
       if (error) throw error;
 
@@ -113,7 +113,8 @@ export default function FeatureFlagManager() {
       const { error } = await supabase
         .from('feature_flags')
         .update({ allowed_tiers: newTiers, updated_at: new Date().toISOString() })
-        .eq('id', flagId);
+        .eq('id', flagId)
+        .is('deleted_at', null);
 
       if (error) throw error;
 
