@@ -40,8 +40,7 @@ export function useAuth() {
     const devTenantId = '00000000-0000-0000-0000-000000000001';
     if (licenseKey === 'DEV-MODE-2026') {
       store.setTenant(devTenantId);
-      localStorage.setItem('tenant_id', devTenantId);
-      return { success: true, tenant_id: devTenantId };
+            return { success: true, tenant_id: devTenantId };
     }
 
     try {
@@ -62,8 +61,7 @@ export function useAuth() {
 
       const tenantId = licenseData.id;
       store.setTenant(tenantId);
-      localStorage.setItem('tenant_id', tenantId);
-      return { success: true, tenant_id: tenantId };
+            return { success: true, tenant_id: tenantId };
     } catch (err: any) {
       const msg = err?.message || 'License validation failed';
       store.setError(msg);
@@ -74,9 +72,7 @@ export function useAuth() {
   const loginWithPin = useCallback(
     async (pin: string, selectedRole?: string) => {
       // ═══ DEV MODE BYPASS (first in function) ═══
-      const isDevMode =
-        import.meta.env.DEV ||
-        localStorage.getItem('tenant_id') === '00000000-0000-0000-0000-000000000001';
+      const isDevMode = import.meta.env.DEV;
 
       if (isDevMode && pin === '0000') {
         const mockUser: AuthUser = {
@@ -101,7 +97,7 @@ export function useAuth() {
       }
       // ═══ END DEV MODE BYPASS ═══
 
-      const tenantId = store.user?.tenant_id || localStorage.getItem('tenant_id') || '';
+      const tenantId = store.user?.tenant_id || '';
       const employeeCode = localStorage.getItem('employee_code') || '';
 
       if (!employeeCode || !tenantId) {
