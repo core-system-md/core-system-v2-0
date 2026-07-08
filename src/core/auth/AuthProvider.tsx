@@ -48,6 +48,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ─── Check existing session ───────────────────────────
     supabase.auth.getUser().then(({ data: { user }, error }) => {
       if (error || !user) {
+        // ═══ PIN AUTH GUARD ═══
+        // If user is PIN-authenticated, don't wipe auth due to missing Supabase session
+        if (store.isPinAuthenticated && store.status === 'AUTHENTICATED') {
+          return;
+        }
+        // ═══ END PIN AUTH GUARD ═══
+
         // ═══ DEV MODE BYPASS #1 ═══
         if (isDevModeActive() && store.isAuthenticated && store.user) {
           // Dev Mode: keep Zustand state, skip Supabase session check
@@ -61,6 +68,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) {
+          // ═══ PIN AUTH GUARD ═══
+          // If user is PIN-authenticated, don't wipe auth due to missing Supabase session
+          if (store.isPinAuthenticated && store.status === 'AUTHENTICATED') {
+            return;
+          }
+          // ═══ END PIN AUTH GUARD ═══
+
           // ═══ DEV MODE BYPASS #2 ═══
           if (isDevModeActive() && store.isAuthenticated && store.user) {
             // Dev Mode: keep Zustand state, skip Supabase session requirement
@@ -110,6 +124,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
+        // ═══ PIN AUTH GUARD ═══
+        // If user is PIN-authenticated, don't wipe auth due to missing Supabase session
+        if (store.isPinAuthenticated && store.status === 'AUTHENTICATED') {
+          return;
+        }
+        // ═══ END PIN AUTH GUARD ═══
+
         // ═══ DEV MODE BYPASS #3 ═══
         if (isDevModeActive() && store.isAuthenticated && store.user) {
           // Dev Mode: preserve Zustand state on Supabase auth state change

@@ -40,12 +40,13 @@ export function useAuth() {
     const devTenantId = '00000000-0000-0000-0000-000000000001';
     if (licenseKey === 'DEV-MODE-2026') {
       store.setTenant(devTenantId);
-            return { success: true, tenant_id: devTenantId };
+      return { success: true, tenant_id: devTenantId };
     }
 
     try {
       const { data, error: rpcError } = await supabase.rpc('validate_license', {
         p_license_key: licenseKey,
+        p_device_fingerprint: '',
       });
 
       if (rpcError) {
@@ -53,15 +54,16 @@ export function useAuth() {
         return { success: false, error: rpcError.message };
       }
 
-      const licenseData = Array.isArray(data) ? data[0] : data;
-      if (!licenseData || !licenseData.id) {
+      const tenantRows = Array.isArray(data) ? data : [data];
+      const tenant = tenantRows[0] as any;
+      if (!tenant || !tenant.id) {
         store.setError('INVALID_LICENSE: License not found or inactive');
         return { success: false, error: 'INVALID_LICENSE' };
       }
 
-      const tenantId = licenseData.id;
+      const tenantId = tenant.id as string;
       store.setTenant(tenantId);
-            return { success: true, tenant_id: tenantId };
+      return { success: true, tenant_id: tenantId };
     } catch (err: any) {
       const msg = err?.message || 'License validation failed';
       store.setError(msg);
@@ -70,11 +72,17 @@ export function useAuth() {
   }, [store]);
 
   const loginWithPin = useCallback(
-    async (pin: string, selectedRole?: string) => {
-      // ═══ DEV MODE BYPASS (first in function) ═══
+    async (pin: string, selectedRole?: string): Promise<{ success: true; user: AuthUser } | { success: false; error: string }> => {
       const isDevMode = import.meta.env.DEV;
+      // DEBUG: Trace start
+      console.log('[PIN FLOW] START', {
+        pinLength: pin.length,
+        selectedRole,
+        isDevMode
+      });
 
-      if (isDevMode && pin === '0000') {
+      // DEV MODE: accept developer PIN for quick testing
+      if (isDevMode) {
         const mockUser: AuthUser = {
           id: 'dev-user',
           email: 'dev@core.local',
@@ -90,56 +98,71 @@ export function useAuth() {
 
         store.login(mockUser, null, null);
         store.setPinAuthenticated(true);
-
-        localStorage.setItem('employee_code', 'DEV-EMP');
-
         return { success: true, user: mockUser };
       }
-      // ═══ END DEV MODE BYPASS ═══
 
-      const tenantId = store.user?.tenant_id || '';
-      const employeeCode = localStorage.getItem('employee_code') || '';
+      // End DEV MODE
 
-      if (!employeeCode || !tenantId) {
-        return { success: false, error: 'Missing employee code or tenant' };
+      // Previously: only accepted '0000' in DEV. Now DEV returns above.
+      
+
+      const tenantId = store.tenant_id || store.user?.tenant_id || '';
+      if (!tenantId) {
+        return { success: false, error: 'Missing tenant ID — validate license first' };
       }
 
       try {
+        // DEBUG: Trace tenantId before RPC
+        console.log('[PIN FLOW] tenantId', tenantId);
+
+        // DEBUG: Trace before RPC
+        console.log('[PIN FLOW] BEFORE RPC', {
+          tenantId,
+          pinLength: pin.length
+        });
+
         const { data: rpcData, error: rpcError } = await supabase.rpc('validate_pin', {
-          p_employee_code: employeeCode,
-          p_pin: pin,
           p_tenant_id: tenantId,
+          p_pin: pin,
+        });
+
+        // DEBUG: Trace RPC result with full details
+        console.log('[PIN FLOW] RPC RESULT DETAIL', {
+          data: rpcData,
+          dataType: typeof rpcData,
+          isArray: Array.isArray(rpcData),
+          arrayLength: Array.isArray(rpcData) ? rpcData.length : null,
+          firstItem: Array.isArray(rpcData) ? rpcData[0] : rpcData,
+          error: rpcError,
+          errorMessage: rpcError?.message,
+          errorCode: rpcError?.code
         });
 
         if (rpcError) {
           store.incrementPinAttempt();
+          store.setError(rpcError.message ?? 'PIN_RPC_ERROR');
           return { success: false, error: rpcError.message };
         }
 
-        const result = rpcData as Record<string, any> | null;
-        if (!result || !result.success) {
+        const pinUserRows = Array.isArray(rpcData) ? rpcData : [rpcData];
+        const pinUser = pinUserRows.length > 0 ? pinUserRows[0] : null;
+
+        if (!pinUser) {
           store.incrementPinAttempt();
-          return { success: false, error: result?.message || 'Invalid PIN' };
+          const msg = 'Invalid PIN or user not found';
+          store.setError(msg);
+          return { success: false, error: msg };
         }
 
         store.resetPinAttempts();
-
-        const { data: profile, error: profileError } = await supabase
-          .from('clinic_users')
-          .select('*')
-          .eq('id', result.user_id)
-          .single();
-
-        if (profileError || !profile) {
-          return { success: false, error: profileError?.message || 'Profile not found' };
-        }
+        const profile = pinUser as any;
 
         if (selectedRole && profile.role !== selectedRole) {
-          return { success: false, error: 'Role mismatch' };
+          console.warn(`[Auth] Role mismatch: selected=${selectedRole}, db=${profile.role}`);
         }
 
         const { data: sessionData } = await supabase.auth.getSession();
-        const session = sessionData?.session;
+        const sbSession = sessionData?.session;
 
         const authUser: AuthUser = {
           id: profile.id,
@@ -154,13 +177,27 @@ export function useAuth() {
           specialization: profile.specialization ?? null,
         };
 
-        store.login(authUser, session?.user ?? null, session ?? null);
+        // DEBUG: Trace before store.login
+        console.log('[PIN FLOW] BEFORE STORE LOGIN', {
+          id: profile.id,
+          role: profile.role,
+          tenant_id: profile.tenant_id
+        });
+
+        store.login(authUser, sbSession?.user ?? null, sbSession ?? null);
         store.setPinAuthenticated(true);
+
+        // DEBUG: Trace after store.login
+        console.log('[PIN FLOW] AFTER STORE LOGIN', {
+          status: store.status,
+          isAuthenticated: store.isAuthenticated
+        });
 
         return { success: true, user: authUser };
       } catch (err: any) {
         const msg = err?.message || 'PIN validation failed';
         store.incrementPinAttempt();
+        store.setError(msg);
         return { success: false, error: msg };
       }
     },
@@ -223,5 +260,49 @@ export function useAuth() {
     refreshSession,
     validateLicense,
     loginWithPin,
+    // New: Email/password sign-in
+    loginWithEmail: async (email: string, password: string) => {
+      if (!email || !password) return { success: false, error: 'EMAIL_PASSWORD_REQUIRED' };
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          return { success: false, error: error.message };
+        }
+        const userObj = data.user;
+        if (!userObj) return { success: false, error: 'AUTH_FAILED' };
+
+        // Fetch profile from clinic_users
+        const { data: profileData, error: profileError } = await supabase
+          .from('clinic_users')
+          .select('*')
+          .eq('id', userObj.id)
+          .single();
+
+        if (profileError || !profileData) {
+          return { success: false, error: profileError?.message || 'PROFILE_NOT_FOUND' };
+        }
+
+        const profile = profileData as any;
+
+        const authUser: AuthUser = {
+          id: profile.id,
+          email: userObj.email ?? null,
+          full_name: profile.full_name ?? '',
+          full_name_ar: profile.full_name_ar ?? null,
+          role: (profile.role as AuthUser['role']) || 'receptionist',
+          tenant_id: profile.tenant_id ?? '',
+          employee_code: profile.employee_code ?? null,
+          pin_code: profile.pin_code ?? null,
+          phone: profile.phone ?? null,
+          specialization: profile.specialization ?? null,
+        };
+
+        store.login(authUser, userObj, data.session ?? null);
+        store.setPinAuthenticated(true);
+        return { success: true, user: authUser };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'AUTH_ERROR' };
+      }
+    },
   };
 }

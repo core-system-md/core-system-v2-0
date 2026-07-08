@@ -11,6 +11,7 @@ import { useAuth } from '@/core/auth/useAuth';
 import { useAuthStore, selectIsPinLocked, selectPinAttemptsRemaining } from '@/shared/store/authStore';
 import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
 import type { UserRole } from '@/shared/types/auth';
+import type { AuthUser } from '@/shared/store/authStore';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ export default function AuthScreen() {
   const { 
     validateLicense, 
     loginWithPin, 
+    loginWithEmail,
     logout,
     isChecking, 
     error, 
@@ -44,6 +46,9 @@ export default function AuthScreen() {
   const [licenseKey, setLicenseKey] = useState('');
   const [pinCode, setPinCode] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | ''>('');
+  const [loginMethod, setLoginMethod] = useState<'pin' | 'email'>('pin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [step, setStep] = useState<1 | 2>(1);
   const [roleMismatch, setRoleMismatch] = useState(false);
 
@@ -76,15 +81,39 @@ export default function AuthScreen() {
     if (!trimmedPin || trimmedPin.length !== 4) return;
     if (!selectedRole) return;
 
+    // DEBUG: Trace before loginWithPin
+    console.log('[AUTH SCREEN] before loginWithPin', {
+      pinLength: trimmedPin.length,
+      selectedRole
+    });
+
     const result = await loginWithPin(trimmedPin, selectedRole);
-    if (result.success && result.user) {
-      if (result.user.role !== selectedRole) {
+
+    // DEBUG: Trace after loginWithPin
+    console.log('[AUTH SCREEN] loginWithPin result', result);
+
+    if (result.success) {
+      const pinResult = result as { success: true; user: AuthUser };
+      if (pinResult.user.role !== selectedRole) {
         setRoleMismatch(true);
       }
-      const route = getDefaultRoute(result.user.role as UserRole);
+      const route = getDefaultRoute(pinResult.user.role as UserRole);
       navigate(route, { replace: true });
     }
   }, [pinCode, selectedRole, loginWithPin, clearError, navigate]);
+
+  const handleEmailSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearError();
+    if (!email || !password) return;
+    const result = await (loginWithEmail ? loginWithEmail(email, password) : Promise.resolve({ success: false }));
+    console.log('[AUTH SCREEN] loginWithEmail result', result);
+    if (result.success) {
+      const emailResult = result as { success: true; user: AuthUser };
+      const route = getDefaultRoute(emailResult.user.role as UserRole);
+      navigate(route, { replace: true });
+    }
+  }, [email, password, clearError, loginWithEmail, navigate]);
 
   const handlePinChange = useCallback((value: string) => {
     const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
@@ -106,8 +135,9 @@ export default function AuthScreen() {
     clearError();
     await validateLicense('DEV-MODE-2026');
     const result = await loginWithPin('1234', role);
-    if (result.success && result.user) {
-      const route = getDefaultRoute(result.user.role as UserRole);
+    if (result.success) {
+      const devResult = result as { success: true; user: AuthUser };
+      const route = getDefaultRoute(devResult.user.role as UserRole);
       navigate(route, { replace: true });
     }
   }, [validateLicense, loginWithPin, clearError, navigate]);
@@ -177,66 +207,137 @@ export default function AuthScreen() {
           )}
 
           {step === 2 && (
-            <form onSubmit={handlePinSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>الدور الوظيفي</Label>
-                <Select value={selectedRole} onValueChange={(v: string) => setSelectedRole(v as UserRole)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر الدور..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="doctor">طبيب</SelectItem>
-                    <SelectItem value="receptionist">استقبال</SelectItem>
-                    <SelectItem value="clinic_admin">مدير العيادة</SelectItem>
-                    <SelectItem value="super_admin">مدير النظام</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-400">
-                  اختيار الدور لتسهيل التجربة — الدور الفعلي يأتي من قاعدة البيانات
-                </p>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={loginMethod === 'pin' ? 'default' : 'ghost'}
+                  onClick={() => setLoginMethod('pin')}
+                  className="flex-1"
+                >
+                  تسجيل باستخدام PIN
+                </Button>
+                <Button
+                  type="button"
+                  variant={loginMethod === 'email' ? 'default' : 'ghost'}
+                  onClick={() => setLoginMethod('email')}
+                  className="flex-1"
+                >
+                  تسجيل باستخدام البريد
+                </Button>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="pin">رمز PIN (4 أرقام)</Label>
-                <Input
-                  id="pin"
-                  type="password"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={4}
-                  placeholder="• • • •"
-                  value={pinCode}
-                  onChange={(e) => handlePinChange(e.target.value)}
-                  disabled={isChecking || isPinLocked}
-                  className="text-center text-2xl tracking-[0.5em]"
-                  autoComplete="off"
-                />
-                {isPinLocked && (
-                  <p className="text-xs text-red-600">تم قفل المحاولات. يرجى الانتظار.</p>
-                )}
-                {!isPinLocked && attemptsRemaining < 5 && (
-                  <p className="text-xs text-amber-600">محاولات متبقية: {attemptsRemaining}</p>
-                )}
-              </div>
+              {loginMethod === 'pin' && (
+                <form onSubmit={handlePinSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>الدور الوظيفي</Label>
+                    <Select value={selectedRole} onValueChange={(v: string) => setSelectedRole(v as UserRole)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر الدور..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="doctor">طبيب</SelectItem>
+                        <SelectItem value="receptionist">استقبال</SelectItem>
+                        <SelectItem value="clinic_admin">مدير العيادة</SelectItem>
+                        <SelectItem value="super_admin">مدير النظام</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-400">
+                      اختيار الدور لتسهيل التجربة — الدور الفعلي يأتي من قاعدة البيانات
+                    </p>
+                  </div>
 
-              <Button 
-                type="submit" 
-                className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
-                disabled={isChecking || pinCode.length !== 4 || !selectedRole || isPinLocked}
-              >
-                {isChecking ? 'جاري التحقق...' : 'تسجيل الدخول'}
-              </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="pin">رمز PIN (4 أرقام)</Label>
+                    <Input
+                      id="pin"
+                      type="password"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      placeholder="• • • •"
+                      value={pinCode}
+                      onChange={(e) => handlePinChange(e.target.value)}
+                      disabled={isChecking || isPinLocked}
+                      className="text-center text-2xl tracking-[0.5em]"
+                      autoComplete="off"
+                    />
+                    {isPinLocked && (
+                      <p className="text-xs text-red-600">تم قفل المحاولات. يرجى الانتظار.</p>
+                    )}
+                    {!isPinLocked && attemptsRemaining < 5 && (
+                      <p className="text-xs text-amber-600">محاولات متبقية: {attemptsRemaining}</p>
+                    )}
+                  </div>
 
-              <Button 
-                type="button" 
-                variant="ghost" 
-                className="w-full"
-                onClick={handleReset}
-                disabled={isChecking}
-              >
-                العودة — إدخال ترخيص آخر
-              </Button>
-            </form>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
+                    disabled={isChecking || pinCode.length !== 4 || !selectedRole || isPinLocked}
+                  >
+                    {isChecking ? 'جاري التحقق...' : 'تسجيل الدخول'}
+                  </Button>
+
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    className="w-full"
+                    onClick={handleReset}
+                    disabled={isChecking}
+                  >
+                    العودة — إدخال ترخيص آخر
+                  </Button>
+                </form>
+              )}
+
+              {loginMethod === 'email' && (
+                <form onSubmit={handleEmailSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">البريد الإلكتروني</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="example@clinic.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isChecking}
+                      autoComplete="email"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password">كلمة المرور</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={isChecking}
+                      autoComplete="current-password"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
+                    disabled={isChecking || !email || !password}
+                  >
+                    {isChecking ? 'جاري التحقق...' : 'تسجيل الدخول'}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={handleReset}
+                    disabled={isChecking}
+                  >
+                    العودة — إدخال ترخيص آخر
+                  </Button>
+                </form>
+              )}
+            </div>
           )}
 
           {import.meta.env.DEV && tenant_id && (
