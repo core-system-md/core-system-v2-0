@@ -37,7 +37,7 @@ export function useAuth() {
       return { success: false, error: 'LICENSE_REQUIRED' };
     }
 
-    const devTenantId = '00000000-0000-0000-0000-000000000001';
+    const devTenantId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
     if (licenseKey === 'DEV-MODE-2026') {
       store.setTenant(devTenantId);
       return { success: true, tenant_id: devTenantId };
@@ -72,7 +72,7 @@ export function useAuth() {
   }, [store]);
 
   const loginWithPin = useCallback(
-    async (pin: string, selectedRole?: string): Promise<{ success: true; user: AuthUser } | { success: false; error: string }> => {
+    async (pin: string, selectedRole?: string) => {
       const isDevMode = import.meta.env.DEV;
       // DEBUG: Trace start
       console.log('[PIN FLOW] START', {
@@ -89,7 +89,7 @@ export function useAuth() {
           full_name: 'Dev Doctor',
           full_name_ar: null,
           role: (selectedRole as AuthUser['role']) || 'doctor',
-          tenant_id: '00000000-0000-0000-0000-000000000001',
+          tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
           employee_code: 'DEV-EMP',
           pin_code: null,
           phone: null,
