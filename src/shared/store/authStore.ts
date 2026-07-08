@@ -29,7 +29,7 @@ export interface AuthUser {
   avatar_url?: string | null;
 }
 
-interface TenantData {
+export interface TenantData {
   clinicName: string | null;
   subscriptionTier: string;
   primaryColor: string;
@@ -69,8 +69,17 @@ interface AuthState {
   login: (authUser: AuthUser, supabaseUser: User | null, session: Session | null) => void;
   logout: () => Promise<void>;
   clearError: () => void;
-  setTenant: (tenantId: string) => void;
+  setTenant: (tenantId: string, tenantData?: TenantData | null) => void;
 }
+
+// ─── Selectors (for useAuth hook) ─────────────────────────
+export const selectIsPinLocked = (state: AuthState) =>
+  state.pinLockedUntil !== null && Date.now() < state.pinLockedUntil;
+
+export const selectPinAttemptsRemaining = (state: AuthState) =>
+  Math.max(0, 5 - state.pinAttempts);
+
+export const selectUserRole = (state: AuthState) => state.user?.role ?? null;
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -119,53 +128,57 @@ export const useAuthStore = create<AuthState>()(
           pinAttempts: 0,
           pinLockedUntil: null,
           tenant_id: '',
-      tenantData: null,
+          tenantData: null,
         }),
 
-      requirePin: () =>
-        set({
-          status: 'PIN_REQUIRED',
-          isAuthenticated: false,
-          isPinAuthenticated: false,
-        }),
+      requirePin: () => set({ status: 'PIN_REQUIRED', isAuthenticated: false }),
 
-      lock: () =>
-        set({
-          status: 'LOCKED',
-          isAuthenticated: false,
-          isPinAuthenticated: false,
-        }),
+      lock: () => set({ status: 'LOCKED', isAuthenticated: false }),
 
-      // ─── Legacy setters (for backward compat) ───────────
-      setUser: (user) => set({ user, tenant_id: user?.tenant_id ?? '' }),
+      // ─── Legacy setters ─────────────────────────────────
+      setUser: (user) => set({ user }),
       setSupabaseUser: (supabaseUser) => set({ supabaseUser }),
       setSession: (session) => set({ session }),
       setStatus: (status) => set({ status }),
       setError: (error) => set({ error }),
-      setPinAuthenticated: (isPinAuthenticated) => set({ isPinAuthenticated }),
+      setPinAuthenticated: (val) => set({ isPinAuthenticated: val }),
+
       incrementPinAttempt: () => {
-        const attempts = get().pinAttempts + 1;
-        const locked = attempts >= 5 ? Date.now() + 15 * 60 * 1000 : null;
-        set({ pinAttempts: attempts, pinLockedUntil: locked });
+        const current = get().pinAttempts;
+        const next = current + 1;
+        if (next >= 5) {
+          set({
+            pinAttempts: next,
+            pinLockedUntil: Date.now() + 15 * 60 * 1000,
+            status: 'LOCKED',
+          });
+        } else {
+          set({ pinAttempts: next });
+        }
       },
+
       resetPinAttempts: () => set({ pinAttempts: 0, pinLockedUntil: null }),
 
-      // login() delegates to authenticate() for state machine compliance
       login: (authUser, supabaseUser, session) => {
         get().authenticate(authUser, supabaseUser, session);
       },
 
       logout: async () => {
-        await supabase.auth.signOut();
+        const { error } = await supabase.auth.signOut();
+        if (error) console.error('[authStore] signOut error:', error);
         get().unauthenticate();
       },
 
       clearError: () => set({ error: null }),
-      setTenant: (tenantId: string, tenantData?: TenantData | null) => 
-        set({ tenant_id: tenantId, tenantData: tenantData ?? null }),
+
+      setTenant: (tenantId: string, tenantData?: TenantData | null) =>
+        set({
+          tenant_id: tenantId,
+          tenantData: tenantData ?? null,
+        }),
     }),
     {
-      name: 'core-auth-storage',
+      name: 'auth-store',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         user: state.user,
@@ -177,16 +190,8 @@ export const useAuthStore = create<AuthState>()(
         pinAttempts: state.pinAttempts,
         pinLockedUntil: state.pinLockedUntil,
         tenant_id: state.tenant_id,
+        tenantData: state.tenantData,
       }),
     }
   )
 );
-
-// ─── Selectors ────────────────────────────────────────────
-export const selectUserRole = (state: AuthState) => state.user?.role ?? null;
-export const selectIsAuthenticated = (state: AuthState) => state.isAuthenticated;
-export const selectIsPinLocked = (state: AuthState) => {
-  if (!state.pinLockedUntil) return false;
-  return Date.now() < state.pinLockedUntil;
-};
-export const selectPinAttemptsRemaining = (state: AuthState) => Math.max(0, 5 - state.pinAttempts);

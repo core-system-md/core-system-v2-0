@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/infrastructure/supabase/client';
 
-interface TenantData {
+export interface TenantData {
   clinicName: string | null;
   subscriptionTier: string;
   primaryColor: string;
@@ -19,7 +19,7 @@ interface TenantState {
 
   // Actions
   fetchTenant: () => Promise<void>;
-  setTenantId: (id: string, tenantData?: TenantData) => void;
+  setTenantId: (id: string, tenantData?: TenantData | null) => void;
   clearTenant: () => void;
 }
 
@@ -101,14 +101,15 @@ export const useTenantStore = create<TenantState>((set, get) => ({
       set({ 
         error: err instanceof Error ? err.message : 'Failed to fetch tenant', 
         isLoading: false,
-        subscriptionTier: 'trial'
+        subscriptionTier: 'trial' // Fallback to safest tier
       });
     }
   },
 
-  setTenantId: (id: string, tenantData?: TenantData) => {
+  setTenantId: (id: string, tenantData?: TenantData | null) => {
     if (tenantData) {
-      console.log('[TENANT STORE] setTenantId with data', { id });
+      // Use provided tenant data (bypasses RLS re-query)
+      console.log('[tenantStore] setTenantId with data', { id, clinicName: tenantData.clinicName });
       set({
         tenantId: id,
         clinicName: tenantData.clinicName || null,
@@ -119,7 +120,8 @@ export const useTenantStore = create<TenantState>((set, get) => ({
         error: null,
       });
     } else {
-      console.log('[TENANT STORE] setTenantId without data', { id });
+      // Fallback: fetch from DB (may fail with RLS in PIN auth)
+      console.log('[tenantStore] setTenantId without data, will fetch', { id });
       set({ tenantId: id });
       get().fetchTenant();
     }

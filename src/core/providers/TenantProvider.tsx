@@ -1,7 +1,7 @@
 // ============================================================
 // CORE SYSTEM v2.1 — TenantProvider
 // Bridges AuthProvider ↔ tenantStore. Loads tenant data when auth changes.
-// NEW: 2026-07-01 — Created to sync auth state with tenant data
+// NEW: 2026-07-09 — Reads tenantData from authStore to bypass RLS re-query
 // Constitution §2.7: ALL queries MUST include tenant_id
 // ============================================================
 
@@ -18,13 +18,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   // ── Load tenant when tenant_id changes ──
   useEffect(() => {
-    console.log('[TENANT FLOW] tenantId changed', { tenantId, hasData: !!tenantData });
+    console.log('[TENANT FLOW] tenantId changed', { tenantId, hasTenantData: !!tenantData });
     if (tenantId) {
       if (tenantData) {
-        console.log('[TENANT FLOW] using cached tenantData');
+        // Use cached tenant data from authStore (bypasses RLS re-query)
+        console.log('[TENANT FLOW] using cached tenantData from authStore');
         setTenantId(tenantId, tenantData);
       } else {
-        console.log('[TENANT FLOW] calling setTenantId (fallback)');
+        console.log('[TENANT FLOW] calling setTenantId without data');
         setTenantId(tenantId);
       }
     } else {
