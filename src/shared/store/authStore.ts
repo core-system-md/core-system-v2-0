@@ -70,6 +70,7 @@ interface AuthState {
   logout: () => Promise<void>;
   clearError: () => void;
   setTenant: (tenantId: string, tenantData?: TenantData | null) => void;
+  clearTenantContext: () => void;
 }
 
 // ─── Selectors (for useAuth hook) ─────────────────────────
@@ -127,8 +128,8 @@ export const useAuthStore = create<AuthState>()(
           isPinAuthenticated: false,
           pinAttempts: 0,
           pinLockedUntil: null,
-          tenant_id: '',
-          tenantData: null,
+          // tenant_id and tenantData are NOT cleared here
+          // They are managed separately by clearTenantContext
         }),
 
       requirePin: () => set({ status: 'PIN_REQUIRED', isAuthenticated: false }),
@@ -167,6 +168,7 @@ export const useAuthStore = create<AuthState>()(
         const { error } = await supabase.auth.signOut();
         if (error) console.error('[authStore] signOut error:', error);
         get().unauthenticate();
+        get().clearTenantContext();
       },
 
       clearError: () => set({ error: null }),
@@ -175,6 +177,12 @@ export const useAuthStore = create<AuthState>()(
         set({
           tenant_id: tenantId,
           tenantData: tenantData ?? null,
+        }),
+
+      clearTenantContext: () =>
+        set({
+          tenant_id: '',
+          tenantData: null,
         }),
     }),
     {

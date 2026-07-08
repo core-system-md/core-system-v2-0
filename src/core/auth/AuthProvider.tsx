@@ -48,39 +48,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ─── Check existing session ───────────────────────────
     supabase.auth.getUser().then(({ data: { user }, error }) => {
       if (error || !user) {
-        // ═══ PIN AUTH GUARD ═══
-        // If user is PIN-authenticated, don't wipe auth due to missing Supabase session
-        if (store.isPinAuthenticated && store.status === 'AUTHENTICATED') {
+        // If tenant context exists (license validated), don't wipe tenant data
+        // Just mark auth as unauthenticated so PIN flow can proceed
+        if (store.tenant_id) {
+          store.setStatus('UNAUTHENTICATED');
           return;
         }
-        // ═══ END PIN AUTH GUARD ═══
 
-        // ═══ DEV MODE BYPASS #1 ═══
-        if (isDevModeActive() && store.isAuthenticated && store.user) {
-          // Dev Mode: keep Zustand state, skip Supabase session check
-          return;
-        }
-        // ═══ END DEV MODE BYPASS ═══
-
+        // No tenant context — full unauthenticate
         store.unauthenticate(error?.message ?? null);
         return;
       }
 
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) {
-          // ═══ PIN AUTH GUARD ═══
-          // If user is PIN-authenticated, don't wipe auth due to missing Supabase session
-          if (store.isPinAuthenticated && store.status === 'AUTHENTICATED') {
+          // If tenant context exists, keep it for PIN flow
+          if (store.tenant_id) {
+            store.setStatus('UNAUTHENTICATED');
             return;
           }
-          // ═══ END PIN AUTH GUARD ═══
-
-          // ═══ DEV MODE BYPASS #2 ═══
-          if (isDevModeActive() && store.isAuthenticated && store.user) {
-            // Dev Mode: keep Zustand state, skip Supabase session requirement
-            return;
-          }
-          // ═══ END DEV MODE BYPASS ═══
 
           store.unauthenticate();
           return;
@@ -124,19 +110,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        // ═══ PIN AUTH GUARD ═══
-        // If user is PIN-authenticated, don't wipe auth due to missing Supabase session
-        if (store.isPinAuthenticated && store.status === 'AUTHENTICATED') {
+        // If tenant context exists, keep it for re-auth
+        if (store.tenant_id) {
+          store.setStatus('UNAUTHENTICATED');
           return;
         }
-        // ═══ END PIN AUTH GUARD ═══
-
-        // ═══ DEV MODE BYPASS #3 ═══
-        if (isDevModeActive() && store.isAuthenticated && store.user) {
-          // Dev Mode: preserve Zustand state on Supabase auth state change
-          return;
-        }
-        // ═══ END DEV MODE BYPASS ═══
 
         store.unauthenticate();
         return;
