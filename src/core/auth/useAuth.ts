@@ -56,7 +56,12 @@ export function useAuth() {
       }
 
       const tenantId = tenant.id as string;
-      store.setTenant(tenantId);
+      store.setTenant(tenantId, {
+        clinicName: tenant.clinic_name || null,
+        subscriptionTier: tenant.subscription_tier || 'trial',
+        primaryColor: tenant.primary_color || '#1B2A4A',
+        logoUrl: tenant.logo_url || null,
+      });
       return { success: true, tenant_id: tenantId };
     } catch (err: any) {
       const msg = err?.message || 'License validation failed';

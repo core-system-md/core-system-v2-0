@@ -11,15 +11,14 @@ export function usePinAuth() {
   const store = useAuthStore();
 
   const validatePin = useCallback(
-    async (employeeCode: string, pin: string, tenantId: string) => {
+    async (_employeeCode: string, pin: string, tenantId: string) => {
       store.startChecking();
       store.setError(null);
 
       try {
         const { data: rpcData, error: rpcError } = await supabase.rpc('validate_pin', {
-          p_employee_code: employeeCode,
-          p_pin: pin,
           p_tenant_id: tenantId,
+          p_pin: pin,
         });
 
         if (rpcError) {
@@ -29,9 +28,11 @@ export function usePinAuth() {
           return { success: false, error: rpcError.message };
         }
 
-        const result = rpcData as Record<string, any> | null;
-        if (!result || !result.success) {
-          const msg = result?.message || 'Invalid PIN or employee code';
+        const pinUserRows = Array.isArray(rpcData) ? rpcData : [rpcData];
+        const pinUser = pinUserRows.length > 0 ? pinUserRows[0] : null;
+
+        if (!pinUser) {
+          const msg = 'Invalid PIN or employee code';
           store.setError(msg);
           store.unauthenticate();
           store.incrementPinAttempt();
@@ -40,17 +41,7 @@ export function usePinAuth() {
 
         store.resetPinAttempts();
 
-        const { data: profile, error: profileError } = await supabase
-          .from('clinic_users')
-          .select('*')
-          .eq('id', result.user_id)
-          .single();
-
-        if (profileError || !profile) {
-          store.setError(profileError?.message || 'Profile not found');
-          store.unauthenticate();
-          return { success: false, error: profileError?.message || 'Profile not found' };
-        }
+        const profile = pinUser as any;
 
         const { data: sessionData } = await supabase.auth.getSession();
         const session = sessionData?.session;
@@ -84,14 +75,14 @@ export function usePinAuth() {
   );
 
   const switchUser = useCallback(
-    async (employeeCode: string, pin: string, tenantId: string) => {
+    async (_employeeCode: string, pin: string, tenantId: string) => {
       store.setUser(null);
       store.setSupabaseUser(null);
       store.setSession(null);
       store.setPinAuthenticated(false);
       store.boot();
       store.resetPinAttempts();
-      return validatePin(employeeCode, pin, tenantId);
+      return validatePin(_employeeCode, pin, tenantId);
     },
     [store, validatePin]
   );

@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import { supabase } from '@/infrastructure/supabase/client';
 
+interface TenantData {
+  clinicName: string | null;
+  subscriptionTier: string;
+  primaryColor: string;
+  logoUrl: string | null;
+}
+
 interface TenantState {
   tenantId: string | null;
   clinicName: string | null;
@@ -12,7 +19,7 @@ interface TenantState {
 
   // Actions
   fetchTenant: () => Promise<void>;
-  setTenantId: (id: string) => void;
+  setTenantId: (id: string, tenantData?: TenantData) => void;
   clearTenant: () => void;
 }
 
@@ -45,6 +52,9 @@ export const useTenantStore = create<TenantState>((set, get) => ({
       });
       return;
     }
+
+    // DEBUG: Trace fetch start
+    console.log('[TENANT STORE] fetch start', { tenantId });
 
     set({ isLoading: true, error: null });
 
@@ -91,14 +101,28 @@ export const useTenantStore = create<TenantState>((set, get) => ({
       set({ 
         error: err instanceof Error ? err.message : 'Failed to fetch tenant', 
         isLoading: false,
-        subscriptionTier: 'trial' // Fallback to safest tier
+        subscriptionTier: 'trial'
       });
     }
   },
 
-  setTenantId: (id: string) => {
-    set({ tenantId: id });
-    get().fetchTenant();
+  setTenantId: (id: string, tenantData?: TenantData) => {
+    if (tenantData) {
+      console.log('[TENANT STORE] setTenantId with data', { id });
+      set({
+        tenantId: id,
+        clinicName: tenantData.clinicName || null,
+        subscriptionTier: tenantData.subscriptionTier || 'trial',
+        primaryColor: tenantData.primaryColor || '#1B2A4A',
+        logoUrl: tenantData.logoUrl || null,
+        isLoading: false,
+        error: null,
+      });
+    } else {
+      console.log('[TENANT STORE] setTenantId without data', { id });
+      set({ tenantId: id });
+      get().fetchTenant();
+    }
   },
 
   clearTenant: () => {

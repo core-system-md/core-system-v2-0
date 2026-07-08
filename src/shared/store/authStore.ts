@@ -29,6 +29,13 @@ export interface AuthUser {
   avatar_url?: string | null;
 }
 
+interface TenantData {
+  clinicName: string | null;
+  subscriptionTier: string;
+  primaryColor: string;
+  logoUrl: string | null;
+}
+
 interface AuthState {
   user: AuthUser | null;
   supabaseUser: User | null;
@@ -40,6 +47,7 @@ interface AuthState {
   pinAttempts: number;
   pinLockedUntil: number | null;
   tenant_id: string;
+  tenantData: TenantData | null;
 
   // ─── State Machine Actions ──────────────────────────────
   boot: () => void;
@@ -78,6 +86,7 @@ export const useAuthStore = create<AuthState>()(
       pinAttempts: 0,
       pinLockedUntil: null,
       tenant_id: '',
+      tenantData: null,
 
       // ─── State Machine Actions ──────────────────────────
       boot: () => set({ status: 'BOOTING', isAuthenticated: false }),
@@ -110,6 +119,7 @@ export const useAuthStore = create<AuthState>()(
           pinAttempts: 0,
           pinLockedUntil: null,
           tenant_id: '',
+      tenantData: null,
         }),
 
       requirePin: () =>
@@ -151,7 +161,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clearError: () => set({ error: null }),
-      setTenant: (tenantId: string) => set({ tenant_id: tenantId }),
+      setTenant: (tenantId: string, tenantData?: TenantData | null) => 
+        set({ tenant_id: tenantId, tenantData: tenantData ?? null }),
     }),
     {
       name: 'core-auth-storage',
