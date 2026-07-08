@@ -37,12 +37,6 @@ export function useAuth() {
       return { success: false, error: 'LICENSE_REQUIRED' };
     }
 
-    const devTenantId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-    if (licenseKey === 'DEV-MODE-2026') {
-      store.setTenant(devTenantId);
-      return { success: true, tenant_id: devTenantId };
-    }
-
     try {
       const { data, error: rpcError } = await supabase.rpc('validate_license', {
         p_license_key: licenseKey,
