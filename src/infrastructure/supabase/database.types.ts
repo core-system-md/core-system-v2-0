@@ -1784,6 +1784,7 @@ export type Database = {
           created_at: string
           id: string
           ip_address: unknown
+          staff_id: string | null  // <-- Added in Migration 024
           success: boolean
           tenant_id: string
         }
@@ -1792,6 +1793,7 @@ export type Database = {
           created_at?: string
           id?: string
           ip_address?: unknown
+          staff_id?: string | null  // <-- Added in Migration 024
           success?: boolean
           tenant_id: string
         }

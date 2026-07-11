@@ -74,11 +74,13 @@ export async function validatePin(tenantId: string, pinCode: string) {
 }
 
 /**
- * Log PIN attempt for rate limiting.
+ * Log PIN attempt for rate limiting and audit trail.
+ * Constitution §9.6: staff_id REQUIRED for RLS policy rls_pin_attempts_own
  */
 export async function logPinAttempt(
-  tenantId: string, 
-  pinCode: string, 
+  tenantId: string,
+  staffId: string,      // <-- REQUIRED: auth.uid() for RLS
+  pinCode: string,
   success: boolean,
   ipAddress?: string
 ) {
@@ -86,6 +88,7 @@ export async function logPinAttempt(
     .from('pin_attempt_log')
     .insert({
       tenant_id: tenantId,
+      staff_id: staffId,           // <-- REQUIRED for RLS (Migration 024)
       attempted_pin: pinCode,
       success,
       ip_address: ipAddress,
