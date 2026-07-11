@@ -1,70 +1,94 @@
 /**
- * CORE SYSTEM v2.1 — currency.ts
- * CONSTITUTION §2.2: INTEGER fils only, NO FLOAT
- * 1 JOD = 1000 fils
+ * @file currency.ts
+ * @description Currency utilities — Constitution §2.2, §7
+ * @rules ALL monetary values in fils (INTEGER), 1 JOD = 1000 fils, NO FLOAT
  */
 
-export const CURRENCY = 'JOD' as const;
-export const SUBUNIT_RATIO = 1000;
+// ============================================
+// CONSTANTS — DO NOT MODIFY
+// ============================================
+export const JOD_SUBUNIT = 1000; // 1 JOD = 1000 fils
+export const CURRENCY_CODE = 'JOD';
+export const TIMEZONE = 'Asia/Amman';
+
+// ============================================
+// CONVERSION FUNCTIONS
+// ============================================
 
 /**
- * Convert subunits (INTEGER) to display format
- * Example: 25500 fils → "25.500 JOD"
+ * Convert display JOD (e.g., 25.500) to fils subunits (25500)
+ * @param displayAmount JOD with decimals
+ * @returns Integer fils
  */
-export function subunitsToDisplay(subunits: number | null): string {
-  if (subunits === null || subunits === undefined) return '0.000 JOD';
-  const integerSubunits = Math.round(subunits);
-  const jod = (integerSubunits / SUBUNIT_RATIO).toFixed(3);
-  return `${jod} ${CURRENCY}`;
+export function displayToSubunits(displayAmount: number): number {
+  if (typeof displayAmount !== 'number' || isNaN(displayAmount)) {
+    throw new Error('[CURRENCY] Invalid display amount');
+  }
+  return Math.round(displayAmount * JOD_SUBUNIT);
 }
 
 /**
- * Convert display string to subunits (INTEGER)
- * Example: "25.500" → 25500
+ * Convert fils subunits (25500) to display JOD string ("25.500 JOD")
+ * @param subunits Integer fils
+ * @returns Formatted JOD string
  */
-export function displayToSubunits(displayAmount: string | number): number {
-  const numericValue = typeof displayAmount === 'string'
-    ? parseFloat(displayAmount.replace(/[^0-9.]/g, ''))
-    : displayAmount;
-  if (isNaN(numericValue)) return 0;
-  return Math.round(numericValue * SUBUNIT_RATIO);
+export function subunitsToDisplay(subunits: number): string {
+  if (!Number.isInteger(subunits)) {
+    throw new Error('[CURRENCY] Subunits must be integer');
+  }
+  const jod = Math.floor(subunits / JOD_SUBUNIT);
+  const fils = Math.abs(subunits % JOD_SUBUNIT);
+  const filsStr = fils.toString().padStart(3, '0');
+  const sign = subunits < 0 ? '-' : '';
+  return `${sign}${jod}.${filsStr} ${CURRENCY_CODE}`;
 }
 
 /**
- * Add two amounts in subunits (INTEGER arithmetic only)
+ * Convert fils to numeric JOD (for calculations)
+ * @param subunits Integer fils
+ * @returns Number (e.g., 25.5)
  */
-export function addSubunits(a: number, b: number): number {
-  return Math.round(a) + Math.round(b);
+export function subunitsToNumber(subunits: number): number {
+  if (!Number.isInteger(subunits)) {
+    throw new Error('[CURRENCY] Subunits must be integer');
+  }
+  return subunits / JOD_SUBUNIT;
 }
 
 /**
- * Subtract two amounts in subunits (INTEGER arithmetic only)
+ * Add two amounts in fils (integer math)
  */
-export function subtractSubunits(a: number, b: number): number {
-  return Math.round(a) - Math.round(b);
+export function addFils(a: number, b: number): number {
+  if (!Number.isInteger(a) || !Number.isInteger(b)) {
+    throw new Error('[CURRENCY] addFils requires integers');
+  }
+  return a + b;
 }
 
 /**
- * Calculate percentage of amount in subunits
- * Used for: discount, tax, etc.
- * Example: 10000 fils, 16% → 1600 fils
+ * Subtract two amounts in fils (integer math)
  */
-export function calculateTaxSubunits(amountSubunits: number, percentage: number): number {
-  return Math.round((Math.round(amountSubunits) * percentage) / 100);
+export function subtractFils(a: number, b: number): number {
+  if (!Number.isInteger(a) || !Number.isInteger(b)) {
+    throw new Error('[CURRENCY] subtractFils requires integers');
+  }
+  return a - b;
 }
 
 /**
- * Calculate discount in subunits
- * Alias for calculateTaxSubunits (same math)
+ * Calculate percentage of amount in fils
  */
-export function calculateDiscountSubunits(amountSubunits: number, percentage: number): number {
-  return calculateTaxSubunits(amountSubunits, percentage);
+export function percentageOfFils(subunits: number, percent: number): number {
+  if (!Number.isInteger(subunits)) {
+    throw new Error('[CURRENCY] percentageOfFils requires integer subunits');
+  }
+  return Math.round((subunits * percent) / 100);
 }
 
-/**
- * Format subunits for input fields (shows JOD value)
- */
-export function subunitsToInputValue(subunits: number | null): string {
-  if (subunits === null || subunits === undefined) return '0.000';
-  return (Math.round(subunits) / SUBUNIT_RATIO).toFixed(3);
-}
+// ============================================
+// LEGACY ALIASES (backward compatibility)
+// ============================================
+/** @deprecated Use displayToSubunits() */
+export const jodToFils = displayToSubunits;
+/** @deprecated Use subunitsToDisplay() */
+export const filsToJod = subunitsToDisplay;
