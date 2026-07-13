@@ -1,6 +1,3 @@
-// CORE SYSTEM v2.1 — RoleSelector.tsx
-// ...
-
 import React, { useState } from 'react';
 import { useAuthContext } from '@/core/auth/useAuth';
 import { Navigate } from 'react-router-dom';
