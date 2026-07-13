@@ -1,4 +1,3 @@
-// ============================================================
 // CORE SYSTEM v2.1 — Router Configuration
 // FIXED: 2026-07-06 — Screen Rendering + Outlet Issue
 // Changes:
@@ -32,6 +31,7 @@ function LoadingScreen() {
 // LAZY LOAD: Auth
 // ────────────────────────────────────────────────────────────
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
+const RoleSelector = lazy(() => import('@/features/auth/RoleSelector'));
 
 // ────────────────────────────────────────────────────────────
 // LAZY LOAD: Layouts (UI shell with <Outlet />)
@@ -64,6 +64,9 @@ function AuthWrapper() {
   }
 
   if (isAuthenticated && user) {
+    if (!user.role) {
+      return <Navigate to="/login/roles" replace />;
+    }
     return <Navigate to={getDefaultRoute(user.role)} replace />;
   }
 
@@ -117,6 +120,16 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: <AuthWrapper />,
+    children: [
+      {
+        index: true,
+        element: <Suspense fallback={<LoadingScreen />}><AuthScreen /></Suspense>,
+      },
+      {
+        path: 'roles',
+        element: <Suspense fallback={<LoadingScreen />}><RoleSelector /></Suspense>,
+      },
+    ],
   },
   // ─── Clinic Admin ─────────────────────────────────────────
   {
