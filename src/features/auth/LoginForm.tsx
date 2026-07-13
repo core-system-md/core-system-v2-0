@@ -1,19 +1,15 @@
-// CORE SYSTEM v2.1 — LoginForm.tsx
-// ...
-
 import React, { useState } from 'react';
 import { useAuthContext } from '@/core/auth/useAuth';
-import { Navigate } from 'react-router-dom';
 
 export function LoginForm() {
-  const { loginWithPin, loginWithEmail, isPinAuthenticated } = useAuthContext();
+  const { loginWithPin, loginWithEmail } = useAuthContext();
   const [mode, setMode] = useState('pin'); // أو 'email'
   const [pin, setPin] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handlePinLogin = () => {
-    loginWithPin(pin).then(response => {
+    loginWithPin(pin, '').then(response => {
       if (response.success) {
         console.log('Login successful with PIN', response.user);
       } else {
