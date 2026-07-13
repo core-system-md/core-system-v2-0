@@ -2,7 +2,7 @@
 // ...
 
 import React, { useState } from 'react';
-import { useAuthContext } from '@/core/auth/AuthProvider';
+import { useAuthContext } from '@/core/auth/useAuth';
 import { Navigate } from 'react-router-dom';
 
 export function RoleSelector() {
@@ -16,6 +16,7 @@ export function RoleSelector() {
           console.log('Login successful', response.user);
         } else {
           console.error('Login failed', response.error);
+          alert(response.error);
         }
       });
     } else {
