@@ -1,12 +1,3 @@
-// CORE SYSTEM v2.1 — Router Configuration
-// Changes:
-//   - DoctorIndex → DoctorTodayPatients (fixed self-import)
-//   - All Layouts: UI shell + <Outlet /> (kept navigation)
-//   - Admin: added /admin/revenue and /admin/staff routes
-//   - /doctor/session/:sessionId nested under /doctor
-//   - No Layout used as Page anywhere
-// ============================================================
-
 import { Suspense, lazy } from 'react';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
@@ -62,11 +53,8 @@ function AuthWrapper() {
     return <LoadingScreen />;
   }
 
-  if (isAuthenticated && user) {
-    if (!user.role) {
-      return <Navigate to="/login/roles" replace />;
-    }
-    return <Navigate to={getDefaultRoute(user.role)} replace />;
+  if (isAuthenticated && user && !user.role) {
+    return <Navigate to="/login/roles" replace />;
   }
 
   return (
