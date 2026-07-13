@@ -1,5 +1,4 @@
 // CORE SYSTEM v2.1 — Router Configuration
-// FIXED: 2026-07-06 — Screen Rendering + Outlet Issue
 // Changes:
 //   - DoctorIndex → DoctorTodayPatients (fixed self-import)
 //   - All Layouts: UI shell + <Outlet /> (kept navigation)
@@ -18,7 +17,7 @@ import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
 // ────────────────────────────────────────────────────────────
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50" dir="rtl">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
       <div className="flex flex-col items-center gap-4">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#1B2A4A] border-t-transparent" />
         <p className="text-sm text-gray-600">جاري التحميل...</p>
@@ -110,7 +109,7 @@ function RootRedirect() {
 }
 
 // ────────────────────────────────────────────────────────────
-// ROUTER OBJECT — FIXED: Layout → Outlet → Page
+// ROUTER OBJECT
 // ────────────────────────────────────────────────────────────
 const router = createBrowserRouter([
   {
