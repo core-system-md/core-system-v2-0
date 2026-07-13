@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { useAuthContext } from '@/core/auth/useAuth';
+﻿import { useState } from 'react';
+import { useAuth } from '@/core/auth/useAuth';
 
 export function LoginForm() {
-  const { loginWithPin, loginWithEmail } = useAuthContext();
-  const [mode, setMode] = useState('pin'); // أو 'email'
+  const { loginWithPin, loginWithEmail } = useAuth();
+  const [mode, setMode] = useState('pin'); // Ø£Ùˆ 'email'
   const [pin, setPin] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handlePinLogin = () => {
-    loginWithPin(pin, '').then(response => {
+    loginWithPin(pin, '').then((response: any) => {
       if (response.success) {
         console.log('Login successful with PIN', response.user);
       } else {
@@ -20,7 +20,7 @@ export function LoginForm() {
   };
 
   const handleEmailLogin = () => {
-    loginWithEmail(email, password).then(response => {
+    loginWithEmail(email, password).then((response: any) => {
       if (response.success) {
         console.log('Login successful with Email', response);
       } else {
@@ -33,7 +33,7 @@ export function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
       <div className="max-w-md rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm">
-        <h1 className="text-xl font-bold text-[#1B2A4A]">تسجيل الدخول</h1>
+        <h1 className="text-xl font-bold text-[#1B2A4A]">ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„</h1>
         <div className="mt-4">
           <label className="flex items-center space-x-2">
             <input
@@ -49,7 +49,7 @@ export function LoginForm() {
               checked={mode === 'email'}
               onChange={() => setMode('email')}
             />
-            <span className="text-sm">البريد الإلكتروني وكلمة المرور</span>
+            <span className="text-sm">Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ ÙˆÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±</span>
           </label>
         </div>
         {mode === 'pin' && (
@@ -65,7 +65,7 @@ export function LoginForm() {
               className="mt-4 rounded bg-[#1B2A4A] px-4 py-2 text-sm text-white"
               onClick={handlePinLogin}
             >
-              تسجيل الدخول باستخدام PIN
+              ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø¨Ø§Ø³ØªØ®Ø¯Ø§Ù… PIN
             </button>
           </div>
         )}
@@ -73,14 +73,14 @@ export function LoginForm() {
           <div className="mt-4">
             <input
               type="email"
-              placeholder="البريد الإلكتروني"
+              placeholder="Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded mb-2"
             />
             <input
               type="password"
-              placeholder="كلمة المرور"
+              placeholder="ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded mb-2"
@@ -89,7 +89,7 @@ export function LoginForm() {
               className="mt-4 rounded bg-[#1B2A4A] px-4 py-2 text-sm text-white"
               onClick={handleEmailLogin}
             >
-              تسجيل الدخول بالبريد الإلكتروني وكلمة المرور
+              ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø¨Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ ÙˆÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±
             </button>
           </div>
         )}

@@ -1,63 +1,37 @@
-import React, { useState } from 'react';
-import { useAuthContext } from '@/core/auth/useAuth';
-import { Navigate } from 'react-router-dom';
+﻿import { Shield, Stethoscope, ClipboardList, Crown } from 'lucide-react';
 
-export function RoleSelector() {
-  const { user, loginWithPin } = useAuthContext();
-  const [role, setRole] = useState('');
+interface RoleSelectorProps {
+  selectedRole: string | null;
+  onSelect: (role: string) => void;
+}
 
-  const handleRoleSelection = () => {
-    if (role) {
-      loginWithPin(user?.pin_code ?? '', role).then(response => {
-        if (response.success) {
-          console.log('Login successful', response.user);
-        } else {
-          console.error('Login failed', response.error);
-          alert(response.error);
-        }
-      });
-    } else {
-      alert('Please select a role.');
-    }
-  };
+const ROLES = [
+  { id: 'doctor', label: 'Doctor', labelAr: 'طبيب', icon: Stethoscope, color: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' },
+  { id: 'receptionist', label: 'Reception', labelAr: 'استقبال', icon: ClipboardList, color: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' },
+  { id: 'clinic_admin', label: 'Admin', labelAr: 'مدير', icon: Shield, color: 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' },
+  { id: 'super_admin', label: 'Super Admin', labelAr: 'مدير عام', icon: Crown, color: 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100' },
+];
 
+export default function RoleSelector({ selectedRole, onSelect }: RoleSelectorProps) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
-      <div className="max-w-md rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm">
-        <h1 className="text-xl font-bold text-[#1B2A4A]">اختر دورك</h1>
-        <div className="mt-4 flex flex-col space-y-2">
+    <div className="grid grid-cols-2 gap-3" dir="rtl">
+      {ROLES.map((r) => {
+        const Icon = r.icon;
+        const isSelected = selectedRole === r.id;
+        return (
           <button
-            className="rounded bg-[#1B2A4A] px-4 py-2 text-sm text-white"
-            onClick={() => setRole('doctor')}
+            key={r.id}
+            onClick={() => onSelect(r.id)}
+            className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all ${isSelected ? `${r.color} ring-2 ring-offset-2 ring-[#1B2A4A]` : 'border-slate-200 bg-white hover:border-slate-300'}`}
           >
-            الطبيب
+            <Icon className="h-6 w-6" />
+            <div className="text-center">
+              <p className="text-sm font-semibold">{r.labelAr}</p>
+              <p className="text-xs text-slate-500">{r.label}</p>
+            </div>
           </button>
-          <button
-            className="rounded bg-[#1B2A4A] px-4 py-2 text-sm text-white"
-            onClick={() => setRole('receptionist')}
-          >
-            الاستقبال
-          </button>
-          <button
-            className="rounded bg-[#1B2A4A] px-4 py-2 text-sm text-white"
-            onClick={() => setRole('clinic_admin')}
-          >
-            الإدارة
-          </button>
-          <button
-            className="rounded bg-[#1B2A4A] px-4 py-2 text-sm text-white"
-            onClick={() => setRole('super_admin')}
-          >
-            Super Admin
-          </button>
-        </div>
-        <button
-          className="mt-4 rounded bg-blue-500 px-4 py-2 text-sm text-white"
-          onClick={handleRoleSelection}
-        >
-          استمرار
-        </button>
-      </div>
+        );
+      })}
     </div>
   );
 }

@@ -1,6 +1,12 @@
-export {}
-export { computeCoreScore, computeCoreScoreBatch, recomputeWithDelta } from './CoreScoreEngine';
-export { DEFAULT_WEIGHTS, getActiveWeights, validateWeights } from './IndicatorWeights';
-export { calculatePqsPenalty, getPqsPenaltyLabel } from './PqsPenaltyCalculator';
-export { computeWeightedScore, isHistoricalStale } from './LtvWeightRule';
-export { classifyPatient, getClassLabel, getClassColor } from './PatientClassifier';
+/**
+ * @file index.ts
+ * @description CORE Rules Scoring Engine exports -- Constitution §3, §4
+ */
+
+export * from './CoreScoreEngine';
+export * from './IndicatorWeights';
+export * from './PqsPenaltyCalculator';
+export * from './PatientClassifier';
+export * from './LtvWeightRule';
+export * from './PrestigeInflationFilter';
+export * from './TriangulationFilter';

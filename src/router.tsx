@@ -26,21 +26,21 @@ const RoleSelector = lazy(() => import('@/features/auth/RoleSelector'));
 // ────────────────────────────────────────────────────────────
 // LAZY LOAD: Layouts (UI shell with <Outlet />)
 // ────────────────────────────────────────────────────────────
-const AdminLayout      = lazy(() => import('@/features/clinic-admin/AdminLayout'));
-const DoctorLayout     = lazy(() => import('@/features/doctor/DoctorLayout'));
-const ReceptionLayout  = lazy(() => import('@/features/reception/ReceptionLayout'));
+const AdminLayout = lazy(() => import('@/features/clinic-admin/AdminLayout'));
+const DoctorLayout = lazy(() => import('@/features/doctor/DoctorLayout'));
+const ReceptionLayout = lazy(() => import('@/features/reception/ReceptionLayout'));
 const SuperAdminLayout = lazy(() => import('@/features/super-admin/SuperAdminLayout'));
 
 // ────────────────────────────────────────────────────────────
 // LAZY LOAD: Page Components (real pages, NOT layouts)
 // ────────────────────────────────────────────────────────────
 const DoctorTodayPatients = lazy(() => import('@/features/doctor/DoctorTodayPatients'));
-const DoctorSessionView   = lazy(() => import('@/features/doctor/DoctorSessionView'));
-const ReceptionDashboard  = lazy(() => import('@/features/reception/ReceptionDashboard'));
-const AdminOverviewPage   = lazy(() => import('@/features/clinic-admin/AdminOverviewPage'));
-const AdminRevenuePage    = lazy(() => import('@/features/clinic-admin/AdminRevenuePage'));
-const AdminStaffPage      = lazy(() => import('@/features/clinic-admin/AdminStaffPage'));
-const TenantRegistry      = lazy(() => import('@/features/super-admin/TenantRegistry'));
+const DoctorSessionView = lazy(() => import('@/features/doctor/DoctorSessionView'));
+const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDashboard'));
+const AdminOverviewPage = lazy(() => import('@/features/clinic-admin/AdminOverviewPage'));
+const AdminRevenuePage = lazy(() => import('@/features/clinic-admin/AdminRevenuePage'));
+const AdminStaffPage = lazy(() => import('@/features/clinic-admin/AdminStaffPage'));
+const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
 
 // ────────────────────────────────────────────────────────────
 // WRAPPERS
