@@ -1,103 +1,65 @@
-/**
+﻿/**
  * @file SamPatelProtocol.ts
- * @description Dr. Sam Patel's Emergency Escalation Protocol for SLA breaches
- * @constitution §6.3 - Named protocol for critical patient wait-time escalation
+ * @description Red breach escalation protocol -- Constitution Â§6.3
  */
 
-export interface EscalationLevel {
-  level: number;
-  name: string;
-  waitThresholdMinutes: number;
-  notifyRoles: string[];
-  action: string;
-  autoAssign: boolean;
+export interface SamPatelAction {
+    action: 'notify_reception' | 'notify_admin' | 'escalate_manager' | 'auto_reassign';
+    priority: 'high' | 'critical';
+    message: string;
+    timestamp: Date;
 }
 
-const ESCALATION_LEVELS: EscalationLevel[] = [
-  {
-    level: 1,
-    name: 'Standard Alert',
-    waitThresholdMinutes: 15,
-    notifyRoles: ['receptionist'],
-    action: 'Display amber warning on queue board',
-    autoAssign: false,
-  },
-  {
-    level: 2,
-    name: 'Supervisor Notice',
-    waitThresholdMinutes: 30,
-    notifyRoles: ['receptionist', 'clinic_admin'],
-    action: 'Send notification to clinic admin dashboard',
-    autoAssign: false,
-  },
-  {
-    level: 3,
-    name: 'Manager Alert',
-    waitThresholdMinutes: 45,
-    notifyRoles: ['clinic_admin', 'doctor_on_duty'],
-    action: 'Push alert to doctor mobile + admin console',
-    autoAssign: false,
-  },
-  {
-    level: 4,
-    name: 'Sam Patel Protocol',
-    waitThresholdMinutes: 60,
-    notifyRoles: ['clinic_admin', 'doctor_on_duty', 'super_admin'],
-    action: 'EMERGENCY: Auto-assign to next available senior doctor + SMS to clinic manager',
-    autoAssign: true,
-  },
-];
+const BREACH_ESCALATION_MINUTES = [25, 35, 45] as const;
 
-export interface PatientWaitStatus {
-  patientId: string;
-  sessionId: string;
-  checkedInAt: Date;
-  currentWaitMinutes: number;
-  escalationLevel: number;
-  assignedDoctorId?: string;
-}
-
-export const SamPatelProtocol = {
-  getEscalationLevel(waitMinutes: number): EscalationLevel {
-    for (let i = ESCALATION_LEVELS.length - 1; i >= 0; i--) {
-      const level = ESCALATION_LEVELS[i];
-      if (level && waitMinutes >= level.waitThresholdMinutes) {
-        return level;
-      }
+export function evaluateSamPatelProtocol(
+    waitMinutes: number,
+    patientClass: string,
+    isVip: boolean
+): SamPatelAction | null {
+    // Level 1: 25 minutes (initial breach)
+    if (waitMinutes >= BREACH_ESCALATION_MINUTES[0] && waitMinutes < BREACH_ESCALATION_MINUTES[1]) {
+        return {
+            action: 'notify_reception',
+            priority: 'high',
+            message: `Patient waiting ${waitMinutes}min. Notify reception to expedite.`,
+            timestamp: new Date(),
+        };
     }
-    return ESCALATION_LEVELS[0]!;
-  },
 
-  checkBreaches(patients: PatientWaitStatus[]): PatientWaitStatus[] {
-    const firstLevel = ESCALATION_LEVELS[0];
-    if (!firstLevel) return [];
-    return patients.filter(p => p.currentWaitMinutes >= firstLevel.waitThresholdMinutes);
-  },
+    // Level 2: 35 minutes
+    if (waitMinutes >= BREACH_ESCALATION_MINUTES[1] && waitMinutes < BREACH_ESCALATION_MINUTES[2]) {
+        return {
+            action: 'notify_admin',
+            priority: 'high',
+            message: `Patient waiting ${waitMinutes}min. Alert clinic admin for intervention.`,
+            timestamp: new Date(),
+        };
+    }
 
-  getAllLevels(): EscalationLevel[] {
-    return [...ESCALATION_LEVELS];
-  },
+    // Level 3: 45+ minutes (critical)
+    if (waitMinutes >= BREACH_ESCALATION_MINUTES[2]) {
+        const action: SamPatelAction['action'] = isVip || patientClass === 'hot_lead'
+            ? 'auto_reassign'
+            : 'escalate_manager';
+        return {
+            action,
+            priority: 'critical',
+            message: `CRITICAL: Patient waiting ${waitMinutes}min. ${action === 'auto_reassign' ? 'Auto-reassign to next available doctor.' : 'Escalate to clinic manager immediately.'}`,
+            timestamp: new Date(),
+        };
+    }
 
-  formatAlert(patient: PatientWaitStatus, level: EscalationLevel): string {
-    return `[${level.name}] Patient ${patient.patientId} has been waiting ${patient.currentWaitMinutes} minutes. Action: ${level.action}`;
-  },
+    return null;
+}
 
-  shouldAutoAssign(waitMinutes: number): boolean {
-    const level = this.getEscalationLevel(waitMinutes);
-    return level.autoAssign;
-  },
+export function shouldTriggerProtocol(waitMinutes: number): boolean {
+    return waitMinutes >= BREACH_ESCALATION_MINUTES[0];
+}
 
-  getSlaTarget(priority: 'urgent' | 'high' | 'normal' | 'low'): number {
-    const targets = {
-      urgent: 5,
-      high: 15,
-      normal: 30,
-      low: 60,
-    };
-    return targets[priority] ?? targets.normal;
-  },
-
-  isWithinSla(waitMinutes: number, priority: 'urgent' | 'high' | 'normal' | 'low'): boolean {
-    return waitMinutes <= this.getSlaTarget(priority);
-  },
-};
+export function getEscalationLevel(waitMinutes: number): number {
+    if (waitMinutes < BREACH_ESCALATION_MINUTES[0]) return 0;
+    if (waitMinutes < BREACH_ESCALATION_MINUTES[1]) return 1;
+    if (waitMinutes < BREACH_ESCALATION_MINUTES[2]) return 2;
+    return 3;
+}

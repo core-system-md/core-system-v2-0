@@ -1,94 +1,72 @@
-/**
+﻿/**
  * @file LockManager.ts
- * @description Session locking mechanism to prevent concurrent modifications
- * @constitution §5.4 - No two staff may modify the same session simultaneously
+ * @description Live card lock governance -- Constitution §5.4
  */
-
-import { eventBus } from '../../events/EventBus';
-
 export interface SessionLock {
   sessionId: string;
-  lockedBy: string;
-  lockedAt: Date;
-  expiresAt: Date;
-  reason: 'editing' | 'billing' | 'closing';
+  holderId: string;
+  holderName: string;
+  acquiredAt: Date;
 }
 
-const LOCK_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 const locks = new Map<string, SessionLock>();
+const SOFT_WARN_MINUTES = 5;
+const HARD_RELEASE_MINUTES = 10;
 
-export const LockManager = {
-  acquire(sessionId: string, userId: string, reason: SessionLock['reason']): boolean {
-    const existing = locks.get(sessionId);
-    
-    if (existing && existing.expiresAt > new Date()) {
-      if (existing.lockedBy !== userId) {
-        eventBus.emit('session:lock:denied', { sessionId, lockedBy: existing.lockedBy });
-        return false;
-      }
-      existing.expiresAt = new Date(Date.now() + LOCK_DURATION_MS);
-      return true;
-    }
-    
-    const lock: SessionLock = {
-      sessionId,
-      lockedBy: userId,
-      lockedAt: new Date(),
-      expiresAt: new Date(Date.now() + LOCK_DURATION_MS),
-      reason,
+export function acquireLock(
+  sessionId: string,
+  holderId: string,
+  holderName: string
+): { success: boolean; reason?: string } {
+  const existing = locks.get(sessionId);
+  if (existing && existing.holderId !== holderId) {
+    return {
+      success: false,
+      reason: `Locked by ${existing.holderName} since ${existing.acquiredAt.toISOString()}`,
     };
-    
-    locks.set(sessionId, lock);
-    eventBus.emit('session:lock:acquired', { sessionId, userId, reason });
-    return true;
-  },
+  }
+  locks.set(sessionId, { sessionId, holderId, holderName, acquiredAt: new Date() });
+  return { success: true };
+}
 
-  release(sessionId: string, userId: string): boolean {
-    const existing = locks.get(sessionId);
-    if (!existing) return false;
-    
-    if (existing.lockedBy !== userId) {
-      eventBus.emit('session:lock:unauthorized_release', { sessionId, attemptedBy: userId });
-      return false;
-    }
-    
-    locks.delete(sessionId);
-    eventBus.emit('session:lock:released', { sessionId, userId });
-    return true;
-  },
+export function releaseLock(sessionId: string, holderId: string): boolean {
+  const existing = locks.get(sessionId);
+  if (!existing) return false;
+  if (existing.holderId !== holderId) return false;
+  locks.delete(sessionId);
+  return true;
+}
 
-  isLockedByOther(sessionId: string, userId: string): boolean {
-    const lock = locks.get(sessionId);
-    if (!lock) return false;
-    if (lock.expiresAt <= new Date()) {
-      locks.delete(sessionId);
-      return false;
-    }
-    return lock.lockedBy !== userId;
-  },
+export function getLock(sessionId: string): SessionLock | undefined {
+  return locks.get(sessionId);
+}
 
-  getLockOwner(sessionId: string): string | null {
-    const lock = locks.get(sessionId);
-    if (!lock || lock.expiresAt <= new Date()) return null;
-    return lock.lockedBy;
-  },
+export function isLocked(sessionId: string): boolean {
+  return locks.has(sessionId);
+}
 
-  forceRelease(sessionId: string): void {
-    locks.delete(sessionId);
-    eventBus.emit('session:lock:force_released', { sessionId });
-  },
+export function getLockAgeMinutes(sessionId: string): number | null {
+  const lock = locks.get(sessionId);
+  if (!lock) return null;
+  return (Date.now() - lock.acquiredAt.getTime()) / (1000 * 60);
+}
 
-  cleanup(): number {
-    let count = 0;
-    const now = new Date();
-    for (const [id, lock] of locks) {
-      if (lock.expiresAt <= now) {
-        locks.delete(id);
-        count++;
-      }
-    }
-    return count;
-  },
-};
+export function shouldWarnAbandonment(sessionId: string): boolean {
+  const age = getLockAgeMinutes(sessionId);
+  if (age === null) return false;
+  return age >= SOFT_WARN_MINUTES && age < HARD_RELEASE_MINUTES;
+}
 
-setInterval(() => LockManager.cleanup(), 60_000);
+export function shouldAutoRelease(sessionId: string): boolean {
+  const age = getLockAgeMinutes(sessionId);
+  if (age === null) return false;
+  return age >= HARD_RELEASE_MINUTES;
+}
+
+export function forceRelease(sessionId: string): boolean {
+  return locks.delete(sessionId);
+}
+
+export function getAllLocks(): SessionLock[] {
+  return Array.from(locks.values());
+}

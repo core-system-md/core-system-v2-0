@@ -1,3 +1,6 @@
-export { SlaRadar } from './SlaRadar';
+﻿/**
+ * @file index.ts
+ * @description CORE Rules SLA exports -- Constitution §3, §6
+ */
 export * from './SlaThresholds';
-export { SamPatelProtocol } from './SamPatelProtocol';
+export * from './SamPatelProtocol';

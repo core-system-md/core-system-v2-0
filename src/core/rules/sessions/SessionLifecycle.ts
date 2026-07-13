@@ -1,36 +1,48 @@
-// src/core/rules/sessions/SessionLifecycle.ts
-// State Machine: waiting → checked_in → in_consultation → pending_close → completed
+﻿/**
+ * @file SessionLifecycle.ts
+ * @description Session state machine -- Constitution §5
+ */
+export type SessionStatus =
+  | 'waiting'
+  | 'in_consultation'
+  | 'pending_close'
+  | 'auto_closed'
+  | 'completed'
+  | 'cancelled'
+  | 'System_Closed_Timeout';
 
-export type SessionStatus = 'waiting' | 'checked_in' | 'in_consultation' | 'pending_close' | 'auto_closed' | 'completed' | 'cancelled';
-
-export const VALID_TRANSITIONS = [
-  { from: 'waiting', to: 'checked_in', allowedRoles: ['receptionist', 'clinic_admin', 'super_admin'] },
-  { from: 'checked_in', to: 'in_consultation', allowedRoles: ['doctor', 'clinic_admin', 'super_admin'], requiresInvoice: true },
-  { from: 'in_consultation', to: 'pending_close', allowedRoles: ['doctor', 'clinic_admin', 'super_admin'] },
-  { from: 'pending_close', to: 'completed', allowedRoles: ['receptionist', 'clinic_admin', 'super_admin'] },
-  { from: 'waiting', to: 'cancelled', allowedRoles: ['receptionist', 'clinic_admin', 'super_admin'] },
-];
-
-export class SessionLifecycle {
-  private currentStatus: SessionStatus = 'waiting';
-
-  canTransition(to: SessionStatus, userRole: string, hasPaidInvoice: boolean = false) {
-    const transition = VALID_TRANSITIONS.find(t => t.from === this.currentStatus && t.to === to);
-    if (!transition) return { allowed: false, reason: `Invalid: ${this.currentStatus} → ${to}` };
-    if (!transition.allowedRoles.includes(userRole)) return { allowed: false, reason: `Role ${userRole} denied` };
-    if (transition.requiresInvoice && !hasPaidInvoice) return { allowed: false, reason: 'Fee required' };
-    return { allowed: true };
-  }
-
-  transition(to: SessionStatus, userRole: string, hasPaidInvoice: boolean = false) {
-    const check = this.canTransition(to, userRole, hasPaidInvoice);
-    if (!check.allowed) return { success: false, newStatus: this.currentStatus, error: check.reason };
-    this.currentStatus = to;
-    return { success: true, newStatus: to };
-  }
-
-  getCurrentStatus() { return this.currentStatus; }
-  shouldAutoClose(bufferExpiresAt: Date | null) { return this.currentStatus === 'pending_close' && !!bufferExpiresAt && new Date() > bufferExpiresAt; }
+export interface SessionLifecycleConfig {
+  bufferWindowMinutes: number;
+  autoCloseMinutes: number;
 }
 
-export const sessionLifecycle = new SessionLifecycle();
+export const DEFAULT_LIFECYCLE_CONFIG: SessionLifecycleConfig = {
+  bufferWindowMinutes: 5,
+  autoCloseMinutes: 60,
+} as const;
+
+export function canTransition(from: SessionStatus, to: SessionStatus): boolean {
+  const transitions: Record<SessionStatus, SessionStatus[]> = {
+    waiting: ['in_consultation', 'cancelled'],
+    in_consultation: ['pending_close', 'cancelled'],
+    pending_close: ['completed', 'auto_closed', 'System_Closed_Timeout'],
+    auto_closed: [],
+    completed: [],
+    cancelled: [],
+    System_Closed_Timeout: [],
+  };
+  return transitions[from]?.includes(to) ?? false;
+}
+
+export function getNextValidStatuses(current: SessionStatus): SessionStatus[] {
+  const transitions: Record<SessionStatus, SessionStatus[]> = {
+    waiting: ['in_consultation', 'cancelled'],
+    in_consultation: ['pending_close', 'cancelled'],
+    pending_close: ['completed', 'auto_closed', 'System_Closed_Timeout'],
+    auto_closed: [],
+    completed: [],
+    cancelled: [],
+    System_Closed_Timeout: [],
+  };
+  return transitions[current] ?? [];
+}
