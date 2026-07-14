@@ -2,7 +2,7 @@
 // CORE SYSTEM v2.1 — AuthScreen
 // VIEW ONLY. NO Business Logic. NO supabase.rpc(). NO supabase.from().
 // Constitution §12: AuthScreen → useAuth → Supabase. NOT AuthScreen → Supabase directly.
-// FIXED: 2026-07-02 — Add DEV MODE button for instant access
+// FIXED: 2026-07-14 — Remove selectedRole from loginWithPin (role comes from DB only)
 // ============================================================
 
 import { useState, useCallback, useEffect } from 'react';
@@ -50,7 +50,6 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [step, setStep] = useState<1 | 2>(1);
-  const [roleMismatch, setRoleMismatch] = useState(false);
 
   const isPinLocked = useAuthStore(selectIsPinLocked);
   const attemptsRemaining = useAuthStore(selectPinAttemptsRemaining);
@@ -76,31 +75,25 @@ export default function AuthScreen() {
   const handlePinSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    setRoleMismatch(false);
     const trimmedPin = pinCode.trim();
     if (!trimmedPin || trimmedPin.length !== 4) return;
-    if (!selectedRole) return;
 
     // DEBUG: Trace before loginWithPin
     console.log('[AUTH SCREEN] before loginWithPin', {
       pinLength: trimmedPin.length,
-      selectedRole
     });
 
-    const result = await loginWithPin(trimmedPin, selectedRole);
+    const result = await loginWithPin(trimmedPin);
 
     // DEBUG: Trace after loginWithPin
     console.log('[AUTH SCREEN] loginWithPin result', result);
 
     if (result.success) {
       const pinResult = result as { success: true; user: AuthUser };
-      if (pinResult.user.role !== selectedRole) {
-        setRoleMismatch(true);
-      }
       const route = getDefaultRoute(pinResult.user.role as UserRole);
       navigate(route, { replace: true });
     }
-  }, [pinCode, selectedRole, loginWithPin, clearError, navigate]);
+  }, [pinCode, loginWithPin, clearError, navigate]);
 
   const handleEmailSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,7 +115,6 @@ export default function AuthScreen() {
 
   const handleReset = useCallback(() => {
     clearError();
-    setRoleMismatch(false);
     logout();
     setStep(1);
     setLicenseKey('');
@@ -131,10 +123,10 @@ export default function AuthScreen() {
   }, [logout, clearError]);
 
   // ── DEV MODE: Instant login ──
-  const handleDevMode = useCallback(async (role: UserRole) => {
+  const handleDevMode = useCallback(async () => {
     clearError();
     await validateLicense('DEV-MODE-2026');
-    const result = await loginWithPin('1234', role);
+    const result = await loginWithPin('1234');
     if (result.success) {
       const devResult = result as { success: true; user: AuthUser };
       const route = getDefaultRoute(devResult.user.role as UserRole);
@@ -159,25 +151,13 @@ export default function AuthScreen() {
             </Alert>
           )}
 
-          {roleMismatch && (
-            <Alert variant="warning" className="bg-amber-50 border-amber-200">
-              <AlertDescription className="text-amber-800">
-                ⚠️ الدور المختار ({selectedRole}) لا يطابق الدور المسجل في النظام. 
-                تم تسجيل الدخول بالدور الصحيح من قاعدة البيانات.
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* ── DEV MODE Buttons ── */}
           {import.meta.env.DEV && step === 1 && (
             <div className="space-y-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-xs text-blue-600 font-bold text-center">🚀 وضع التطوير — تسجيل الدخول الفوري</p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="button" variant="outline" onClick={() => handleDevMode('doctor')} className="text-xs">طبيب</Button>
-                <Button type="button" variant="outline" onClick={() => handleDevMode('receptionist')} className="text-xs">استقبال</Button>
-                <Button type="button" variant="outline" onClick={() => handleDevMode('clinic_admin')} className="text-xs">مدير العيادة</Button>
-                <Button type="button" variant="outline" onClick={() => handleDevMode('super_admin')} className="text-xs">مدير النظام</Button>
-              </div>
+              <Button type="button" variant="outline" onClick={handleDevMode} className="w-full text-xs">
+                تسجيل الدخول الفوري (وضع التطوير)
+              </Button>
             </div>
           )}
 

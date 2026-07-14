@@ -21,7 +21,7 @@ function LoadingScreen() {
 // LAZY LOAD: Auth
 // ────────────────────────────────────────────────────────────
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
-const RoleSelector = lazy(() => import('@/features/auth/RoleSelector'));
+
 
 // ────────────────────────────────────────────────────────────
 // LAZY LOAD: Layouts (UI shell with <Outlet />)
@@ -114,7 +114,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'roles',
-        element: <Suspense fallback={<LoadingScreen />}><RoleSelector /></Suspense>,
+        element: <Navigate to="/login" replace />,
       },
     ],
   },

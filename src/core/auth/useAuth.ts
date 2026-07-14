@@ -25,9 +25,9 @@ export function useAuth() {
     } catch (err: any) { store.setError(err?.message || 'License validation failed'); return { success: false, error: err?.message || 'License validation failed' }; }
   }, [store]);
 
-  const loginWithPin = useCallback(async (pin: string, selectedRole?: string) => {
+  const loginWithPin = useCallback(async (pin: string) => {
     if (import.meta.env.DEV) {
-      const mockUser: AuthUser = { id: 'dev-user', email: null, full_name: 'Dev Doctor', full_name_ar: null, role: (selectedRole as AuthUser['role']) || 'doctor', tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', employee_code: 'DEV-EMP', pin_code: null, phone: null, specialization: null };
+      const mockUser: AuthUser = { id: 'dev-user', email: null, full_name: 'Dev Doctor', full_name_ar: null, role: 'doctor', tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', employee_code: 'DEV-EMP', pin_code: null, phone: null, specialization: null };
       store.login(mockUser, null, null); store.setPinAuthenticated(true); return { success: true, user: mockUser };
     }
     const tenantId = store.tenant_id || store.user?.tenant_id || '';
