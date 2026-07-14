@@ -1,4 +1,4 @@
-﻿import { useCallback } from 'react';
+import { useCallback } from 'react';
 import { useAuthStore, selectIsPinLocked, selectPinAttemptsRemaining, selectUserRole } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
 import type { AuthUser } from '@/shared/store/authStore';
@@ -45,7 +45,7 @@ export function useAuth() {
   }, [store]);
 
   const loginWithEmail = useCallback(async (email: string, password: string) => {
-    try { const { data, error } = await supabase.auth.signInWithPassword({ email, password }); if (error) { store.setError(error.message); return { success: false, error: error.message }; } if (data.user) { const authUser: AuthUser = { id: data.user.id, email: data.user.email ?? null, full_name: data.user.user_metadata?.full_name || '', full_name_ar: data.user.user_metadata?.full_name_ar || null, role: data.user.user_metadata?.role || 'receptionist', tenant_id: data.user.user_metadata?.tenant_id || '', employee_code: data.user.user_metadata?.employee_code || null, pin_code: null, phone: data.user.user_metadata?.phone || null, specialization: data.user.user_metadata?.specialization || null }; store.login(authUser, data.user, data.session); return { success: true }; } return { success: false, error: 'No user returned' }; }
+    try { const { data, error } = await supabase.auth.signInWithPassword({ email, password }); if (error) { store.setError(error.message); return { success: false, error: error.message }; } if (data.user) { const authUser: AuthUser = { id: data.user.id, email: data.user.email ?? null, full_name: data.user.user_metadata?.full_name || '', full_name_ar: data.user.user_metadata?.full_name_ar || null, role: data.user.user_metadata?.role || 'receptionist', tenant_id: data.user.user_metadata?.tenant_id || '', employee_code: data.user.user_metadata?.employee_code || null, pin_code: null, phone: data.user.user_metadata?.phone || null, specialization: data.user.user_metadata?.specialization || null }; store.login(authUser, data.user, data.session); return { success: true, user: authUser }; } return { success: false, error: 'No user returned' }; }
     catch (err: any) { store.setError(err?.message || 'Email login failed'); return { success: false, error: err?.message || 'Email login failed' }; }
   }, [store]);
 
@@ -55,9 +55,3 @@ export function useAuth() {
 
   return { validateLicense, loginWithPin, loginWithEmail, logout, signOut, clearError, isChecking: store.status === 'CHECKING_SESSION', isAuthenticated: store.isAuthenticated, isPinAuthenticated: store.isPinAuthenticated, user: store.user, status: store.status, error: store.error, isPinLocked, attemptsRemaining, userRole, fullName, role };
 }
-
-
-
-
-
-
