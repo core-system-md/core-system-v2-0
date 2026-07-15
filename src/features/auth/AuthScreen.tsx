@@ -3,6 +3,7 @@
 // VIEW ONLY. NO Business Logic. NO supabase.rpc(). NO supabase.from().
 // Constitution §12: AuthScreen → useAuth → Supabase. NOT AuthScreen → Supabase directly.
 // FIXED: 2026-07-14 — Remove selectedRole from loginWithPin (role comes from DB only)
+// FIXED: 2026-07-15 — Remove unused Select imports (BUG 9 cleanup)
 // ============================================================
 
 import { useState, useCallback, useEffect } from 'react';
@@ -10,7 +11,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/core/auth/useAuth';
 import { useAuthStore, selectIsPinLocked, selectPinAttemptsRemaining } from '@/shared/store/authStore';
 import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
-import type { UserRole } from '@/shared/types/auth';
 import type { AuthUser } from '@/shared/store/authStore';
 
 import { Button } from '@/components/ui/button';
@@ -18,23 +18,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 export default function AuthScreen() {
   const navigate = useNavigate();
-  const { 
-    validateLicense, 
-    loginWithPin, 
+  const {
+    validateLicense,
+    loginWithPin,
     loginWithEmail,
     logout,
-    isChecking, 
-    error, 
+    isChecking,
+    error,
     clearError,
   } = useAuth();
 
@@ -45,7 +38,6 @@ export default function AuthScreen() {
 
   const [licenseKey, setLicenseKey] = useState('');
   const [pinCode, setPinCode] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole | ''>('');
   const [loginMethod, setLoginMethod] = useState<'pin' | 'email'>('pin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -90,7 +82,7 @@ export default function AuthScreen() {
 
     if (result.success) {
       const pinResult = result as { success: true; user: AuthUser };
-      const route = getDefaultRoute(pinResult.user.role as UserRole);
+      const route = getDefaultRoute(pinResult.user.role);
       navigate(route, { replace: true });
     }
   }, [pinCode, loginWithPin, clearError, navigate]);
@@ -103,7 +95,7 @@ export default function AuthScreen() {
     console.log('[AUTH SCREEN] loginWithEmail result', result);
     if (result.success) {
       const emailResult = result as { success: true; user: AuthUser };
-      const route = getDefaultRoute(emailResult.user.role as UserRole);
+      const route = getDefaultRoute(emailResult.user.role);
       navigate(route, { replace: true });
     }
   }, [email, password, clearError, loginWithEmail, navigate]);
@@ -119,7 +111,6 @@ export default function AuthScreen() {
     setStep(1);
     setLicenseKey('');
     setPinCode('');
-    setSelectedRole('');
   }, [logout, clearError]);
 
   // ── DEV MODE: Instant login ──
@@ -129,7 +120,7 @@ export default function AuthScreen() {
     const result = await loginWithPin('1234');
     if (result.success) {
       const devResult = result as { success: true; user: AuthUser };
-      const route = getDefaultRoute(devResult.user.role as UserRole);
+      const route = getDefaultRoute(devResult.user.role);
       navigate(route, { replace: true });
     }
   }, [validateLicense, loginWithPin, clearError, navigate]);
@@ -176,8 +167,8 @@ export default function AuthScreen() {
                   autoComplete="off"
                 />
               </div>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
                 disabled={isChecking || !licenseKey.trim()}
               >
@@ -210,24 +201,6 @@ export default function AuthScreen() {
               {loginMethod === 'pin' && (
                 <form onSubmit={handlePinSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label>الدور الوظيفي</Label>
-                    <Select value={selectedRole} onValueChange={(v: string) => setSelectedRole(v as UserRole)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر الدور..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="doctor">طبيب</SelectItem>
-                        <SelectItem value="receptionist">استقبال</SelectItem>
-                        <SelectItem value="clinic_admin">مدير العيادة</SelectItem>
-                        <SelectItem value="super_admin">مدير النظام</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-gray-400">
-                      اختيار الدور لتسهيل التجربة — الدور الفعلي يأتي من قاعدة البيانات
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
                     <Label htmlFor="pin">رمز PIN (4 أرقام)</Label>
                     <Input
                       id="pin"
@@ -250,17 +223,17 @@ export default function AuthScreen() {
                     )}
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
-                    disabled={isChecking || pinCode.length !== 4 || !selectedRole || isPinLocked}
+                    disabled={isChecking || pinCode.length !== 4 || isPinLocked}
                   >
                     {isChecking ? 'جاري التحقق...' : 'تسجيل الدخول'}
                   </Button>
 
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
+                  <Button
+                    type="button"
+                    variant="ghost"
                     className="w-full"
                     onClick={handleReset}
                     disabled={isChecking}

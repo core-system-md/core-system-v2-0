@@ -24,7 +24,7 @@ export function useAuthContext() {
     clearError: store.clearError,
     validateLicense: async (_unusedKey?: string) => ({ success: true }),
     loginWithPin: async (_unusedPin: string, _unusedRole?: string) => {
-      return { success: false, error: 'Use usePinAuth() instead' };
+      return { success: false, error: 'Use useAuth().loginWithPin() instead' };
     },
   };
 }

@@ -26,6 +26,10 @@ export function useAuth() {
   }, [store]);
 
   const loginWithPin = useCallback(async (pin: string) => {
+    if (!pin || pin.length !== 4) {
+      store.setError('PIN must be exactly 4 digits');
+      return { success: false, error: 'PIN must be exactly 4 digits' };
+    }
     if (import.meta.env.DEV) {
       const mockUser: AuthUser = { id: 'dev-user', email: null, full_name: 'Dev Doctor', full_name_ar: null, role: 'doctor', tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', employee_code: 'DEV-EMP', pin_code: null, phone: null, specialization: null };
       store.login(mockUser, null, null); store.setPinAuthenticated(true); return { success: true, user: mockUser };
