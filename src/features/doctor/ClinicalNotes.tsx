@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../../core/auth/useAuth";
 
 interface Note {
   id: string;
@@ -18,6 +19,7 @@ interface ClinicalNotesProps {
 export function ClinicalNotes({ notes, onAddNote, onUpdateNote, patientName }: ClinicalNotesProps) {
   const [activeTab, setActiveTab] = useState<Note["type"]>("subjective");
   const [newContent, setNewContent] = useState("");
+  const { user } = useAuth();
 
   const tabs = [
     { key: "subjective" as const, label: "S", labelAr: "ذاتي", color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
@@ -79,7 +81,7 @@ export function ClinicalNotes({ notes, onAddNote, onUpdateNote, patientName }: C
         <button
           onClick={() => {
             if (!newContent.trim()) return;
-            onAddNote({ content: newContent, type: activeTab, created_by: "Current Doctor" });
+            onAddNote({ content: newContent, type: activeTab, created_by: user?.id ?? '' });
             setNewContent("");
           }}
           className="w-full mt-2 py-2.5 rounded-xl bg-blue-500/10 text-blue-400 text-sm font-medium hover:bg-blue-500/20 transition-colors border border-blue-500/20"
