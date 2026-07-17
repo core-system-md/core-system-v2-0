@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
+import { useAuthStore } from '../../shared/store/authStore';
 import type { SessionStatus } from '../../shared/types/database';
 
 const SESSION_KEY = 'sessions';
@@ -14,7 +15,10 @@ export function useUpdateSessionStatus() {
       actualTimestampField?: 'actual_check_in' | 'actual_start' | 'actual_end' | 'actual_check_out';
       timestamp?: string;
     }) => {
-      const updates: Record<string, unknown> = {
+      const tenantId = useAuthStore.getState().user?.tenant_id;
+      if (!tenantId) throw new Error('UB-07: tenant_id required for updateSessionStatus');
+
+      const updates: Record<string, string> = {
         session_status: payload.newStatus,
         updated_at: new Date().toISOString(),
       };
@@ -23,8 +27,9 @@ export function useUpdateSessionStatus() {
       }
       const { data, error } = await supabase
         .from('clinic_visit_sessions')
-        .update(updates)
+        .update(updates as any)
         .eq('id', payload.sessionId)
+        .eq('tenant_id', tenantId)
         .select()
         .single();
       if (error) throw error;
@@ -54,6 +59,9 @@ export function useWriteSessionScore() {
         score_rvs?: number;
       };
     }) => {
+      const tenantId = useAuthStore.getState().user?.tenant_id;
+      if (!tenantId) throw new Error('UB-07: tenant_id required for writeSessionScore');
+
       const { data, error } = await supabase
         .from('clinic_visit_sessions')
         .update({
@@ -61,6 +69,7 @@ export function useWriteSessionScore() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', payload.sessionId)
+        .eq('tenant_id', tenantId)
         .select()
         .single();
       if (error) throw error;
@@ -77,6 +86,9 @@ export function useAssignDoctor() {
 
   return useMutation({
     mutationFn: async (payload: { sessionId: string; doctorId: string }) => {
+      const tenantId = useAuthStore.getState().user?.tenant_id;
+      if (!tenantId) throw new Error('UB-07: tenant_id required for assignDoctor');
+
       const { data, error } = await supabase
         .from('clinic_visit_sessions')
         .update({
@@ -84,6 +96,7 @@ export function useAssignDoctor() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', payload.sessionId)
+        .eq('tenant_id', tenantId)
         .select()
         .single();
       if (error) throw error;
@@ -101,6 +114,9 @@ export function useAssignRoom() {
 
   return useMutation({
     mutationFn: async (payload: { sessionId: string; roomId: string }) => {
+      const tenantId = useAuthStore.getState().user?.tenant_id;
+      if (!tenantId) throw new Error('UB-07: tenant_id required for assignRoom');
+
       const { data, error } = await supabase
         .from('clinic_visit_sessions')
         .update({
@@ -108,6 +124,7 @@ export function useAssignRoom() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', payload.sessionId)
+        .eq('tenant_id', tenantId)
         .select()
         .single();
       if (error) throw error;
