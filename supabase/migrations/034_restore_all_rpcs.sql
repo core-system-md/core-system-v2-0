@@ -38,6 +38,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- ============================================================
 
 -- 1. validate_pin (SETOF clinic_users - auto-detects types)
+-- G30 FIX: Added auth.uid() authorization check (Constitution §9.1, §9.5)
 CREATE OR REPLACE FUNCTION validate_pin(
   p_tenant_id UUID,
   p_pin TEXT
@@ -47,7 +48,20 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_caller_tenant_id UUID;
 BEGIN
+  -- G30 FIX: Verify caller belongs to the requested tenant
+  SELECT tenant_id INTO v_caller_tenant_id
+  FROM clinic_users
+  WHERE id = auth.uid()
+    AND is_active = true
+    AND deleted_at IS NULL;
+
+  IF v_caller_tenant_id IS NULL OR v_caller_tenant_id != p_tenant_id THEN
+    RAISE EXCEPTION 'Unauthorized: cross-tenant access denied';
+  END IF;
+
   RETURN QUERY
   SELECT *
   FROM clinic_users
@@ -200,6 +214,7 @@ END;
 $$;
 
 -- 7. get_queue_with_details
+-- G32a FIX: Added auth.uid() authorization check (Constitution §9.1, §9.5)
 CREATE OR REPLACE FUNCTION get_queue_with_details(
   p_tenant_id UUID
 )
@@ -217,7 +232,20 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_caller_tenant_id UUID;
 BEGIN
+  -- G32a FIX: Verify caller belongs to the requested tenant
+  SELECT tenant_id INTO v_caller_tenant_id
+  FROM clinic_users
+  WHERE id = auth.uid()
+    AND is_active = true
+    AND deleted_at IS NULL;
+
+  IF v_caller_tenant_id IS NULL OR v_caller_tenant_id != p_tenant_id THEN
+    RAISE EXCEPTION 'Unauthorized: cross-tenant access denied';
+  END IF;
+
   RETURN QUERY
   SELECT 
     s.id,
