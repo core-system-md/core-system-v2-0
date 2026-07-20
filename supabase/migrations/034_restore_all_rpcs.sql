@@ -134,6 +134,7 @@ END;
 $$;
 
 -- 6. get_queue_for_tenant (custom columns with TEXT casts)
+-- G26 FIX: Added auth.uid() authorization check (Constitution §9.1, §9.5)
 CREATE OR REPLACE FUNCTION get_queue_for_tenant(
   p_tenant_id UUID
 )
@@ -157,7 +158,20 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_caller_tenant_id UUID;
 BEGIN
+  -- G26 FIX: Verify caller belongs to the requested tenant (Constitution §9.1, §9.5)
+  SELECT tenant_id INTO v_caller_tenant_id
+  FROM clinic_users
+  WHERE id = auth.uid()
+    AND is_active = true
+    AND deleted_at IS NULL;
+
+  IF v_caller_tenant_id IS NULL OR v_caller_tenant_id != p_tenant_id THEN
+    RAISE EXCEPTION 'Unauthorized: cross-tenant access denied';
+  END IF;
+
   RETURN QUERY
   SELECT 
     s.id,
@@ -578,5 +592,4 @@ BEGIN
 
   RETURN v_gaps;
 END;
-$$;-- Migration 034: Restore All RPCs from Production DB
--- (المحتوى الكامل هنا)
+$$;

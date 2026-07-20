@@ -39,7 +39,8 @@ export default function AnalyticsOverview() {
       .from('clinic_visit_sessions')
       .select('*', { count: 'exact', head: true })
       .eq('tenant_id', tenantId!)
-      .in('session_status', ['waiting', 'in_consultation']);
+      .in('session_status', ['waiting', 'in_consultation'])
+      .is('deleted_at', null);  // G28 FIX: Constitution §2.4 soft delete compliance
 
     const { count: totalPatients } = await supabase
       .from('clinic_patients')
