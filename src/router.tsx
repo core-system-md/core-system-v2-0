@@ -22,7 +22,6 @@ function LoadingScreen() {
 // ────────────────────────────────────────────────────────────
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
 
-
 // ────────────────────────────────────────────────────────────
 // LAZY LOAD: Layouts (UI shell with <Outlet />)
 // ────────────────────────────────────────────────────────────
@@ -41,6 +40,7 @@ const AdminOverviewPage = lazy(() => import('@/features/clinic-admin/AdminOvervi
 const AdminRevenuePage = lazy(() => import('@/features/clinic-admin/AdminRevenuePage'));
 const AdminStaffPage = lazy(() => import('@/features/clinic-admin/AdminStaffPage'));
 const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
+const FeatureFlagManager = lazy(() => import('@/features/super-admin/FeatureFlagManager'));
 
 // ────────────────────────────────────────────────────────────
 // WRAPPERS
@@ -201,6 +201,7 @@ const router = createBrowserRouter([
         ),
         children: [
           { index: true, element: <Suspense fallback={<LoadingScreen />}><TenantRegistry /></Suspense> },
+          { path: 'feature-flags', element: <Suspense fallback={<LoadingScreen />}><FeatureFlagManager /></Suspense> },
         ],
       },
     ],
