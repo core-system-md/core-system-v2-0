@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // CORE SYSTEM v2.1 — TenantRegistry
 // FIXED: 2026-07-21 — Replaced Placeholder with REAL component (P22 Phase 2B)
 // Constitution §3: Features fetch their own data. NO props drilling.
@@ -74,7 +74,6 @@ export default function TenantRegistry() {
     }
   }
 
-  // ── Loading State ─────────────────────────────────────────
   if (loading) {
     return (
       <div className="p-4" dir="rtl">
@@ -90,7 +89,6 @@ export default function TenantRegistry() {
     );
   }
 
-  // ── Error State ───────────────────────────────────────────
   if (error) {
     return (
       <div className="p-4" dir="rtl">
@@ -113,7 +111,6 @@ export default function TenantRegistry() {
     );
   }
 
-  // ── Empty State ───────────────────────────────────────────
   if (tenants.length === 0) {
     return (
       <div className="p-4" dir="rtl">
@@ -126,11 +123,9 @@ export default function TenantRegistry() {
     );
   }
 
-  // ── Success State — Table ─────────────────────────────────
   return (
     <div className="p-4" dir="rtl">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-[#1B2A4A]" />
@@ -139,7 +134,6 @@ export default function TenantRegistry() {
           <span className="text-sm text-gray-500">{tenants.length} عيادة</span>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -160,7 +154,6 @@ export default function TenantRegistry() {
                   key={tenant.id}
                   className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                 >
-                  {/* Clinic Name */}
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-gray-400" />
@@ -175,7 +168,6 @@ export default function TenantRegistry() {
                     </div>
                   </td>
 
-                  {/* Subscription Tier */}
                   <td className="text-center py-3 px-4">
                     <span
                       className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
@@ -186,7 +178,6 @@ export default function TenantRegistry() {
                     </span>
                   </td>
 
-                  {/* Active Status */}
                   <td className="text-center py-3 px-4">
                     <span
                       className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
@@ -199,7 +190,6 @@ export default function TenantRegistry() {
                     </span>
                   </td>
 
-                  {/* License Key */}
                   <td className="text-center py-3 px-4">
                     <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
                       {tenant.license_key
@@ -210,7 +200,6 @@ export default function TenantRegistry() {
                     </code>
                   </td>
 
-                  {/* Max Devices */}
                   <td className="text-center py-3 px-4">
                     <div className="flex items-center justify-center gap-1">
                       <Smartphone className="w-3 h-3 text-gray-400" />
@@ -218,7 +207,6 @@ export default function TenantRegistry() {
                     </div>
                   </td>
 
-                  {/* Max Users */}
                   <td className="text-center py-3 px-4">
                     <div className="flex items-center justify-center gap-1">
                       <Users className="w-3 h-3 text-gray-400" />
@@ -226,12 +214,10 @@ export default function TenantRegistry() {
                     </div>
                   </td>
 
-                  {/* Max Patients */}
                   <td className="text-center py-3 px-4">
                     <span>{tenant.max_patients}</span>
                   </td>
 
-                  {/* Created At */}
                   <td className="text-center py-3 px-4">
                     <div className="flex items-center justify-center gap-1">
                       <Calendar className="w-3 h-3 text-gray-400" />
