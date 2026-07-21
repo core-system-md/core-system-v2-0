@@ -48,12 +48,6 @@ export const rpc = {
     return data as number;
   },
 
-  async detectLeakageGaps() {
-    const { data, error } = await supabase.rpc('detect_leakage_gaps');
-    if (error) throw error;
-    return data as number;
-  },
-
   async generateDailySnapshot(date: string) {
     const { data, error } = await supabase.rpc('generate_daily_snapshot', {
       p_snapshot_date: date,
