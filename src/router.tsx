@@ -1,11 +1,8 @@
-import { Suspense, lazy } from 'react';
+﻿import { Suspense, lazy } from 'react';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
 import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
 
-// ────────────────────────────────────────────────────────────
-// INLINE: LoadingScreen
-// ────────────────────────────────────────────────────────────
 function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
@@ -17,22 +14,12 @@ function LoadingScreen() {
   );
 }
 
-// ────────────────────────────────────────────────────────────
-// LAZY LOAD: Auth
-// ────────────────────────────────────────────────────────────
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
-
-// ────────────────────────────────────────────────────────────
-// LAZY LOAD: Layouts (UI shell with <Outlet />)
-// ────────────────────────────────────────────────────────────
 const AdminLayout = lazy(() => import('@/features/clinic-admin/AdminLayout'));
 const DoctorLayout = lazy(() => import('@/features/doctor/DoctorLayout'));
 const ReceptionLayout = lazy(() => import('@/features/reception/ReceptionLayout'));
 const SuperAdminLayout = lazy(() => import('@/features/super-admin/SuperAdminLayout'));
 
-// ────────────────────────────────────────────────────────────
-// LAZY LOAD: Page Components (real pages, NOT layouts)
-// ────────────────────────────────────────────────────────────
 const DoctorTodayPatients = lazy(() => import('@/features/doctor/DoctorTodayPatients'));
 const DoctorSessionView = lazy(() => import('@/features/doctor/DoctorSessionView'));
 const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDashboard'));
@@ -41,181 +28,89 @@ const AdminRevenuePage = lazy(() => import('@/features/clinic-admin/AdminRevenue
 const AdminStaffPage = lazy(() => import('@/features/clinic-admin/AdminStaffPage'));
 const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
 const FeatureFlagManager = lazy(() => import('@/features/super-admin/FeatureFlagManager'));
-
-// ────────────────────────────────────────────────────────────
-// WRAPPERS
-// ────────────────────────────────────────────────────────────
+import CoreRulesConfigManager from '@/features/super-admin/CoreRulesConfigManager';
 
 function AuthWrapper() {
   const { status, isAuthenticated, user } = useAuthStore();
-
-  if (status === 'BOOTING' || status === 'CHECKING_SESSION') {
-    return <LoadingScreen />;
-  }
-
-  if (isAuthenticated && user && !user.role) {
-    return <Navigate to="/login/roles" replace />;
-  }
-
-  return (
-    <Suspense fallback={<LoadingScreen />}>
-      <AuthScreen />
-    </Suspense>
-  );
+  if (status === 'BOOTING' || status === 'CHECKING_SESSION') return <LoadingScreen />;
+  if (isAuthenticated && user && !user.role) return <Navigate to="/login/roles" replace />;
+  return <Suspense fallback={<LoadingScreen />}><AuthScreen /></Suspense>;
 }
 
 function ProtectedWrapper({ allowedRoles }: { allowedRoles: string[] }) {
   const { status, isAuthenticated, user } = useAuthStore();
-
-  if (status === 'BOOTING' || status === 'CHECKING_SESSION') {
-    return <LoadingScreen />;
-  }
-
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!allowedRoles.includes(user.role)) {
-    return <Navigate to={getDefaultRoute(user.role)} replace />;
-  }
-
+  if (status === 'BOOTING' || status === 'CHECKING_SESSION') return <LoadingScreen />;
+  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+  if (!allowedRoles.includes(user.role)) return <Navigate to={getDefaultRoute(user.role)} replace />;
   return <Outlet />;
 }
 
 function RootRedirect() {
   const { status, isAuthenticated, user } = useAuthStore();
-
-  if (status === 'BOOTING' || status === 'CHECKING_SESSION') {
-    return <LoadingScreen />;
-  }
-
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (status === 'BOOTING' || status === 'CHECKING_SESSION') return <LoadingScreen />;
+  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
   return <Navigate to={getDefaultRoute(user.role)} replace />;
 }
 
-// ────────────────────────────────────────────────────────────
-// ROUTER OBJECT
-// ────────────────────────────────────────────────────────────
 const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <RootRedirect />,
-  },
+  { path: '/', element: <RootRedirect /> },
   {
     path: '/login',
     element: <AuthWrapper />,
     children: [
-      {
-        index: true,
-        element: <Suspense fallback={<LoadingScreen />}><AuthScreen /></Suspense>,
-      },
-      {
-        path: 'roles',
-        element: <Navigate to="/login" replace />,
-      },
+      { index: true, element: <Suspense fallback={<LoadingScreen />}><AuthScreen /></Suspense> },
+      { path: 'roles', element: <Navigate to="/login" replace /> },
     ],
   },
-  // ─── Clinic Admin ─────────────────────────────────────────
   {
     path: '/admin',
-    element: (
-      <Suspense fallback={<LoadingScreen />}>
-        <ProtectedWrapper allowedRoles={['clinic_admin', 'super_admin']} />
-      </Suspense>
-    ),
-    children: [
-      {
-        element: (
-          <Suspense fallback={<LoadingScreen />}>
-            <AdminLayout />
-          </Suspense>
-        ),
-        children: [
-          { index: true, element: <Suspense fallback={<LoadingScreen />}><AdminOverviewPage /></Suspense> },
-          { path: 'revenue', element: <Suspense fallback={<LoadingScreen />}><AdminRevenuePage /></Suspense> },
-          { path: 'staff', element: <Suspense fallback={<LoadingScreen />}><AdminStaffPage /></Suspense> },
-        ],
-      },
-    ],
+    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['clinic_admin', 'super_admin']} /></Suspense>,
+    children: [{
+      element: <Suspense fallback={<LoadingScreen />}><AdminLayout /></Suspense>,
+      children: [
+        { index: true, element: <Suspense fallback={<LoadingScreen />}><AdminOverviewPage /></Suspense> },
+        { path: 'revenue', element: <Suspense fallback={<LoadingScreen />}><AdminRevenuePage /></Suspense> },
+        { path: 'staff', element: <Suspense fallback={<LoadingScreen />}><AdminStaffPage /></Suspense> },
+      ],
+    }],
   },
-  // ─── Doctor ───────────────────────────────────────────────
   {
     path: '/doctor',
-    element: (
-      <Suspense fallback={<LoadingScreen />}>
-        <ProtectedWrapper allowedRoles={['doctor']} />
-      </Suspense>
-    ),
-    children: [
-      {
-        element: (
-          <Suspense fallback={<LoadingScreen />}>
-            <DoctorLayout />
-          </Suspense>
-        ),
-        children: [
-          { index: true, element: <Suspense fallback={<LoadingScreen />}><DoctorTodayPatients /></Suspense> },
-          { path: 'session/:sessionId', element: <Suspense fallback={<LoadingScreen />}><DoctorSessionView /></Suspense> },
-        ],
-      },
-    ],
+    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['doctor']} /></Suspense>,
+    children: [{
+      element: <Suspense fallback={<LoadingScreen />}><DoctorLayout /></Suspense>,
+      children: [
+        { index: true, element: <Suspense fallback={<LoadingScreen />}><DoctorTodayPatients /></Suspense> },
+        { path: 'session/:sessionId', element: <Suspense fallback={<LoadingScreen />}><DoctorSessionView /></Suspense> },
+      ],
+    }],
   },
-  // ─── Reception ────────────────────────────────────────────
   {
     path: '/reception',
-    element: (
-      <Suspense fallback={<LoadingScreen />}>
-        <ProtectedWrapper allowedRoles={['receptionist']} />
-      </Suspense>
-    ),
-    children: [
-      {
-        element: (
-          <Suspense fallback={<LoadingScreen />}>
-            <ReceptionLayout />
-          </Suspense>
-        ),
-        children: [
-          { index: true, element: <Suspense fallback={<LoadingScreen />}><ReceptionDashboard /></Suspense> },
-        ],
-      },
-    ],
+    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['receptionist']} /></Suspense>,
+    children: [{
+      element: <Suspense fallback={<LoadingScreen />}><ReceptionLayout /></Suspense>,
+      children: [
+        { index: true, element: <Suspense fallback={<LoadingScreen />}><ReceptionDashboard /></Suspense> },
+      ],
+    }],
   },
-  // ─── Super Admin ──────────────────────────────────────────
   {
     path: '/super-admin',
-    element: (
-      <Suspense fallback={<LoadingScreen />}>
-        <ProtectedWrapper allowedRoles={['super_admin']} />
-      </Suspense>
-    ),
-    children: [
-      {
-        element: (
-          <Suspense fallback={<LoadingScreen />}>
-            <SuperAdminLayout />
-          </Suspense>
-        ),
-        children: [
-          { index: true, element: <Suspense fallback={<LoadingScreen />}><TenantRegistry /></Suspense> },
-          { path: 'feature-flags', element: <Suspense fallback={<LoadingScreen />}><FeatureFlagManager /></Suspense> },
-        ],
-      },
-    ],
+    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['super_admin']} /></Suspense>,
+    children: [{
+      element: <Suspense fallback={<LoadingScreen />}><SuperAdminLayout /></Suspense>,
+      children: [
+        { index: true, element: <Suspense fallback={<LoadingScreen />}><TenantRegistry /></Suspense> },
+        { path: 'feature-flags', element: <Suspense fallback={<LoadingScreen />}><FeatureFlagManager /></Suspense> },
+        { path: 'core-rules', element: <Suspense fallback={<LoadingScreen />}><CoreRulesConfigManager /></Suspense> },
+      ],
+    }],
   },
-  // ─── Catch-all ────────────────────────────────────────────
-  {
-    path: '*',
-    element: <Navigate to="/" replace />,
-  },
+  { path: '*', element: <Navigate to="/" replace /> },
 ]);
 
-// ────────────────────────────────────────────────────────────
-// ROUTER COMPONENT
-// ────────────────────────────────────────────────────────────
 export function Router() {
   return <RouterProvider router={router} />;
 }
+

@@ -2,11 +2,12 @@
 // CORE SYSTEM v2.1 — SuperAdminLayout
 // FIXED: 2026-07-06 — Added proper shell with Outlet
 // FIXED: 2026-07-21 — Added Navigation Tabs (P22 Phase 2A)
+// FIXED: 2026-07-22 — P28: Added Core Rules tab
 // Constitution §3: Layout = UI shell + Outlet. NO page content.
 // ============================================================
 
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Building2, Shield } from 'lucide-react';
+import { Building2, Shield, Settings } from 'lucide-react';
 
 export default function SuperAdminLayout() {
   const navigate = useNavigate();
@@ -15,13 +16,13 @@ export default function SuperAdminLayout() {
   const tabs = [
     { id: 'registry', label: 'سجل العيادات', path: '/super-admin', icon: Building2 },
     { id: 'flags', label: 'إدارة الميزات', path: '/super-admin/feature-flags', icon: Shield },
+    { id: 'rules', label: 'قواعد CORE', path: '/super-admin/core-rules', icon: Settings },
   ];
 
   const activeTab = tabs.find((t) => location.pathname === t.path)?.id || 'registry';
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
-      {/* Super Admin UI Shell */}
       <header className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold text-[#1B2A4A]">لوحة المشرف العام</h1>
@@ -34,7 +35,6 @@ export default function SuperAdminLayout() {
         </div>
       </header>
 
-      {/* Navigation Tabs */}
       <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4">
         <div className="flex gap-2 border-b border-slate-200">
           {tabs.map((tab) => (
@@ -54,7 +54,6 @@ export default function SuperAdminLayout() {
         </div>
       </div>
 
-      {/* Page Content via Outlet */}
       <main className="max-w-7xl mx-auto p-4 md:p-6">
         <Outlet />
       </main>
