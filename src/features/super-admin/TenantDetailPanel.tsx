@@ -1,19 +1,12 @@
 // ============================================================
 // CORE SYSTEM v2.1 — TenantDetailPanel
 // FIXED: 2026-07-22 — P22 Phase 2C: Read-only tenant profile modal
-// Constitution §3: Features fetch their own data. NO props drilling.
 // ============================================================
 
 import { useState } from 'react';
-import {
-  Building2, X, Phone, MapPin, Globe, CreditCard, Calendar,
-  Users, Smartphone, Palette, Settings, Clock, Shield, FileText, Tag,
-} from 'lucide-react';
+import { Building2, X, Phone, MapPin, Globe, CreditCard, Calendar, Users, Smartphone, Palette, Settings, Clock, Shield, FileText, Tag } from 'lucide-react';
 
-// ────────────────────────────────────────────────────────────
-// LOCAL TYPE — Shared with TenantRegistry via export
-// All 28 fields from master_tenants schema
-// ────────────────────────────────────────────────────────────
+// Local type matching flat database.types.ts structure
 export interface Tenant {
   id: string;
   name: string;
@@ -83,22 +76,6 @@ export default function TenantDetailPanel({ tenant, isOpen, onClose }: TenantDet
   function formatDateTime(dateStr: string | null): string {
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleString('ar-JO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  }
-
-  function renderSettings(settings: Record<string, unknown>): React.ReactNode {
-    if (!settings || typeof settings !== 'object') return <span className="text-gray-400">—</span>;
-    const entries = Object.entries(settings);
-    if (entries.length === 0) return <span className="text-gray-400">—</span>;
-    return (
-      <div className="space-y-2">
-        {entries.map(([key, value]) => (
-          <div key={key} className="flex items-start gap-2">
-            <span className="text-xs font-medium text-gray-600 min-w-[120px]">{key}:</span>
-            <span className="text-sm text-gray-800 break-all">{typeof value === 'string' ? value : JSON.stringify(value)}</span>
-          </div>
-        ))}
-      </div>
-    );
   }
 
   return (
@@ -199,7 +176,18 @@ export default function TenantDetailPanel({ tenant, isOpen, onClose }: TenantDet
                 <InfoCard icon={Clock} label="آخر تحديث" value={formatDateTime(tenant.updated_at)} />
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">الإعدادات (JSON)</label>
-                  <div className="mt-1 p-3 bg-gray-50 rounded-lg border border-gray-200">{renderSettings(tenant.settings)}</div>
+                  <div className="mt-1 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    {tenant.settings && Object.keys(tenant.settings).length > 0 ? (
+                      Object.entries(tenant.settings).map(([key, value]) => (
+                        <div key={key} className="flex items-start gap-2 mb-1">
+                          <span className="text-xs font-medium text-gray-600 min-w-[120px]">{key}:</span>
+                          <span className="text-sm text-gray-800 break-all">{typeof value === 'string' ? value : JSON.stringify(value)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
