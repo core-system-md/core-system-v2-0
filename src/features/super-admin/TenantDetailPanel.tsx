@@ -11,10 +11,10 @@ import {
 } from 'lucide-react';
 
 // ────────────────────────────────────────────────────────────
-// LOCAL TYPE — Compatible with flat database.types.ts
-// All 28 fields from master_tenants schema (excluding deleted_at)
+// LOCAL TYPE — Shared with TenantRegistry via export
+// All 28 fields from master_tenants schema
 // ────────────────────────────────────────────────────────────
-interface Tenant {
+export interface Tenant {
   id: string;
   name: string;
   slug: string;
