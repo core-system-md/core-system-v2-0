@@ -64,7 +64,7 @@ function computeWeightedScore(
   }
 
   const monthsAbsent = (Date.now() - new Date(lastVisitDate).getTime()) / (1000 * 60 * 60 * 24 * 30);
-  
+
   if (monthsAbsent > 18) {
     return { score: sessionScore, mode: "first_time" };
   }
