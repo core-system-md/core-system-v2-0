@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
 import { Users, Phone, Activity } from 'lucide-react';
 import { backendToDisplay, classifyPatient, getClassColors } from '@/shared/utils/scoreDisplay';
@@ -47,13 +48,13 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 export default function DoctorPatientList() {
   const navigate = useNavigate();
+  const tenantId = useAuthStore((state) => state.tenant_id);
   const [patients, setPatients] = useState<PatientWithData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPatients = async () => {
-      const tenant_id = localStorage.getItem('tenant_id');
-      if (!tenant_id) {
+      if (!tenantId) {
         toast.error('معرف المستأجر مفقود — أعد تسجيل الدخول');
         navigate('/login');
         return;
@@ -64,7 +65,7 @@ export default function DoctorPatientList() {
         const { data: patientsData, error: patientsError } = await supabase
           .from('clinic_patients')
           .select('id, full_name, phone_primary, tenant_id')
-          .eq('tenant_id', tenant_id!)
+          .eq('tenant_id', tenantId)
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
 
@@ -80,7 +81,7 @@ export default function DoctorPatientList() {
         const { data: profilesData, error: profilesError } = await supabase
           .from('patient_longitudinal_profiles')
           .select('patient_id, historical_core_score_avg, dominant_disc_profile')
-          .eq('tenant_id', tenant_id!)
+          .eq('tenant_id', tenantId)
           .in('patient_id', patientIds);
 
         if (profilesError) throw profilesError;
@@ -88,7 +89,7 @@ export default function DoctorPatientList() {
         const { data: sessionsData, error: sessionsError } = await supabase
           .from('clinic_visit_sessions')
           .select('id, session_status, created_at, patient_id, core_score_display')
-          .eq('tenant_id', tenant_id!)
+          .eq('tenant_id', tenantId)
           .in('patient_id', patientIds)
           .not('session_status', 'in', '("completed","cancelled")')
           .order('created_at', { ascending: false });
@@ -130,7 +131,7 @@ export default function DoctorPatientList() {
     };
 
     fetchPatients();
-  }, [navigate]);
+  }, [navigate, tenantId]);
 
   const handlePatientClick = (patient: PatientWithData) => {
     if (!patient.active_session) {
