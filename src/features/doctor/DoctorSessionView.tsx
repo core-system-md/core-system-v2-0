@@ -5,9 +5,10 @@
 // Created: 2026-07-05 | Status: Production Ready
 // ═══════════════════════════════════════════════════════════════════
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
+import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import DecisionCard from '@/components/doctor/DecisionCard';
 import { ClinicalNotes } from './ClinicalNotes';
@@ -128,6 +129,7 @@ export default function DoctorSessionView() {
   // ── Local State ──────────────────────────────────────────────────
   const [session, setSession] = useState<SessionData | null>(null);
   const [notes, setNotes] = useState<any[]>([]);
+  const sessionMetaRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -217,12 +219,46 @@ export default function DoctorSessionView() {
       dominant_disc_profile: patient?.dominant_disc_profile || null,
     });
 
+    // Load clinical notes from session_metadata
+    const meta = (data as any).session_metadata;
+    sessionMetaRef.current = meta || null;
+    const loadedNotes = Array.isArray(meta?.clinical_notes) ? meta.clinical_notes : [];
+    setNotes(loadedNotes);
+
     setLoading(false);
   }, [tenantId, sessionId, user?.id]);
 
   useEffect(() => {
     fetchSession();
   }, [fetchSession, refreshKey]);
+
+  // ── Persist Clinical Notes ─────────────────────────────────────
+  const persistNotes = useCallback(async (updatedNotes: any[]) => {
+    if (!sessionId || !tenantId) return;
+    try {
+      const updatedMeta = {
+        ...sessionMetaRef.current,
+        clinical_notes: updatedNotes,
+      };
+      const { error } = await supabase
+        .from('clinic_visit_sessions')
+        .update({
+          session_metadata: updatedMeta,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', sessionId)
+        .eq('tenant_id', tenantId);
+
+      if (error) {
+        console.error('Persist notes error:', error);
+        toast.error('فشل في حفظ الملاحظات السريرية');
+      } else {
+        sessionMetaRef.current = updatedMeta;
+      }
+    } catch (err) {
+      console.error('Persist notes exception:', err);
+    }
+  }, [sessionId, tenantId]);
 
   // ── Notes Handlers ─────────────────────────────────────────────
   const handleAddNote = useCallback((note: any) => {
@@ -231,14 +267,20 @@ export default function DoctorSessionView() {
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
     };
-    setNotes((prev) => [...prev, newNote]);
-  }, []);
+    setNotes((prev) => {
+      const updated = [...prev, newNote];
+      persistNotes(updated);
+      return updated;
+    });
+  }, [persistNotes]);
 
   const handleUpdateNote = useCallback((id: string, content: string) => {
-    setNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, content } : n))
-    );
-  }, []);
+    setNotes((prev) => {
+      const updated = prev.map((n) => (n.id === id ? { ...n, content } : n));
+      persistNotes(updated);
+      return updated;
+    });
+  }, [persistNotes]);
 
   // ── Handle Session Closed ──────────────────────────────────────
   const handleSessionClosed = useCallback(() => {
@@ -337,9 +379,10 @@ export default function DoctorSessionView() {
             </div>
             <div className="p-3 text-center">
               <div className="text-xs text-slate-400 font-medium">Core Score</div>
-              <div className={`text-lg font-bold ${(session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' :
+              <div className={`text-lg font-bold ${
+                (session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' :
                 (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'
-                }`}>
+              }`}>
                 {session.core_score_display !== null ? session.core_score_display.toFixed(1) : '—'}
               </div>
             </div>
