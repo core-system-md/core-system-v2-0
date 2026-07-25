@@ -182,7 +182,6 @@ export default function DoctorSessionView() {
       .eq('id', sessionId)
       .eq('tenant_id', tenantId)
       .eq('doctor_id', user.id)
-      .is('deleted_at', null)
       .single();
 
     if (dbError || !data) {
@@ -338,10 +337,9 @@ export default function DoctorSessionView() {
             </div>
             <div className="p-3 text-center">
               <div className="text-xs text-slate-400 font-medium">Core Score</div>
-              <div className={`text-lg font-bold ${
-                (session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' :
+              <div className={`text-lg font-bold ${(session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' :
                 (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'
-              }`}>
+                }`}>
                 {session.core_score_display !== null ? session.core_score_display.toFixed(1) : '—'}
               </div>
             </div>

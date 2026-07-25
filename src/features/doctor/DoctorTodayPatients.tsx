@@ -54,7 +54,6 @@ export default function DoctorTodayPatients() {
         .eq('session_status', 'waiting')
         .gte('created_at', `${today}T00:00:00`)
         .lte('created_at', `${today}T23:59:59`)
-        .is('deleted_at', null)
         .order('created_at', { ascending: true });
 
       if (dbError) {
