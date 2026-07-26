@@ -10,6 +10,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import DecisionCard from '@/components/doctor/DecisionCard';
 import { ClinicalNotes } from './ClinicalNotes';
 import { SimpleInvoice } from './SimpleInvoice';
@@ -379,10 +380,9 @@ export default function DoctorSessionView() {
             </div>
             <div className="p-3 text-center">
               <div className="text-xs text-slate-400 font-medium">Core Score</div>
-              <div className={`text-lg font-bold ${
-                (session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' :
-                (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'
-              }`}>
+              <div className={`text-lg font-bold ${(session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' :
+                  (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'
+                }`}>
                 {session.core_score_display !== null ? session.core_score_display.toFixed(1) : '—'}
               </div>
             </div>
@@ -398,15 +398,17 @@ export default function DoctorSessionView() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════
-          3. CLINICAL NOTES
+          3. CLINICAL NOTES — guarded by edit_sessions permission
          ═══════════════════════════════════════════════════════════ */}
       <section aria-label="Clinical Notes">
-        <ClinicalNotes
-          notes={notes}
-          onAddNote={handleAddNote}
-          onUpdateNote={handleUpdateNote}
-          patientName={session.patient_name}
-        />
+        <PermissionGuard required="edit_sessions">
+          <ClinicalNotes
+            notes={notes}
+            onAddNote={handleAddNote}
+            onUpdateNote={handleUpdateNote}
+            patientName={session.patient_name}
+          />
+        </PermissionGuard>
       </section>
 
       {/* ═══════════════════════════════════════════════════════════

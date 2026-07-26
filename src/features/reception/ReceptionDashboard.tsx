@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuth } from '@/core/auth/AuthProvider';
-import { 
-  Users, Plus, Calendar, Clock, Stethoscope, 
-  Search, UserPlus, ClipboardList, ArrowRight 
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import {
+  Users, Plus, Calendar, Clock, Stethoscope,
+  Search, UserPlus, ClipboardList, ArrowRight
 } from 'lucide-react';
 import SlaTimer from '@/shared/components/ui/SlaTimer';
 import CoreScoreMeter from '@/shared/components/ui/CoreScoreMeter';
@@ -203,7 +204,7 @@ export default function ReceptionDashboard() {
             gender: bookingForm.gender,
             patient_status: 'active',
             preferred_channel: 'whatsapp',
-            mrn: `MRN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`
+            mrn: `MRN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
           })
           .select('id')
           .single();
@@ -349,7 +350,7 @@ export default function ReceptionDashboard() {
           ) : (
             <div className="space-y-3">
               {sessions.map(session => (
-                <div key={session.id} 
+                <div key={session.id}
                   className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -359,13 +360,12 @@ export default function ReceptionDashboard() {
                       <div>
                         <h3 className="text-white font-medium">{getPatientName(session.patient_id)}</h3>
                         <div className="flex items-center gap-3 mt-1">
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            session.session_status === 'waiting' ? 'bg-yellow-500/20 text-yellow-400' :
-                            session.session_status === 'in_consultation' ? 'bg-green-500/20 text-green-400' :
-                            'bg-white/10 text-white/50'
-                          }`}>
+                          <span className={`text-xs px-2 py-0.5 rounded ${session.session_status === 'waiting' ? 'bg-yellow-500/20 text-yellow-400' :
+                              session.session_status === 'in_consultation' ? 'bg-green-500/20 text-green-400' :
+                                'bg-white/10 text-white/50'
+                            }`}>
                             {session.session_status === 'waiting' ? 'في الانتظار' :
-                             session.session_status === 'in_consultation' ? 'جارية' : session.session_status}
+                              session.session_status === 'in_consultation' ? 'جارية' : session.session_status}
                           </span>
                           <SlaTimer createdAt={session.created_at} size="sm" />
                         </div>
@@ -484,11 +484,14 @@ export default function ReceptionDashboard() {
             </div>
           </div>
 
-          <button onClick={handleQuickBooking} disabled={bookingLoading}
-            className="w-full bg-green-500/20 hover:bg-green-500/30 disabled:bg-white/5 text-green-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4">
-            <Calendar className="w-4 h-4" />
-            {bookingLoading ? 'جاري الحجز...' : 'تأكيد الحجز'}
-          </button>
+          {/* Quick Booking Submit — guarded by edit_queue permission */}
+          <PermissionGuard required="edit_queue">
+            <button onClick={handleQuickBooking} disabled={bookingLoading}
+              className="w-full bg-green-500/20 hover:bg-green-500/30 disabled:bg-white/5 text-green-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4">
+              <Calendar className="w-4 h-4" />
+              {bookingLoading ? 'جاري الحجز...' : 'تأكيد الحجز'}
+            </button>
+          </PermissionGuard>
         </div>
       )}
 
@@ -518,15 +521,14 @@ export default function ReceptionDashboard() {
                     <div className="flex items-center gap-2">
                       <Stethoscope className="w-4 h-4 text-white/30" />
                       <span className="text-white/50 text-sm">{getDoctorName(event.doctor_id)}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${
-                        event.status === 'scheduled' ? 'bg-blue-500/20 text-blue-400' :
-                        event.status === 'arrived' ? 'bg-yellow-500/20 text-yellow-400' :
-                        event.status === 'in_session' ? 'bg-green-500/20 text-green-400' :
-                        'bg-white/10 text-white/50'
-                      }`}>
+                      <span className={`text-xs px-2 py-0.5 rounded ${event.status === 'scheduled' ? 'bg-blue-500/20 text-blue-400' :
+                          event.status === 'arrived' ? 'bg-yellow-500/20 text-yellow-400' :
+                            event.status === 'in_session' ? 'bg-green-500/20 text-green-400' :
+                              'bg-white/10 text-white/50'
+                        }`}>
                         {event.status === 'scheduled' ? 'مجدول' :
-                         event.status === 'arrived' ? 'وصل' :
-                         event.status === 'in_session' ? 'جارية' : event.status}
+                          event.status === 'arrived' ? 'وصل' :
+                            event.status === 'in_session' ? 'جارية' : event.status}
                       </span>
                     </div>
                   </div>
