@@ -76,7 +76,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/doctor',
-    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['doctor']} /></Suspense>,
+    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['doctor', 'clinic_admin', 'super_admin']} /></Suspense>,
     children: [{
       element: <Suspense fallback={<LoadingScreen />}><DoctorLayout /></Suspense>,
       children: [
@@ -87,7 +87,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/reception',
-    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['receptionist']} /></Suspense>,
+    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['receptionist', 'clinic_admin', 'super_admin']} /></Suspense>,
     children: [{
       element: <Suspense fallback={<LoadingScreen />}><ReceptionLayout /></Suspense>,
       children: [
@@ -113,4 +113,3 @@ const router = createBrowserRouter([
 export function Router() {
   return <RouterProvider router={router} />;
 }
-
