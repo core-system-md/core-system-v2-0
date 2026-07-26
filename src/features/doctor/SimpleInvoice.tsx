@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuthStore } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
 import { toast } from 'sonner';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { Calculator, Plus, Trash2, FileText } from 'lucide-react';
 
 interface InvoiceItem {
@@ -193,14 +194,16 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
         </div>
       )}
 
-      {/* Submit */}
-      <button
-        onClick={handleSubmit}
-        disabled={isSubmitting || items.length === 0}
-        className="w-full py-3 bg-[#1B2A4A] text-white rounded-xl hover:bg-[#2a3d6b] transition-colors disabled:opacity-50 font-semibold text-lg"
-      >
-        {isSubmitting ? 'جاري الحفظ...' : 'إنشاء الفاتورة'}
-      </button>
+      {/* Submit — guarded by edit_invoices permission */}
+      <PermissionGuard required="edit_invoices">
+        <button
+          onClick={handleSubmit}
+          disabled={isSubmitting || items.length === 0}
+          className="w-full py-3 bg-[#1B2A4A] text-white rounded-xl hover:bg-[#2a3d6b] transition-colors disabled:opacity-50 font-semibold text-lg"
+        >
+          {isSubmitting ? 'جاري الحفظ...' : 'إنشاء الفاتورة'}
+        </button>
+      </PermissionGuard>
     </div>
   );
 }

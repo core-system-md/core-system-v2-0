@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
+import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import CoreScoreMeter from '@/shared/components/ui/CoreScoreMeter';
 import SlaTimer from '@/shared/components/ui/SlaTimer';
 import { ArrowRight, Save, CheckCircle, FileText, Calculator, RefreshCw } from 'lucide-react';
@@ -210,11 +211,13 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <Calculator className="w-5 h-5 text-blue-400" /> حساب Core Score
           </h2>
-          <button onClick={handleCalculateScore} disabled={calculating}
-            className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 disabled:bg-white/5 text-blue-400 rounded-lg transition-colors flex items-center gap-2">
-            <RefreshCw className={`w-4 h-4 ${calculating ? 'animate-spin' : ''}`} />
-            {calculating ? 'جاري الحساب...' : 'حساب الدرجة'}
-          </button>
+          <PermissionGuard required="edit_sessions">
+            <button onClick={handleCalculateScore} disabled={calculating}
+              className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 disabled:bg-white/5 text-blue-400 rounded-lg transition-colors flex items-center gap-2">
+              <RefreshCw className={`w-4 h-4 ${calculating ? 'animate-spin' : ''}`} />
+              {calculating ? 'جاري الحساب...' : 'حساب الدرجة'}
+            </button>
+          </PermissionGuard>
         </div>
         <p className="text-white/50 text-sm mb-4">Constitution §4: Formula MUST be in Backend (Edge Function)</p>
         <div className="grid grid-cols-3 gap-4">
@@ -266,16 +269,18 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
           className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30 resize-none"
           placeholder="اكتب ملاحظاتك الطبية هنا..." />
       </div>
-      <div className="flex gap-3">
-        <button onClick={handleSave} disabled={saving}
-          className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-          <Save className="w-4 h-4" /> {saving ? 'جاري الحفظ...' : 'حفظ الملاحظات'}
-        </button>
-        <button onClick={handleCloseSession}
-          className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-          <CheckCircle className="w-4 h-4" /> إغلاق الجلسة
-        </button>
-      </div>
+      <PermissionGuard required="edit_sessions">
+        <div className="flex gap-3">
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+            <Save className="w-4 h-4" /> {saving ? 'جاري الحفظ...' : 'حفظ الملاحظات'}
+          </button>
+          <button onClick={handleCloseSession}
+            className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+            <CheckCircle className="w-4 h-4" /> إغلاق الجلسة
+          </button>
+        </div>
+      </PermissionGuard>
     </div>
   );
 }
