@@ -33,6 +33,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const store = useAuthStore();
   const initialized = useRef(false);
 
+  // P35 FIX: Prevent stale persisted state from bypassing auth check.
+  // Zustand persist restores isAuthenticated=true before useEffect runs.
+  // RootRedirect reads this state and redirects before AuthProvider verifies.
+  if (!initialized.current) {
+    store.boot();
+  }
+
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
