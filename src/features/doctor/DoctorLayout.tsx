@@ -7,7 +7,7 @@
 
 import { Outlet } from 'react-router-dom';
 import { IdleWatcher } from '@/shared/components/IdleWatcher';
-import { useAuthStore } from '@/shared/store/authStore';
+import { useAuthStore } from '@/core/auth/authStore';
 
 export default function DoctorLayout() {
   return (
