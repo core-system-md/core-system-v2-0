@@ -1,13 +1,11 @@
 ﻿// ============================================================
 // CORE SYSTEM v2.1 — DoctorLayout
-// FIXED: 2026-07-06 — Added proper shell with Outlet
 // P36: Wrapped with IdleWatcher (5min timeout) — 2026-07-31
-// Constitution §3: Layout = UI shell + Outlet. NO page content.
 // ============================================================
 
 import { Outlet } from 'react-router-dom';
 import { IdleWatcher } from '@/shared/components/IdleWatcher';
-import { useAuthStore } from '@/core/auth/authStore';
+import { useAuthStore } from '@/shared/store/authStore';
 
 export default function DoctorLayout() {
   return (
@@ -16,7 +14,6 @@ export default function DoctorLayout() {
       onIdle={() => useAuthStore.getState().lock()}
     >
       <div className="min-h-screen bg-slate-50" dir="rtl">
-        {/* Doctor UI Shell */}
         <header className="bg-white border-b border-slate-200 px-6 py-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <h1 className="text-xl font-bold text-[#1B2A4A]">لوحة الطبيب</h1>
@@ -28,8 +25,6 @@ export default function DoctorLayout() {
             </div>
           </div>
         </header>
-
-        {/* Page Content via Outlet */}
         <main className="max-w-7xl mx-auto p-4 md:p-6">
           <Outlet />
         </main>
