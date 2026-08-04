@@ -19,6 +19,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, User, Calendar, Clock, Shield } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────
+interface DashboardKPI {
+  totalPatients: number;
+  totalVisitsToday: number;
+  totalRevenueSubunits: number;
+  avgWaitTimeMinutes: number;
+  slaBreaches: number;
+  hotLeads: number;
+  conversionRate: number;
+}
+
 interface SessionData {
   id: string;
   patient_id: string;
@@ -62,6 +72,20 @@ interface SessionQueryResult {
     phone_primary: string;
     dominant_disc_profile: string | null;
   } | null;
+}
+
+// P37-C: Typed clinical note structure
+interface ClinicalNote {
+  id: string;
+  content: string;
+  created_at: string;
+  [key: string]: unknown;
+}
+
+// P37-C: Typed session metadata
+interface SessionMetadata {
+  clinical_notes?: ClinicalNote[];
+  [key: string]: unknown;
 }
 
 // ─── Status Helpers ────────────────────────────────────────────────
@@ -129,8 +153,10 @@ export default function DoctorSessionView() {
 
   // ── Local State ──────────────────────────────────────────────────
   const [session, setSession] = useState<SessionData | null>(null);
-  const [notes, setNotes] = useState<any[]>([]);
-  const sessionMetaRef = useRef<any>(null);
+  // P37-C: Typed notes array
+  const [notes, setNotes] = useState<ClinicalNote[]>([]);
+  // P37-C: Typed session metadata ref
+  const sessionMetaRef = useRef<SessionMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -221,10 +247,10 @@ export default function DoctorSessionView() {
     });
 
     // Load clinical notes from session_metadata
-    const meta = (data as any).session_metadata;
-    sessionMetaRef.current = meta || null;
+    const meta = (data as Record<string, unknown>).session_metadata as SessionMetadata | undefined;
+    sessionMetaRef.current = meta ?? null;
     const loadedNotes = Array.isArray(meta?.clinical_notes) ? meta.clinical_notes : [];
-    setNotes(loadedNotes);
+    setNotes(loadedNotes as ClinicalNote[]);
 
     setLoading(false);
   }, [tenantId, sessionId, user?.id]);
@@ -234,10 +260,10 @@ export default function DoctorSessionView() {
   }, [fetchSession, refreshKey]);
 
   // ── Persist Clinical Notes ─────────────────────────────────────
-  const persistNotes = useCallback(async (updatedNotes: any[]) => {
+  const persistNotes = useCallback(async (updatedNotes: ClinicalNote[]) => {
     if (!sessionId || !tenantId) return;
     try {
-      const updatedMeta = {
+      const updatedMeta: SessionMetadata = {
         ...sessionMetaRef.current,
         clinical_notes: updatedNotes,
       };
@@ -262,8 +288,9 @@ export default function DoctorSessionView() {
   }, [sessionId, tenantId]);
 
   // ── Notes Handlers ─────────────────────────────────────────────
-  const handleAddNote = useCallback((note: any) => {
-    const newNote = {
+  // P37-C: Typed note parameter
+  const handleAddNote = useCallback((note: Omit<ClinicalNote, 'id' | 'created_at'>) => {
+    const newNote: ClinicalNote = {
       ...note,
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
