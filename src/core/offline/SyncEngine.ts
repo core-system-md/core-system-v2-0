@@ -5,6 +5,9 @@ import { supabase } from '../../infrastructure/supabase/client';
 import { mutationQueue, type PendingMutation } from './MutationQueue';
 import { coreDrive } from './CORE_SYSTEM_DRIVE';
 
+// P37-C: Narrow dynamic table access to a typed wrapper
+type SyncTableName = string;
+
 export const syncEngine = {
   async sync(): Promise<{ synced: number; failed: number }> {
     let synced = 0;
@@ -31,22 +34,29 @@ export const syncEngine = {
   async applyMutation(mutation: PendingMutation): Promise<void> {
     const { table, operation, payload } = mutation;
 
+    // P37-C: Isolate untyped builder to one line; keep payload typed
+    const qb = supabase.from(table as SyncTableName) as unknown as {
+      insert: (values: Record<string, unknown>) => Promise<{ error: Error | null }>;
+      update: (values: Record<string, unknown>) => Promise<{ error: Error | null }>;
+      delete: () => { eq: (column: string, value: unknown) => Promise<{ error: Error | null }> };
+    };
+
     if (operation === 'create') {
-      const { error } = await (supabase as any).from(table).insert(payload as any);
+      const { error } = await qb.insert(payload as Record<string, unknown>);
       if (error) throw error;
     } else if (operation === 'update') {
-      const { id, ...updates } = payload as any;
-      const { error } = await (supabase as any).from(table).update(updates as any).eq('id' as any, id as any);
+      const { id, ...updates } = payload as Record<string, unknown>;
+      const { error } = await (qb as any).update(updates).eq('id', id);
       if (error) throw error;
     } else if (operation === 'delete') {
-      const { error } = await (supabase as any).from(table).delete().eq('id' as any, (payload as any).id as any);
+      const { error } = await (qb as any).delete().eq('id', (payload as Record<string, unknown>).id);
       if (error) throw error;
     }
   },
 
   async pullLatest(table: string, tenantId: string): Promise<void> {
     // Fetch latest from cloud and update IndexedDB
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from(table)
       .select('*')
       .eq('tenant_id', tenantId)
@@ -55,7 +65,7 @@ export const syncEngine = {
 
     if (error) throw error;
 
-    for (const row of data || []) {
+    for (const row of (data ?? []) as Record<string, unknown>[]) {
       await coreDrive.put(table, row);
     }
   },
