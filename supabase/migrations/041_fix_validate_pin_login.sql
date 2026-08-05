@@ -1,6 +1,6 @@
 ﻿-- 041_fix_validate_pin_login.sql
 -- P0 REGRESSION FIX: Remove G30 check from validate_pin
--- validate_pin is an AUTHENTICATION function — auth.uid() is null during login
+-- validate_pin is an AUTHENTICATION function -- auth.uid() is null during login
 -- Rate limiting and logging from P38-B2 are PRESERVED
 
 CREATE OR REPLACE FUNCTION validate_pin(
