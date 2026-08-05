@@ -17,16 +17,16 @@ import { SimpleInvoice } from './SimpleInvoice';
 import { CloseSession } from './CloseSession';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, User, Calendar, Clock, Shield } from 'lucide-react';
+import type { Json } from '@/infrastructure/supabase/database.types';
 
 // ─── Types ─────────────────────────────────────────────────────────
-interface DashboardKPI {
-  totalPatients: number;
-  totalVisitsToday: number;
-  totalRevenueSubunits: number;
-  avgWaitTimeMinutes: number;
-  slaBreaches: number;
-  hotLeads: number;
-  conversionRate: number;
+// Note: must match ClinicalNotes.tsx Note interface
+interface Note {
+  id: string;
+  content: string;
+  type: 'subjective' | 'objective' | 'assessment' | 'plan';
+  created_at: string;
+  created_by: string;
 }
 
 interface SessionData {
@@ -72,20 +72,6 @@ interface SessionQueryResult {
     phone_primary: string;
     dominant_disc_profile: string | null;
   } | null;
-}
-
-// P37-C: Typed clinical note structure
-interface ClinicalNote {
-  id: string;
-  content: string;
-  created_at: string;
-  [key: string]: unknown;
-}
-
-// P37-C: Typed session metadata
-interface SessionMetadata {
-  clinical_notes?: ClinicalNote[];
-  [key: string]: unknown;
 }
 
 // ─── Status Helpers ────────────────────────────────────────────────
@@ -153,10 +139,8 @@ export default function DoctorSessionView() {
 
   // ── Local State ──────────────────────────────────────────────────
   const [session, setSession] = useState<SessionData | null>(null);
-  // P37-C: Typed notes array
-  const [notes, setNotes] = useState<ClinicalNote[]>([]);
-  // P37-C: Typed session metadata ref
-  const sessionMetaRef = useRef<SessionMetadata | null>(null);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const sessionMetaRef = useRef<{ clinical_notes?: Note[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -247,10 +231,10 @@ export default function DoctorSessionView() {
     });
 
     // Load clinical notes from session_metadata
-    const meta = (data as Record<string, unknown>).session_metadata as SessionMetadata | undefined;
+    const meta = (data as Record<string, unknown>).session_metadata as { clinical_notes?: Note[] } | undefined;
     sessionMetaRef.current = meta ?? null;
     const loadedNotes = Array.isArray(meta?.clinical_notes) ? meta.clinical_notes : [];
-    setNotes(loadedNotes as ClinicalNote[]);
+    setNotes(loadedNotes);
 
     setLoading(false);
   }, [tenantId, sessionId, user?.id]);
@@ -260,17 +244,17 @@ export default function DoctorSessionView() {
   }, [fetchSession, refreshKey]);
 
   // ── Persist Clinical Notes ─────────────────────────────────────
-  const persistNotes = useCallback(async (updatedNotes: ClinicalNote[]) => {
+  const persistNotes = useCallback(async (updatedNotes: Note[]) => {
     if (!sessionId || !tenantId) return;
     try {
-      const updatedMeta: SessionMetadata = {
+      const updatedMeta = {
         ...sessionMetaRef.current,
         clinical_notes: updatedNotes,
       };
       const { error } = await supabase
         .from('clinic_visit_sessions')
         .update({
-          session_metadata: updatedMeta,
+          session_metadata: updatedMeta as unknown as Json,
           updated_at: new Date().toISOString(),
         })
         .eq('id', sessionId)
@@ -288,9 +272,8 @@ export default function DoctorSessionView() {
   }, [sessionId, tenantId]);
 
   // ── Notes Handlers ─────────────────────────────────────────────
-  // P37-C: Typed note parameter
-  const handleAddNote = useCallback((note: Omit<ClinicalNote, 'id' | 'created_at'>) => {
-    const newNote: ClinicalNote = {
+  const handleAddNote = useCallback((note: Omit<Note, 'id' | 'created_at'>) => {
+    const newNote: Note = {
       ...note,
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
@@ -408,7 +391,7 @@ export default function DoctorSessionView() {
             <div className="p-3 text-center">
               <div className="text-xs text-slate-400 font-medium">Core Score</div>
               <div className={`text-lg font-bold ${(session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' :
-                  (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'
+                (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'
                 }`}>
                 {session.core_score_display !== null ? session.core_score_display.toFixed(1) : '—'}
               </div>
