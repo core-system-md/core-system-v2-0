@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/core/auth/AuthProvider';
-import { useTenant } from '@/shared/hooks/useTenant';
+import { useTenantStore } from '@/shared/store/tenantStore';
 import { Shield, Clock, Users } from 'lucide-react';
 
 export default function AmbientKioskView() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { tenantName, clinicName, primaryColor, refreshTenant } = useTenant();
+  const { clinicName, primaryColor, fetchTenant } = useTenantStore();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
-    refreshTenant();
+    fetchTenant();
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
-  }, [refreshTenant]);
+  }, [fetchTenant]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -22,7 +22,7 @@ export default function AmbientKioskView() {
     }
   }, [isAuthenticated, navigate]);
 
-  const displayName = clinicName || tenantName || 'CORE SYSTEM';
+  const displayName = clinicName || 'CORE SYSTEM';
 
   return (
     <div 
