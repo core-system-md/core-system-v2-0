@@ -25,8 +25,6 @@ export {
   TIMEZONE
 } from './shared/utils/currency';
 
-// Infrastructure
-export * from './infrastructure';
 
 // Types
 // export * from './shared/types'; // UserRole re-exported from core/auth/types.ts
