@@ -2,12 +2,13 @@
 // Zustand: live queue state + drag-drop reorder + hot-swap
 
 import { create } from 'zustand';
+import type { PatientClass } from '../../core/rules/scoring';
 
 export interface QueueItem {
   sessionId: string;
   patientId: string;
   patientName: string;
-  priority: 'low_priority' | 'medium_priority' | 'high_priority' | 'qualified' | 'hot_lead';
+  priority: PatientClass;
   slaStatus: 'green' | 'yellow' | 'red';
   waitMinutes: number;
   lockHolderId: string | null;
@@ -57,7 +58,7 @@ export const useQueueStore = create<QueueState>()((set, get) => ({
   reorderItem: (fromIndex, toIndex) =>
     set((state) => {
       const items = [...state.items];
-        const [moved] = items.splice(fromIndex, 1) as [QueueItem | undefined];
+      const [moved] = items.splice(fromIndex, 1) as [QueueItem | undefined];
       if (!moved) return { items };
       items.splice(toIndex, 0, moved);
       return { items };

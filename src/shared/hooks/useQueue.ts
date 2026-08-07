@@ -4,6 +4,8 @@ import { supabase } from '../../infrastructure/supabase/client';
 import { useQueueChannel } from '../../core/realtime/useQueueChannel';
 import { useQueueStore, type QueueItem } from '../store/queueStore';
 import { useAuthStore } from '../../shared/store/authStore';
+import { classifyPatient } from '../../core/rules/scoring';
+import type { PatientClass } from '../../core/rules/scoring';
 
 const QUEUE_KEY = 'live-queue';
 
@@ -27,13 +29,9 @@ export function useQueue() {
         const waitMinutes = row.wait_time_minutes as number ?? 0;
         const score = row.core_score_display as number | null;
 
-        let priority: QueueItem['priority'] = 'medium_priority';
+        let priority: PatientClass = 'medium_priority';
         if (score !== null) {
-          if (score >= 90) priority = 'hot_lead';
-          else if (score >= 80) priority = 'qualified';
-          else if (score >= 60) priority = 'high_priority';
-          else if (score >= 40) priority = 'medium_priority';
-          else priority = 'low_priority';
+          priority = classifyPatient(score);
         }
 
         let slaStatus: 'green' | 'yellow' | 'red' = 'green';
