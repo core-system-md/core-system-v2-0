@@ -7,10 +7,9 @@ import { useAuth } from '@/core/auth/AuthProvider';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import {
   Users, Plus, Calendar, Clock, Stethoscope,
-  Search, UserPlus, ClipboardList, ArrowRight
+  Search, UserPlus, ClipboardList
 } from 'lucide-react';
-import SlaTimer from '@/shared/components/ui/SlaTimer';
-import CoreScoreMeter from '@/shared/components/ui/CoreScoreMeter';
+import { LiveQueueBoard } from '@/components/LiveQueueBoard';
 
 interface Patient {
   id: string;
@@ -18,15 +17,6 @@ interface Patient {
   last_name: string | null;
   phone_primary: string | null;
   patient_status: string | null;
-}
-
-interface SessionInfo {
-  id: string;
-  patient_id: string;
-  session_status: string;
-  created_at: string;
-  core_score_backend: number | null;
-  patient_class: string | null;
 }
 
 interface Doctor {
@@ -49,7 +39,6 @@ export default function ReceptionDashboard() {
   const { fullName } = useAuth();
   const [activeTab, setActiveTab] = useState<'queue' | 'booking' | 'patients'>('queue');
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [agendaEvents, setAgendaEvents] = useState<AgendaEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,11 +80,10 @@ export default function ReceptionDashboard() {
         .order('created_at', { ascending: true });
 
       if (sessionsError) throw sessionsError;
-      setSessions(sessionsData || []);
 
       // Fetch patients for these sessions
       if (sessionsData && sessionsData.length > 0) {
-        const patientIds = sessionsData.map((s: SessionInfo) => s.patient_id);
+        const patientIds = sessionsData.map((s) => s.patient_id);
         const { data: patientsData, error: patientsError } = await supabase
           .from('clinic_patients')
           .select('id, first_name, last_name, phone_primary, patient_status')
@@ -333,57 +321,9 @@ export default function ReceptionDashboard() {
 
       {/* Queue Tab */}
       {activeTab === 'queue' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white">المرضى في الانتظار</h2>
-            <span className="text-white/50 text-sm">{sessions.length} مريض</span>
-          </div>
-
-          {sessions.length === 0 ? (
-            <div className="text-center py-12 text-white/50 bg-white/5 rounded-xl border border-white/10">
-              <Users className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg">لا يوجد مرضى في الانتظار</p>
-              <button onClick={() => setActiveTab('booking')} className="mt-4 text-blue-400 hover:underline text-sm">
-                إضافة مريض جديد →
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sessions.map(session => (
-                <div key={session.id}
-                  className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
-                        <Users className="w-5 h-5 text-white/60" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-medium">{getPatientName(session.patient_id)}</h3>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className={`text-xs px-2 py-0.5 rounded ${session.session_status === 'waiting' ? 'bg-yellow-500/20 text-yellow-400' :
-                              session.session_status === 'in_consultation' ? 'bg-green-500/20 text-green-400' :
-                                'bg-white/10 text-white/50'
-                            }`}>
-                            {session.session_status === 'waiting' ? 'في الانتظار' :
-                              session.session_status === 'in_consultation' ? 'جارية' : session.session_status}
-                          </span>
-                          <SlaTimer createdAt={session.created_at} size="sm" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CoreScoreMeter backendScore={session.core_score_backend} size="sm" />
-                      <button onClick={() => navigate(`/doctor/session/${session.id}`)}
-                        className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                        <ArrowRight className="w-4 h-4 text-white/60" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <LiveQueueBoard
+          onSelectSession={(id) => navigate(`/doctor/session/${id}`)}
+        />
       )}
 
       {/* Quick Booking Tab */}
