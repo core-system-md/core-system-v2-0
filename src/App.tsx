@@ -72,8 +72,11 @@ export function App() {
         <TenantProvider>
           <RealtimeProvider>
             <AppErrorBoundary>
-              <Router />
-              <Toaster position="top-right" richColors />
+              {/* FIX: Root dark background for all feature screens */}
+              <div className="min-h-screen bg-[#1B2A4A]" dir="rtl">
+                <Router />
+                <Toaster position="top-right" richColors />
+              </div>
             </AppErrorBoundary>
           </RealtimeProvider>
         </TenantProvider>
