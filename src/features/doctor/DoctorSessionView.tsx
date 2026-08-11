@@ -1,8 +1,8 @@
-// ═══════════════════════════════════════════════════════════════════
-// DoctorSessionView.tsx — Week 4 Unified Clinical Flow
+﻿// ═══════════════════════════════════════════════════════════════════
+// DoctorSessionView.tsx — P42-B: Removed SimpleInvoice (doctor lacks edit_invoices)
 // Location: src/features/doctor/DoctorSessionView.tsx
 // Purpose: Single screen combining all Week 4 components
-// Created: 2026-07-05 | Status: Production Ready
+// Created: 2026-07-05 | Updated: 2026-08-11 | Status: Production Ready
 // ═══════════════════════════════════════════════════════════════════
 
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -13,7 +13,6 @@ import { supabase } from '@/infrastructure/supabase/client';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import DecisionCard from '@/components/doctor/DecisionCard';
 import { ClinicalNotes } from './ClinicalNotes';
-import { SimpleInvoice } from './SimpleInvoice';
 import { CloseSession } from './CloseSession';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, User, Calendar, Clock, Shield } from 'lucide-react';
@@ -422,18 +421,7 @@ export default function DoctorSessionView() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════
-          4. INVOICE SECTION
-         ═══════════════════════════════════════════════════════════ */}
-      <section aria-label="Invoice">
-        <SimpleInvoice
-          patientId={session.patient_id}
-          sessionId={session.id}
-          onComplete={handleSessionClosed}
-        />
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════
-          5. CLOSE SESSION
+          4. CLOSE SESSION
          ═══════════════════════════════════════════════════════════ */}
       <section aria-label="Close Session">
         <CloseSession

@@ -1,4 +1,4 @@
-import { useAuthStore } from "@/shared/store/authStore";
+﻿import { useAuthStore } from "@/shared/store/authStore";
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -6,7 +6,7 @@ import { supabase } from '@/infrastructure/supabase/client';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import CoreScoreMeter from '@/shared/components/ui/CoreScoreMeter';
 import SlaTimer from '@/shared/components/ui/SlaTimer';
-import { ArrowRight, Save, CheckCircle, FileText, Calculator, RefreshCw } from 'lucide-react';
+import { ArrowRight, Save, CheckCircle, Calculator, RefreshCw } from 'lucide-react';
 
 interface SessionData {
   id: string; patient_id: string; session_status: string; created_at: string;
@@ -47,7 +47,6 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [longitudinal, setLongitudinal] = useState<LongitudinalData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notes, setNotes] = useState('');
   const [selectedPar, setSelectedPar] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [calculating, setCalculating] = useState(false);
@@ -71,7 +70,6 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
         .from('clinic_visit_sessions').select('*').eq('id', sessionId).eq('tenant_id', tenant_id).single();
       if (sessionError) throw sessionError;
       setSession(sessionData);
-      setNotes(sessionData.doctor_notes || '');
       setSelectedPar(sessionData.par_result);
       setIndicators({
         APS: sessionData.score_aps ?? DEFAULT_INDICATORS.APS,
@@ -105,10 +103,10 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
     setSaving(true);
     try {
       const { error } = await supabase.from('clinic_visit_sessions').update({
-        doctor_notes: notes, par_result: selectedPar, updated_at: new Date().toISOString()
+        par_result: selectedPar, updated_at: new Date().toISOString()
       }).eq('id', sessionId).eq('tenant_id', tenant_id);
       if (error) throw error;
-      toast.success('تم حفظ الملاحظات');
+      toast.success('تم الحفظ');
     } catch (err: unknown) { toast.error(getErrorMessage(err, 'فشل في الحفظ')); }
     finally { setSaving(false); }
   };
@@ -140,19 +138,6 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
       console.error('Score calculation error:', err);
       toast.error(getErrorMessage(err, 'فشل في حساب Core Score'));
     } finally { setCalculating(false); }
-  };
-
-  const handleCloseSession = async () => {
-    if (!sessionId) return;
-    if (!confirm('هل أنت متأكد من إغلاق الجلسة؟')) return;
-    try {
-      const { error } = await supabase.from('clinic_visit_sessions').update({
-        session_status: 'completed', session_ended_at: new Date().toISOString(), updated_at: new Date().toISOString()
-      }).eq('id', sessionId).eq('tenant_id', tenant_id);
-      if (error) throw error;
-      toast.success('تم إغلاق الجلسة');
-      navigate('/doctor');
-    } catch (err: unknown) { toast.error(getErrorMessage(err, 'فشل في إغلاق الجلسة')); }
   };
 
   if (loading) {
@@ -261,25 +246,11 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
           ))}
         </div>
       </div>
-      <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-yellow-400" /> ملاحظات طبية
-        </h2>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={6}
-          className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30 resize-none"
-          placeholder="اكتب ملاحظاتك الطبية هنا..." />
-      </div>
       <PermissionGuard required="edit_sessions">
-        <div className="flex gap-3">
-          <button onClick={handleSave} disabled={saving}
-            className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-            <Save className="w-4 h-4" /> {saving ? 'جاري الحفظ...' : 'حفظ الملاحظات'}
-          </button>
-          <button onClick={handleCloseSession}
-            className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-            <CheckCircle className="w-4 h-4" /> إغلاق الجلسة
-          </button>
-        </div>
+        <button onClick={handleSave} disabled={saving}
+          className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+          <Save className="w-4 h-4" /> {saving ? 'جاري الحفظ...' : 'حفظ'}
+        </button>
       </PermissionGuard>
     </div>
   );
