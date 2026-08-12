@@ -1,10 +1,4 @@
-﻿// ═══════════════════════════════════════════════════════════════════
-// DoctorSessionView.tsx - P42-C-D: Added AllergyGate (mandatory safety wall)
-// Location: src/features/doctor/DoctorSessionView.tsx
-// Purpose: Single screen combining all Week 4 components
-// Created: 2026-07-05 | Updated: 2026-08-12 | Status: Production Ready
-// ═══════════════════════════════════════════════════════════════════
-
+﻿// DoctorSessionView.tsx — P42-C-D + P42-D
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
@@ -15,128 +9,26 @@ import DecisionCard from '@/components/doctor/DecisionCard';
 import { ClinicalNotes } from './ClinicalNotes';
 import { CloseSession } from './CloseSession';
 import AllergyGate from './AllergyGate';
+import DiscProfileBadge from './DiscProfileBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, User, Calendar, Clock, Shield } from 'lucide-react';
 import type { Json } from '@/infrastructure/supabase/database.types';
 
-// ─── Types ─────────────────────────────────────────────────────────
-interface Note {
-  id: string;
-  content: string;
-  type: 'subjective' | 'objective' | 'assessment' | 'plan';
-  created_at: string;
-  created_by: string;
-}
+interface Note { id: string; content: string; type: 'subjective' | 'objective' | 'assessment' | 'plan'; created_at: string; created_by: string; }
+interface SessionData { id: string; patient_id: string; patient_name: string; patient_name_ar: string | null; session_status: string; created_at: string; waiting_time_minutes: number | null; session_duration_minutes: number | null; is_insured: boolean; core_score_display: number | null; core_score_backend: number | null; patient_class: string | null; doctor_notes: string | null; par_result: string | null; room_id: string | null; agenda_event_id: string | null; dominant_disc_profile: string | null; allergies: string | null; }
+interface SessionQueryResult { id: string; patient_id: string; session_status: string; created_at: string; waiting_time_minutes: number | null; session_duration_minutes: number | null; is_insured: boolean; core_score_display: number | null; core_score_backend: number | null; patient_class: string | null; doctor_notes: string | null; par_result: string | null; room_id: string | null; agenda_event_id: string | null; clinic_patients: { first_name: string; last_name: string; first_name_ar: string | null; last_name_ar: string | null; phone_primary: string; dominant_disc_profile: string | null; allergies: string | null; } | null; }
 
-interface SessionData {
-  id: string;
-  patient_id: string;
-  patient_name: string;
-  patient_name_ar: string | null;
-  session_status: string;
-  created_at: string;
-  waiting_time_minutes: number | null;
-  session_duration_minutes: number | null;
-  is_insured: boolean;
-  core_score_display: number | null;
-  core_score_backend: number | null;
-  patient_class: string | null;
-  doctor_notes: string | null;
-  par_result: string | null;
-  room_id: string | null;
-  agenda_event_id: string | null;
-  dominant_disc_profile: string | null;
-  allergies: string | null;
-}
+const STATUS_COLORS: Record<string, string> = { waiting: 'bg-amber-100 text-amber-800 border-amber-300', in_consultation: 'bg-sky-100 text-sky-800 border-sky-300', pending_close: 'bg-orange-100 text-orange-800 border-orange-300', completed: 'bg-emerald-100 text-emerald-800 border-emerald-300', cancelled: 'bg-red-100 text-red-800 border-red-300', auto_closed: 'bg-slate-100 text-slate-800 border-slate-300', };
+const STATUS_LABELS_AR: Record<string, string> = { waiting: 'في الانتظار', in_consultation: 'جارية', pending_close: 'بانتظار الإغلاق', completed: 'مكتملة', cancelled: 'ملغاة', auto_closed: 'إغلاق تلقائي', };
 
-interface SessionQueryResult {
-  id: string;
-  patient_id: string;
-  session_status: string;
-  created_at: string;
-  waiting_time_minutes: number | null;
-  session_duration_minutes: number | null;
-  is_insured: boolean;
-  core_score_display: number | null;
-  core_score_backend: number | null;
-  patient_class: string | null;
-  doctor_notes: string | null;
-  par_result: string | null;
-  room_id: string | null;
-  agenda_event_id: string | null;
-  clinic_patients: {
-    first_name: string;
-    last_name: string;
-    first_name_ar: string | null;
-    last_name_ar: string | null;
-    phone_primary: string;
-    dominant_disc_profile: string | null;
-    allergies: string | null;
-  } | null;
-}
+function LoadingSkeleton() { return (<div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4" dir="rtl"><div className="h-24 w-full rounded-xl bg-slate-200 animate-pulse" /><div className="h-56 w-full rounded-xl bg-slate-200 animate-pulse" /><div className="h-72 w-full rounded-xl bg-slate-200 animate-pulse" /><div className="h-48 w-full rounded-xl bg-slate-200 animate-pulse" /><div className="h-32 w-full rounded-xl bg-slate-200 animate-pulse" /></div>); }
+function StatusBadge({ status, isInsured }: { status: string; isInsured: boolean }) { const statusClass = STATUS_COLORS[status] || STATUS_COLORS.waiting; const statusLabel = STATUS_LABELS_AR[status] || status; return (<div className="flex flex-col items-end gap-2"><span className={`inline-flex items-center rounded-full border px-3.5 py-1 text-sm font-bold ${statusClass}`}>{statusLabel}</span>{isInsured && (<span className="inline-flex items-center rounded-full border bg-sky-50 text-sky-700 border-sky-200 text-xs px-2.5 py-0.5 font-medium"><Shield className="h-3 w-3 ml-1" />تأمين</span>)}</div>); }
 
-// ─── Status Helpers ────────────────────────────────────────────────
-const STATUS_COLORS: Record<string, string> = {
-  waiting: 'bg-amber-100 text-amber-800 border-amber-300',
-  in_consultation: 'bg-sky-100 text-sky-800 border-sky-300',
-  pending_close: 'bg-orange-100 text-orange-800 border-orange-300',
-  completed: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-  cancelled: 'bg-red-100 text-red-800 border-red-300',
-  auto_closed: 'bg-slate-100 text-slate-800 border-slate-300',
-};
-
-const STATUS_LABELS_AR: Record<string, string> = {
-  waiting: 'في الانتظار',
-  in_consultation: 'جارية',
-  pending_close: 'بانتظار الإغلاق',
-  completed: 'مكتملة',
-  cancelled: 'ملغاة',
-  auto_closed: 'إغلاق تلقائي',
-};
-
-// ─── Loading Skeleton Component (inline) ───────────────────────────
-function LoadingSkeleton() {
-  return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4" dir="rtl">
-      <div className="h-24 w-full rounded-xl bg-slate-200 animate-pulse" />
-      <div className="h-56 w-full rounded-xl bg-slate-200 animate-pulse" />
-      <div className="h-72 w-full rounded-xl bg-slate-200 animate-pulse" />
-      <div className="h-48 w-full rounded-xl bg-slate-200 animate-pulse" />
-      <div className="h-32 w-full rounded-xl bg-slate-200 animate-pulse" />
-    </div>
-  );
-}
-
-// ─── Status Badge Component (inline) ─────────────────────────────
-function StatusBadge({ status, isInsured }: { status: string; isInsured: boolean }) {
-  const statusClass = STATUS_COLORS[status] || STATUS_COLORS.waiting;
-  const statusLabel = STATUS_LABELS_AR[status] || status;
-
-  return (
-    <div className="flex flex-col items-end gap-2">
-      <span className={`inline-flex items-center rounded-full border px-3.5 py-1 text-sm font-bold ${statusClass}`}>
-        {statusLabel}
-      </span>
-      {isInsured && (
-        <span className="inline-flex items-center rounded-full border bg-sky-50 text-sky-700 border-sky-200 text-xs px-2.5 py-0.5 font-medium">
-          <Shield className="h-3 w-3 ml-1" />
-          تأمين
-        </span>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════
 export default function DoctorSessionView() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-
   const tenantId = useAuthStore((state) => state.tenant_id);
   const user = useAuthStore((state) => state.user);
-
   const [session, setSession] = useState<SessionData | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const sessionMetaRef = useRef<{ clinical_notes?: Note[] } | null>(null);
@@ -149,114 +41,38 @@ export default function DoctorSessionView() {
     if (!tenantId) { setError('Tenant not initialized'); setLoading(false); return; }
     if (!sessionId) { setError('Session ID required'); setLoading(false); return; }
     if (!user?.id) { setError('User not authenticated'); setLoading(false); return; }
-
     setLoading(true); setError(null);
-
-    const { data, error: dbError } = await supabase
-      .from('clinic_visit_sessions')
-      .select(`
-        id, patient_id, session_status, created_at,
-        waiting_time_minutes, session_duration_minutes, is_insured,
-        core_score_display, core_score_backend, patient_class,
-        doctor_notes, par_result, room_id, agenda_event_id,
-        clinic_patients!inner(
-          first_name, last_name, first_name_ar, last_name_ar,
-          phone_primary, dominant_disc_profile, allergies
-        )
-      `)
-      .eq('id', sessionId)
-      .eq('tenant_id', tenantId)
-      .eq('doctor_id', user.id)
-      .single();
-
-    if (dbError || !data) {
-      setError(dbError?.message || 'Session not found or access denied');
-      setLoading(false); return;
-    }
-
+    const { data, error: dbError } = await supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId).eq('doctor_id', user.id).single();
+    if (dbError || !data) { setError(dbError?.message || 'Session not found or access denied'); setLoading(false); return; }
     const row = data as unknown as SessionQueryResult;
     const patient = row.clinic_patients;
-
-    const displayName = patient?.first_name_ar && patient?.last_name_ar
-      ? `${patient.first_name_ar} ${patient.last_name_ar}`
-      : `${patient?.first_name || ''} ${patient?.last_name || ''}`.trim() || 'Unknown';
-
-    setSession({
-      id: row.id, patient_id: row.patient_id, patient_name: displayName,
-      patient_name_ar: patient?.first_name_ar || null,
-      session_status: row.session_status, created_at: row.created_at,
-      waiting_time_minutes: row.waiting_time_minutes,
-      session_duration_minutes: row.session_duration_minutes,
-      is_insured: row.is_insured, core_score_display: row.core_score_display,
-      core_score_backend: row.core_score_backend, patient_class: row.patient_class,
-      doctor_notes: row.doctor_notes, par_result: row.par_result,
-      room_id: row.room_id, agenda_event_id: row.agenda_event_id,
-      dominant_disc_profile: patient?.dominant_disc_profile || null,
-      allergies: patient?.allergies || null,
-    });
-
+    const displayName = patient?.first_name_ar && patient?.last_name_ar ? `${patient.first_name_ar} ${patient.last_name_ar}` : `${patient?.first_name || ''} ${patient?.last_name || ''}`.trim() || 'Unknown';
+    setSession({ id: row.id, patient_id: row.patient_id, patient_name: displayName, patient_name_ar: patient?.first_name_ar || null, session_status: row.session_status, created_at: row.created_at, waiting_time_minutes: row.waiting_time_minutes, session_duration_minutes: row.session_duration_minutes, is_insured: row.is_insured, core_score_display: row.core_score_display, core_score_backend: row.core_score_backend, patient_class: row.patient_class, doctor_notes: row.doctor_notes, par_result: row.par_result, room_id: row.room_id, agenda_event_id: row.agenda_event_id, dominant_disc_profile: patient?.dominant_disc_profile || null, allergies: patient?.allergies || null });
     const meta = (data as Record<string, unknown>).session_metadata as { clinical_notes?: Note[] } | undefined;
     sessionMetaRef.current = meta ?? null;
     setNotes(Array.isArray(meta?.clinical_notes) ? meta.clinical_notes : []);
     setLoading(false);
   }, [tenantId, sessionId, user?.id]);
-
   useEffect(() => { fetchSession(); }, [fetchSession, refreshKey]);
 
   const persistNotes = useCallback(async (updatedNotes: Note[]) => {
     if (!sessionId || !tenantId) return;
-    try {
-      const updatedMeta = { ...sessionMetaRef.current, clinical_notes: updatedNotes };
-      const { error } = await supabase.from('clinic_visit_sessions').update({
-        session_metadata: updatedMeta as unknown as Json,
-        updated_at: new Date().toISOString(),
-      }).eq('id', sessionId).eq('tenant_id', tenantId);
-      if (error) { console.error('Persist notes error:', error); toast.error('فشل في حفظ الملاحظات السريرية'); }
-      else { sessionMetaRef.current = updatedMeta; }
-    } catch (err) { console.error('Persist notes exception:', err); }
+    try { const updatedMeta = { ...sessionMetaRef.current, clinical_notes: updatedNotes }; const { error } = await supabase.from('clinic_visit_sessions').update({ session_metadata: updatedMeta as unknown as Json, updated_at: new Date().toISOString() }).eq('id', sessionId).eq('tenant_id', tenantId); if (error) { console.error('Persist notes error:', error); toast.error('فشل في حفظ الملاحظات السريرية'); } else { sessionMetaRef.current = updatedMeta; } } catch (err) { console.error('Persist notes exception:', err); }
   }, [sessionId, tenantId]);
 
-  const handleAddNote = useCallback((note: Omit<Note, 'id' | 'created_at'>) => {
-    const newNote: Note = { ...note, id: crypto.randomUUID(), created_at: new Date().toISOString() };
-    setNotes((prev) => { const updated = [...prev, newNote]; persistNotes(updated); return updated; });
-  }, [persistNotes]);
-
-  const handleUpdateNote = useCallback((id: string, content: string) => {
-    setNotes((prev) => { const updated = prev.map((n) => (n.id === id ? { ...n, content } : n)); persistNotes(updated); return updated; });
-  }, [persistNotes]);
-
-  const handleSessionClosed = useCallback(() => {
-    setSession((prev) => prev ? { ...prev, session_status: 'completed' } : prev);
-    setRefreshKey((k) => k + 1);
-  }, []);
+  const handleAddNote = useCallback((note: Omit<Note, 'id' | 'created_at'>) => { const newNote: Note = { ...note, id: crypto.randomUUID(), created_at: new Date().toISOString() }; setNotes((prev) => { const updated = [...prev, newNote]; persistNotes(updated); return updated; }); }, [persistNotes]);
+  const handleUpdateNote = useCallback((id: string, content: string) => { setNotes((prev) => { const updated = prev.map((n) => (n.id === id ? { ...n, content } : n)); persistNotes(updated); return updated; }); }, [persistNotes]);
+  const handleSessionClosed = useCallback(() => { setSession((prev) => prev ? { ...prev, session_status: 'completed' } : prev); setRefreshKey((k) => k + 1); }, []);
 
   if (loading) return <LoadingSkeleton />;
-  if (error || !session) {
-    return (
-      <div className="max-w-5xl mx-auto p-4 md:p-6" dir="rtl">
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="flex items-center gap-4 pt-6">
-            <AlertCircle className="h-8 w-8 text-red-600 shrink-0" />
-            <div>
-              <p className="font-bold text-red-900 text-lg">خطأ في تحميل الجلسة</p>
-              <p className="text-sm text-red-700 mt-1">{error || 'Session not found'}</p>
-              <button onClick={() => navigate('/doctor')} className="mt-3 text-sm text-red-800 underline hover:text-red-900">العودة لقائمة المرضى</button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  if (error || !session) { return (<div className="max-w-5xl mx-auto p-4 md:p-6" dir="rtl"><Card className="border-red-200 bg-red-50"><CardContent className="flex items-center gap-4 pt-6"><AlertCircle className="h-8 w-8 text-red-600 shrink-0" /><div><p className="font-bold text-red-900 text-lg">خطأ في تحميل الجلسة</p><p className="text-sm text-red-700 mt-1">{error || 'Session not found'}</p><button onClick={() => navigate('/doctor')} className="mt-3 text-sm text-red-800 underline hover:text-red-900">العودة لقائمة المرضى</button></div></CardContent></Card></div>); }
 
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-5" dir="rtl">
-      {/* PATIENT HEADER */}
       <Card className="border-slate-200 shadow-sm overflow-hidden">
         <CardContent className="p-0">
           <div className="flex flex-col md:flex-row md:items-center gap-4 p-5">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold shrink-0 shadow-md">
-              <User className="h-8 w-8" />
-            </div>
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold shrink-0 shadow-md"><User className="h-8 w-8" /></div>
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold text-slate-900 truncate">{session.patient_name}</h1>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 text-sm text-slate-500">
@@ -265,7 +81,10 @@ export default function DoctorSessionView() {
                 {session.patient_name_ar && <span className="text-slate-400 font-medium">{session.patient_name_ar}</span>}
               </div>
             </div>
-            <StatusBadge status={session.session_status} isInsured={session.is_insured} />
+            <div className="flex flex-col items-end gap-2">
+              <StatusBadge status={session.session_status} isInsured={session.is_insured} />
+              {session.dominant_disc_profile && (<DiscProfileBadge profile={session.dominant_disc_profile} />)}
+            </div>
           </div>
           <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/50">
             <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">وقت الانتظار</div><div className="text-lg font-bold text-slate-700">{session.waiting_time_minutes !== null ? `${session.waiting_time_minutes} د` : '—'}</div></div>
@@ -275,21 +94,12 @@ export default function DoctorSessionView() {
         </CardContent>
       </Card>
 
-      {/* ALLERGY GATE or CLINICAL SECTIONS */}
       {session.allergies?.trim() && !allergyConfirmed ? (
-        <section aria-label="Allergy Gate">
-          <AllergyGate allergies={session.allergies} onConfirm={() => setAllergyConfirmed(true)} />
-        </section>
+        <section aria-label="Allergy Gate"><AllergyGate allergies={session.allergies} onConfirm={() => setAllergyConfirmed(true)} /></section>
       ) : (
-        <>
-          <section aria-label="Decision Card"><DecisionCard sessionId={session.id} /></section>
-          <section aria-label="Clinical Notes">
-            <PermissionGuard required="edit_sessions">
-              <ClinicalNotes notes={notes} onAddNote={handleAddNote} onUpdateNote={handleUpdateNote} patientName={session.patient_name} />
-            </PermissionGuard>
-          </section>
-          <section aria-label="Close Session"><CloseSession sessionId={session.id} onClose={handleSessionClosed} /></section>
-        </>
+        <><section aria-label="Decision Card"><DecisionCard sessionId={session.id} /></section>
+        <section aria-label="Clinical Notes"><PermissionGuard required="edit_sessions"><ClinicalNotes notes={notes} onAddNote={handleAddNote} onUpdateNote={handleUpdateNote} patientName={session.patient_name} /></PermissionGuard></section>
+        <section aria-label="Close Session"><CloseSession sessionId={session.id} onClose={handleSessionClosed} /></section></>
       )}
     </div>
   );

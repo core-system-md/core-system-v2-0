@@ -179,12 +179,6 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
           </div>
           <CoreScoreMeter backendScore={session.core_score_backend} size="lg" />
         </div>
-        {longitudinal?.dominant_disc_profile && (
-          <div className="mt-4 flex items-center gap-2">
-            <span className="text-white/50 text-sm">نمط السلوك:</span>
-            <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-lg text-sm">{longitudinal.dominant_disc_profile}</span>
-          </div>
-        )}
         {session.is_insured && (
           <div className="mt-3 inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
             <CheckCircle className="w-3 h-3" /> مؤمن
