@@ -1,4 +1,4 @@
-﻿// DoctorSessionView.tsx — P42-C-D + P42-D
+﻿// DoctorSessionView.tsx — P42-C-D + P42-D + P42-E
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
@@ -10,6 +10,7 @@ import { ClinicalNotes } from './ClinicalNotes';
 import { CloseSession } from './CloseSession';
 import AllergyGate from './AllergyGate';
 import DiscProfileBadge from './DiscProfileBadge';
+import SandlerScriptPanel from './SandlerScriptPanel';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, User, Calendar, Clock, Shield } from 'lucide-react';
 import type { Json } from '@/infrastructure/supabase/database.types';
@@ -68,39 +69,54 @@ export default function DoctorSessionView() {
   if (error || !session) { return (<div className="max-w-5xl mx-auto p-4 md:p-6" dir="rtl"><Card className="border-red-200 bg-red-50"><CardContent className="flex items-center gap-4 pt-6"><AlertCircle className="h-8 w-8 text-red-600 shrink-0" /><div><p className="font-bold text-red-900 text-lg">خطأ في تحميل الجلسة</p><p className="text-sm text-red-700 mt-1">{error || 'Session not found'}</p><button onClick={() => navigate('/doctor')} className="mt-3 text-sm text-red-800 underline hover:text-red-900">العودة لقائمة المرضى</button></div></CardContent></Card></div>); }
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-5" dir="rtl">
-      <Card className="border-slate-200 shadow-sm overflow-hidden">
-        <CardContent className="p-0">
-          <div className="flex flex-col md:flex-row md:items-center gap-4 p-5">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold shrink-0 shadow-md"><User className="h-8 w-8" /></div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-slate-900 truncate">{session.patient_name}</h1>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 text-sm text-slate-500">
-                <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{new Date(session.created_at).toLocaleDateString('ar-JO', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{new Date(session.created_at).toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}</span>
-                {session.patient_name_ar && <span className="text-slate-400 font-medium">{session.patient_name_ar}</span>}
+    <div className="max-w-5xl mx-auto p-4 md:p-6" dir="rtl">
+      <div className="space-y-5">
+        <Card className="border-slate-200 shadow-sm overflow-hidden">
+          <CardContent className="p-0">
+            <div className="flex flex-col md:flex-row md:items-center gap-4 p-5">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold shrink-0 shadow-md"><User className="h-8 w-8" /></div>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-bold text-slate-900 truncate">{session.patient_name}</h1>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 text-sm text-slate-500">
+                  <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{new Date(session.created_at).toLocaleDateString('ar-JO', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{new Date(session.created_at).toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}</span>
+                  {session.patient_name_ar && <span className="text-slate-400 font-medium">{session.patient_name_ar}</span>}
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <StatusBadge status={session.session_status} isInsured={session.is_insured} />
+                {session.dominant_disc_profile && (<DiscProfileBadge profile={session.dominant_disc_profile} />)}
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <StatusBadge status={session.session_status} isInsured={session.is_insured} />
-              {session.dominant_disc_profile && (<DiscProfileBadge profile={session.dominant_disc_profile} />)}
+            <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/50">
+              <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">وقت الانتظار</div><div className="text-lg font-bold text-slate-700">{session.waiting_time_minutes !== null ? `${session.waiting_time_minutes} د` : '—'}</div></div>
+              <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">مدة الجلسة</div><div className="text-lg font-bold text-slate-700">{session.session_duration_minutes !== null ? `${session.session_duration_minutes} د` : '—'}</div></div>
+              <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">Core Score</div><div className={`text-lg font-bold ${(session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' : (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{session.core_score_display !== null ? session.core_score_display.toFixed(1) : '—'}</div></div>
             </div>
-          </div>
-          <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/50">
-            <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">وقت الانتظار</div><div className="text-lg font-bold text-slate-700">{session.waiting_time_minutes !== null ? `${session.waiting_time_minutes} د` : '—'}</div></div>
-            <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">مدة الجلسة</div><div className="text-lg font-bold text-slate-700">{session.session_duration_minutes !== null ? `${session.session_duration_minutes} د` : '—'}</div></div>
-            <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">Core Score</div><div className={`text-lg font-bold ${(session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' : (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{session.core_score_display !== null ? session.core_score_display.toFixed(1) : '—'}</div></div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {session.allergies?.trim() && !allergyConfirmed ? (
-        <section aria-label="Allergy Gate"><AllergyGate allergies={session.allergies} onConfirm={() => setAllergyConfirmed(true)} /></section>
-      ) : (
-        <><section aria-label="Decision Card"><DecisionCard sessionId={session.id} /></section>
-        <section aria-label="Clinical Notes"><PermissionGuard required="edit_sessions"><ClinicalNotes notes={notes} onAddNote={handleAddNote} onUpdateNote={handleUpdateNote} patientName={session.patient_name} /></PermissionGuard></section>
-        <section aria-label="Close Session"><CloseSession sessionId={session.id} onClose={handleSessionClosed} /></section></>
-      )}
+        {session.allergies?.trim() && !allergyConfirmed ? (
+          <section aria-label="Allergy Gate"><AllergyGate allergies={session.allergies} onConfirm={() => setAllergyConfirmed(true)} /></section>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
+            <div className="space-y-5">
+              <section aria-label="Decision Card"><DecisionCard sessionId={session.id} /></section>
+              <section aria-label="Clinical Notes"><PermissionGuard required="edit_sessions"><ClinicalNotes notes={notes} onAddNote={handleAddNote} onUpdateNote={handleUpdateNote} patientName={session.patient_name} /></PermissionGuard></section>
+              <section aria-label="Close Session"><CloseSession sessionId={session.id} onClose={handleSessionClosed} /></section>
+            </div>
+            <aside className="lg:sticky lg:top-5 self-start" aria-label="Sandler Scripts">
+              <SandlerScriptPanel
+                patientName={session.patient_name}
+                discProfile={session.dominant_disc_profile}
+                patientClass={session.patient_class}
+                parResult={session.par_result}
+                coreScore={session.core_score_display}
+              />
+            </aside>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
