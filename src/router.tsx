@@ -28,6 +28,7 @@ const AdminRevenuePage = lazy(() => import('@/features/clinic-admin/AdminRevenue
 const AdminStaffPage = lazy(() => import('@/features/clinic-admin/AdminStaffPage'));
 const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
 const FeatureFlagManager = lazy(() => import('@/features/super-admin/FeatureFlagManager'));
+const SurveyRouter = lazy(() => import('@/features/survey/SurveyRouter'));
 import CoreRulesConfigManager from '@/features/super-admin/CoreRulesConfigManager';
 
 function AuthWrapper() {
@@ -106,6 +107,10 @@ const router = createBrowserRouter([
         { path: 'core-rules', element: <Suspense fallback={<LoadingScreen />}><CoreRulesConfigManager /></Suspense> },
       ],
     }],
+  },
+  {
+    path: '/survey/:sessionId',
+    element: <Suspense fallback={<LoadingScreen />}><SurveyRouter /></Suspense>,
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
