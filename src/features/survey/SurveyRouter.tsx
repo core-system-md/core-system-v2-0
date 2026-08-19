@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import Page1Identity from './Page1Identity';
+import Page2ClinicalIntent from './Page2ClinicalIntent';
 
 type SurveyPage = 1 | 2 | 3 | 4 | 5;
 
@@ -13,12 +14,17 @@ interface SurveyFormData {
     procedures_requested: string[];
     consent_accepted: boolean;
   } | null;
+  page2: {
+    service_interest: string;
+    visit_goal: string;
+    consideration_period: string;
+  } | null;
 }
 
 export default function SurveyRouter() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [currentPage, setCurrentPage] = useState<SurveyPage>(1);
-  const [formData, setFormData] = useState<SurveyFormData>({ page1: null });
+  const [formData, setFormData] = useState<SurveyFormData>({ page1: null, page2: null });
 
   if (!sessionId) {
     return (
@@ -41,6 +47,15 @@ export default function SurveyRouter() {
     setCurrentPage(2);
   };
 
+  const handlePage2Next = (data: SurveyFormData['page2']) => {
+    setFormData((prev) => ({ ...prev, page2: data }));
+    setCurrentPage(3);
+  };
+
+  const handlePage2Back = () => {
+    setCurrentPage(1);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 py-6" dir="rtl">
       {currentPage === 1 && (
@@ -51,23 +66,12 @@ export default function SurveyRouter() {
         />
       )}
       {currentPage === 2 && (
-        <div className="max-w-2xl mx-auto p-4 md:p-6" dir="rtl">
-          <Card className="border-amber-200 bg-amber-50">
-            <CardContent className="flex items-center gap-4 pt-6">
-              <AlertCircle className="h-8 w-8 text-amber-600 shrink-0" />
-              <div>
-                <p className="font-bold text-amber-900">الصفحة 2 — قيد التطوير</p>
-                <p className="text-sm text-amber-700 mt-1">سيتم إضافة الصفحة 2 (النوايا السريرية) في المرحلة التالية.</p>
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  className="mt-3 text-sm text-amber-800 underline hover:text-amber-900"
-                >
-                  العودة للصفحة 1
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Page2ClinicalIntent
+          sessionId={sessionId}
+          initialData={formData.page2 ?? undefined}
+          onNext={handlePage2Next}
+          onBack={handlePage2Back}
+        />
       )}
     </div>
   );
