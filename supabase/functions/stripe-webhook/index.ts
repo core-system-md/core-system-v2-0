@@ -3,21 +3,39 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Stripe from 'npm:stripe@14';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!;
+const STRIPE_WEBHOOK_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
+
+const stripe = new Stripe(STRIPE_SECRET_KEY, {
+  apiVersion: '2023-10-16',
+  httpClient: Stripe.createFetchHttpClient(),
+});
 
 serve(async (req) => {
   const payload = await req.text();
+  const signature = req.headers.get('Stripe-Signature');
 
-  // TODO: Verify signature with Stripe library when available in Deno
-  // For now, parse and validate basic structure
+  if (!signature) {
+    return new Response(JSON.stringify({ error: 'Missing Stripe-Signature header' }), { status: 400 });
+  }
 
-  let event;
+  // Verify the event actually came from Stripe using the signed webhook secret.
+  // Without this, anyone who knows the public anon key could forge billing events
+  // (e.g. mark a subscription as paid) by POSTing directly to this endpoint.
+  let event: Stripe.Event;
   try {
-    event = JSON.parse(payload);
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid payload' }), { status: 400 });
+    event = await stripe.webhooks.constructEventAsync(
+      payload,
+      signature,
+      STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('Stripe signature verification failed:', err);
+    return new Response(JSON.stringify({ error: 'Invalid signature' }), { status: 400 });
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

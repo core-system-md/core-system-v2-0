@@ -16,7 +16,37 @@ interface ValidateRequest {
 serve(async (req) => {
   const { tenant_id, device_fingerprint, user_id }: ValidateRequest = await req.json();
 
+  // Verify the caller's JWT actually belongs to the user_id/tenant_id being
+  // requested. Without this, any authenticated user could register or query
+  // license/device data for a tenant that isn't theirs, by simply passing a
+  // different tenant_id/user_id in the request body.
+  const authHeader = req.headers.get('Authorization') || '';
+  const callerToken = authHeader.replace(/^Bearer\s+/i, '');
+
+  const authClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    global: { headers: { Authorization: `Bearer ${callerToken}` } },
+  });
+
+  const { data: callerData, error: callerError } = await authClient.auth.getUser(callerToken);
+  if (callerError || !callerData?.user) {
+    return new Response(JSON.stringify({ valid: false, reason: 'unauthenticated' }), { status: 401 });
+  }
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  if (callerData.user.id !== user_id) {
+    return new Response(JSON.stringify({ valid: false, reason: 'user_mismatch' }), { status: 403 });
+  }
+
+  const { data: callerProfile, error: profileError } = await supabase
+    .from('clinic_users')
+    .select('id, tenant_id')
+    .eq('auth_user_id', callerData.user.id)
+    .single();
+
+  if (profileError || !callerProfile || callerProfile.tenant_id !== tenant_id) {
+    return new Response(JSON.stringify({ valid: false, reason: 'tenant_mismatch' }), { status: 403 });
+  }
 
   // 1. Check tenant exists and is active
   const { data: tenant, error: tenantError } = await supabase
