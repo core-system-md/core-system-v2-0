@@ -6,7 +6,7 @@
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from './database.types';
+import type { Database, Json } from './database.types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -29,6 +29,29 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 });
 
 // ── Typed RPC Helpers (Constitution §5: ALWAYS use database.types.ts) ──
+
+/**
+ * Save one validated patient-survey page.
+ * The database resolves patient_id and tenant_id from the session server-side.
+ * The RPC exists in Production; this local helper preserves the generated
+ * Database client while accommodating a stale generated Functions union.
+ */
+export async function savePatientIntakePage(
+  sessionId: string,
+  page: number,
+  payload: Json,
+) {
+  const rpc = supabase.rpc as unknown as (
+    fn: string,
+    args: { p_session_id: string; p_page: number; p_payload: Json },
+  ) => ReturnType<typeof supabase.rpc>;
+
+  return rpc('save_patient_intake_page', {
+    p_session_id: sessionId,
+    p_page: page,
+    p_payload: payload,
+  });
+}
 
 /**
  * Validate clinic license key.
@@ -79,7 +102,7 @@ export async function validatePin(tenantId: string, pinCode: string) {
  */
 export async function logPinAttempt(
   tenantId: string,
-  staffId: string,      // <-- REQUIRED: auth.uid() for RLS
+  staffId: string,
   pinCode: string,
   success: boolean,
   ipAddress?: string
@@ -88,7 +111,7 @@ export async function logPinAttempt(
     .from('pin_attempt_log')
     .insert({
       tenant_id: tenantId,
-      staff_id: staffId,           // <-- REQUIRED for RLS (Migration 024)
+      staff_id: staffId,
       attempted_pin: pinCode,
       success,
       ip_address: ipAddress,
@@ -97,8 +120,6 @@ export async function logPinAttempt(
 
   if (error) console.error('Failed to log PIN attempt:', error);
 }
-
-// ── Session Helpers ──
 
 export async function getCurrentSession() {
   const { data, error } = await supabase.auth.getSession();
