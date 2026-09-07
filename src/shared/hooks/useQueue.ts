@@ -20,43 +20,95 @@ export function useQueue() {
     queryFn: async (): Promise<QueueItem[]> => {
       if (!tenantId) throw new Error('MISSING_TENANT_ID');
 
-      const { data, error } = await supabase
-        .rpc('get_queue_for_tenant', { p_tenant_id: tenantId });
+      // Reception PIN authentication is intentionally separate from Supabase Auth.
+      // The queue must therefore use the same tenant-scoped table access already
+      // used by ReceptionDashboard instead of requiring auth.uid() inside an RPC.
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('clinic_visit_sessions')
+        .select(
+          'id, patient_id, doctor_id, room_id, procedure_id, session_status, core_score_display, is_insured, lock_holder_id, waiting_time_minutes, arrived_at, session_started_at, created_at'
+        )
+        .eq('tenant_id', tenantId)
+        .is('deleted_at', null)
+        .not('session_status', 'in', '("completed","cancelled")')
+        .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (sessionsError) throw sessionsError;
+      if (!sessions?.length) return [];
 
-      return (data || []).map((row: Record<string, unknown>) => {
-        const waitMinutes = Number(row.wait_time_minutes ?? 0);
+      const patientIds = [...new Set(sessions.map((row) => row.patient_id).filter(Boolean))] as string[];
+      const userIds = [
+        ...new Set(
+          sessions
+            .flatMap((row) => [row.doctor_id, row.lock_holder_id])
+            .filter(Boolean)
+        ),
+      ] as string[];
+      const procedureIds = [...new Set(sessions.map((row) => row.procedure_id).filter(Boolean))] as string[];
+
+      const [patientsResult, usersResult, proceduresResult] = await Promise.all([
+        patientIds.length
+          ? supabase
+              .from('clinic_patients')
+              .select('id, full_name')
+              .eq('tenant_id', tenantId)
+              .is('deleted_at', null)
+              .in('id', patientIds)
+          : Promise.resolve({ data: [], error: null }),
+        userIds.length
+          ? supabase
+              .from('clinic_users')
+              .select('id, full_name')
+              .eq('tenant_id', tenantId)
+              .is('deleted_at', null)
+              .in('id', userIds)
+          : Promise.resolve({ data: [], error: null }),
+        procedureIds.length
+          ? supabase
+              .from('clinic_procedures')
+              .select('id, name, procedure_name')
+              .eq('tenant_id', tenantId)
+              .is('deleted_at', null)
+              .in('id', procedureIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      if (patientsResult.error) throw patientsResult.error;
+      if (usersResult.error) throw usersResult.error;
+      if (proceduresResult.error) throw proceduresResult.error;
+
+      const patientsById = new Map((patientsResult.data || []).map((row) => [row.id, row]));
+      const usersById = new Map((usersResult.data || []).map((row) => [row.id, row]));
+      const proceduresById = new Map((proceduresResult.data || []).map((row) => [row.id, row]));
+
+      return sessions.map((row) => {
+        const waitMinutes = Number(row.waiting_time_minutes ?? 0);
         const score = row.core_score_display as number | null;
 
         let priority: PatientClass = 'medium_priority';
-        if (score !== null) {
-          priority = classifyPatient(score);
-        }
+        if (score !== null) priority = classifyPatient(score);
 
         let slaStatus: 'green' | 'yellow' | 'red' = 'green';
         if (waitMinutes >= 25) slaStatus = 'red';
         else if (waitMinutes >= 15) slaStatus = 'yellow';
 
-        const patients = row.clinic_patients as Record<string, unknown> | null;
-        const users = row.clinic_users as Record<string, unknown> | null;
-        const procedures = row.clinic_procedures as Record<string, unknown> | null;
+        const patient = row.patient_id ? patientsById.get(row.patient_id) : undefined;
+        const doctor = row.doctor_id ? usersById.get(row.doctor_id) : undefined;
+        const lockHolder = row.lock_holder_id ? usersById.get(row.lock_holder_id) : undefined;
+        const procedure = row.procedure_id ? proceduresById.get(row.procedure_id) : undefined;
 
         return {
-          sessionId: row.id as string,
-          patientId: row.patient_id as string,
-          patientName: (patients?.full_name as string) ?? 'Unknown',
+          sessionId: row.id,
+          patientId: row.patient_id,
+          patientName: patient?.full_name ?? 'Unknown',
           priority,
           slaStatus,
           waitMinutes,
-          lockHolderId: row.lock_holder_id as string | null,
-          lockHolderName: (users?.full_name as string) ?? null,
-          roomId: (row.room_id as string | null) ?? null,
-          doctorId: (row.doctor_id as string | null) ?? null,
-          procedureName:
-            (procedures?.procedure_name as string) ??
-            (procedures?.name as string) ??
-            null,
+          lockHolderId: row.lock_holder_id,
+          lockHolderName: lockHolder?.full_name ?? null,
+          roomId: row.room_id,
+          doctorId: doctor?.id ?? row.doctor_id,
+          procedureName: procedure?.procedure_name ?? procedure?.name ?? null,
           coreScoreDisplay: score,
         };
       });
@@ -67,9 +119,7 @@ export function useQueue() {
 
   useEffect(() => {
     setLoading(query.isLoading);
-    if (query.data) {
-      setItems(query.data);
-    }
+    if (query.data) setItems(query.data);
   }, [query.data, query.isLoading, setItems, setLoading]);
 
   return query;
