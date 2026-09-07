@@ -7,7 +7,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Constitution §4.1: Immutable weights
 const WEIGHTS = {
   APS: 0.28,
   DRI: 0.24,
@@ -16,22 +15,57 @@ const WEIGHTS = {
   TSI: 0.13,
 } as const;
 
-// Constitution §4.1: PQS Penalty tiers
-function calculatePqsPenalty(pqs: number): number {
-  if (pqs >= 700) return pqs * 0.20;
-  if (pqs >= 400) return pqs * 0.10;
-  return 0;
-}
+const ALLOWED_ROLES = new Set(["doctor", "clinic_admin", "super_admin"]);
 
-// Constitution §4.1: Core Score Calculation
-function computeCoreScore(indicators: {
+type Indicators = {
   APS: number;
   DRI: number;
   RVS: number;
   URI: number;
   TSI: number;
   PQS: number;
-}): { backend: number; display: number; patientClass: string } {
+};
+
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function getPatientClass(display: number): string {
+  if (display >= 90) return "hot_lead";
+  if (display >= 80) return "qualified";
+  if (display >= 60) return "high_priority";
+  if (display >= 40) return "medium_priority";
+  return "low_priority";
+}
+
+function validateIndicators(value: unknown): Indicators {
+  if (!value || typeof value !== "object") {
+    throw new Error("Invalid indicators");
+  }
+
+  const source = value as Record<string, unknown>;
+  const indicators = {
+    APS: Number(source.APS ?? source.aps),
+    DRI: Number(source.DRI ?? source.dri),
+    RVS: Number(source.RVS ?? source.rvs),
+    URI: Number(source.URI ?? source.uri),
+    TSI: Number(source.TSI ?? source.tsi),
+    PQS: Number(source.PQS ?? source.pqs),
+  };
+
+  for (const [key, item] of Object.entries(indicators)) {
+    if (!Number.isInteger(item) || item < 0 || item > 1000) {
+      throw new Error(`${key} must be an integer between 0 and 1000`);
+    }
+  }
+
+  return indicators;
+}
+
+function computeCoreScore(indicators: Indicators) {
   const raw =
     indicators.APS * WEIGHTS.APS +
     indicators.DRI * WEIGHTS.DRI +
@@ -39,81 +73,148 @@ function computeCoreScore(indicators: {
     indicators.URI * WEIGHTS.URI +
     indicators.TSI * WEIGHTS.TSI;
 
-  const penalty = calculatePqsPenalty(indicators.PQS);
+  const penalty =
+    indicators.PQS >= 700
+      ? indicators.PQS * 0.20
+      : indicators.PQS >= 400
+        ? indicators.PQS * 0.10
+        : 0;
+
   const backend = Math.max(0, Math.min(1000, Math.round(raw - penalty)));
   const display = Math.round((backend / 10) * 10) / 10;
 
-  // Constitution §4.2: Patient Classification
-  let patientClass = "low_priority";
-  if (display >= 90) patientClass = "hot_lead";
-  else if (display >= 80) patientClass = "qualified";
-  else if (display >= 60) patientClass = "high_priority";
-  else if (display >= 40) patientClass = "medium_priority";
-
-  return { backend, display, patientClass };
+  return { raw, penalty, backend, display };
 }
 
-// Constitution §4.3: 60/40 LTV Weighted Rule
 function computeWeightedScore(
   historicalAvg: number,
   sessionScore: number,
-  lastVisitDate: string | null
-): { score: number; mode: "first_time" | "weighted_ltv" } {
+  lastVisitDate: string | null,
+) {
   if (!lastVisitDate) {
-    return { score: sessionScore, mode: "first_time" };
+    return { score: sessionScore, mode: "first_time" as const };
   }
 
-  const monthsAbsent = (Date.now() - new Date(lastVisitDate).getTime()) / (1000 * 60 * 60 * 24 * 30);
+  const monthsAbsent =
+    (Date.now() - new Date(lastVisitDate).getTime()) /
+    (1000 * 60 * 60 * 24 * 30);
 
-  if (monthsAbsent > 18) {
-    return { score: sessionScore, mode: "first_time" };
+  if (!Number.isFinite(monthsAbsent) || monthsAbsent > 18) {
+    return { score: sessionScore, mode: "first_time" as const };
   }
 
-  const weighted = Math.round(historicalAvg * 0.60 + sessionScore * 0.40);
-  return { score: weighted, mode: "weighted_ltv" };
+  return {
+    score: Math.max(0, Math.min(1000, Math.round(historicalAvg * 0.60 + sessionScore * 0.40))),
+    mode: "weighted_ltv" as const,
+  };
 }
 
 serve(async (req) => {
-  // CORS headers
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  };
-
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+      },
+    });
   }
 
+  if (req.method !== "POST") return json({ error: "POST only" }, 405);
+
   try {
-    const { indicators, historicalAvg, lastVisitDate, sessionId, tenantId } = await req.json();
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) return json({ error: "UNAUTHORIZED" }, 401);
 
-    // Validate required fields
-    if (!indicators || !sessionId || !tenantId) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields: indicators, sessionId, tenantId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) return json({ error: "SERVER_CONFIGURATION_ERROR" }, 500);
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(token);
+
+    if (userError || !user) return json({ error: "UNAUTHORIZED" }, 401);
+
+    const body = await req.json();
+    const sessionId = String(body.sessionId ?? body.session_id ?? "").trim();
+    const suppliedTenantId = String(body.tenantId ?? body.tenant_id ?? "").trim();
+    const indicators = validateIndicators(body.indicators);
+
+    if (!sessionId) return json({ error: "Missing required field: sessionId" }, 400);
+    if (suppliedTenantId && !/^[0-9a-fA-F-]{36}$/.test(suppliedTenantId)) {
+      return json({ error: "Invalid tenantId" }, 400);
+    }
+
+    const { data: clinicUser, error: clinicUserError } = await supabase
+      .from("clinic_users")
+      .select("id, tenant_id, role, is_active")
+      .eq("id", user.id)
+      .is("deleted_at", null)
+      .single();
+
+    if (clinicUserError || !clinicUser || !clinicUser.is_active) {
+      return json({ error: "FORBIDDEN" }, 403);
+    }
+
+    if (!ALLOWED_ROLES.has(clinicUser.role)) {
+      return json({ error: "FORBIDDEN" }, 403);
+    }
+
+    if (suppliedTenantId && suppliedTenantId !== clinicUser.tenant_id) {
+      return json({ error: "TENANT_MISMATCH" }, 403);
+    }
+
+    const { data: tenant, error: tenantError } = await supabase
+      .from("master_tenants")
+      .select("id, is_active, subscription_tier")
+      .eq("id", clinicUser.tenant_id)
+      .is("deleted_at", null)
+      .single();
+
+    if (tenantError || !tenant || !tenant.is_active) {
+      return json({ error: "TENANT_SUSPENDED" }, 403);
+    }
+
+    const { data: session, error: sessionError } = await supabase
+      .from("clinic_visit_sessions")
+      .select("id, tenant_id, patient_id, doctor_id, deleted_at")
+      .eq("id", sessionId)
+      .is("deleted_at", null)
+      .single();
+
+    if (sessionError || !session) return json({ error: "SESSION_NOT_FOUND" }, 404);
+    if (session.tenant_id !== clinicUser.tenant_id) return json({ error: "TENANT_MISMATCH" }, 403);
+    if (clinicUser.role === "doctor" && session.doctor_id !== clinicUser.id) {
+      return json({ error: "FORBIDDEN" }, 403);
+    }
+
+    const core = computeCoreScore(indicators);
+
+    let finalBackend = core.backend;
+    let ltvMode: "first_time" | "weighted_ltv" = "first_time";
+    if (body.historicalAvg !== undefined || body.historical_avg !== undefined) {
+      const historicalAvg = Number(body.historicalAvg ?? body.historical_avg);
+      if (!Number.isInteger(historicalAvg) || historicalAvg < 0 || historicalAvg > 1000) {
+        return json({ error: "Invalid historicalAvg" }, 400);
+      }
+
+      const ltv = computeWeightedScore(
+        historicalAvg,
+        core.backend,
+        (body.lastVisitDate ?? body.last_visit_date ?? null) as string | null,
       );
+      finalBackend = ltv.score;
+      ltvMode = ltv.mode;
     }
 
-    // Calculate scores
-    const coreScore = computeCoreScore(indicators);
-    let finalScore: { backend: number; display: number; patientClass: string; ltvMode?: string } = coreScore;
-
-    // Apply 60/40 LTV rule if historical data exists
-    if (historicalAvg !== undefined && historicalAvg !== null) {
-      const ltvResult = computeWeightedScore(historicalAvg, coreScore.backend, lastVisitDate);
-      finalScore = {
-        backend: ltvResult.score,
-        display: Math.round((ltvResult.score / 10) * 10) / 10,
-        patientClass: coreScore.patientClass,
-        ltvMode: ltvResult.mode
-      };
-    }
-
-    // Save to database
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const finalDisplay = Math.round((finalBackend / 10) * 10) / 10;
+    const patientClass = getPatientClass(finalDisplay);
 
     const { error: updateError } = await supabase
       .from("clinic_visit_sessions")
@@ -124,34 +225,30 @@ serve(async (req) => {
         score_uri: indicators.URI,
         score_tsi: indicators.TSI,
         score_pqs: indicators.PQS,
-        core_score_backend: finalScore.backend,
-        core_score_display: finalScore.display,
-        patient_class: finalScore.patientClass,
-        scoring_mode: finalScore.ltvMode || "first_time",
-        updated_at: new Date().toISOString()
+        core_score_backend: finalBackend,
+        core_score_display: finalDisplay,
+        patient_class: patientClass,
+        scoring_mode: ltvMode,
+        updated_at: new Date().toISOString(),
       })
       .eq("id", sessionId)
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", clinicUser.tenant_id)
+      .is("deleted_at", null);
 
-    if (updateError) {
-      throw updateError;
-    }
+    if (updateError) throw updateError;
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        backend: finalScore.backend,
-        display: finalScore.display,
-        patientClass: finalScore.patientClass,
-        ltvMode: finalScore.ltvMode || "first_time"
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
-  } catch (error: unknown) {
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({
+      success: true,
+      session_id: sessionId,
+      backend: finalBackend,
+      display: finalDisplay,
+      patientClass,
+      patient_class: patientClass,
+      ltvMode,
+      ltv_mode: ltvMode,
+    });
+  } catch (error) {
+    console.error("score-calculator error", error);
+    return json({ error: error instanceof Error ? error.message : "Internal error" }, 500);
   }
 });
