@@ -40,8 +40,6 @@ export function useAuth() {
     const tenantId = store.tenant_id || store.user?.tenant_id || '';
     if (!tenantId) { store.setError('Missing tenant ID'); return { success: false, error: 'Missing tenant ID' }; }
     try {
-      // database.types.ts does not yet contain the production-only PIN session RPC.
-      // Keep the generated Supabase types unchanged and narrow the call locally.
       const rpc = supabase.rpc as unknown as (fn: string, args: { p_tenant_id: string; p_pin: string }) => ReturnType<typeof supabase.rpc>;
       const createPinSession = rpc.bind(supabase, 'create_pin_session') as unknown as PinSessionRpc;
       const { data, error } = await createPinSession({ p_tenant_id: tenantId, p_pin: pin });
@@ -61,11 +59,45 @@ export function useAuth() {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) { store.setError(error.message); return { success: false, error: error.message }; }
-      if (data.user) {
-        const authUser: AuthUser = { id: data.user.id, email: data.user.email ?? null, full_name: (data.user.user_metadata?.full_name as string) || '', full_name_ar: (data.user.user_metadata?.full_name_ar as string | null) || null, role: (data.user.user_metadata?.role as AuthUser['role']) || 'receptionist', tenant_id: (data.user.user_metadata?.tenant_id as string) || '', employee_code: (data.user.user_metadata?.employee_code as string | null) || null, pin_code: null, phone: (data.user.user_metadata?.phone as string | null) || null, specialization: (data.user.user_metadata?.specialization as string | null) || null };
-        store.login(authUser, data.user, data.session); return { success: true, user: authUser };
+      if (!data.user) return { success: false, error: 'No user returned' };
+
+      const { error: syncError } = await supabase.functions.invoke('auth-metadata-sync');
+      if (syncError) { store.setError(syncError.message); await supabase.auth.signOut(); return { success: false, error: syncError.message }; }
+
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session || !refreshed.user) {
+        const msg = refreshError?.message ?? 'Failed to refresh authentication session';
+        store.setError(msg); await supabase.auth.signOut(); return { success: false, error: msg };
       }
-      return { success: false, error: 'No user returned' };
+
+      const { data: profile, error: profileError } = await supabase
+        .from('clinic_users')
+        .select('id, tenant_id, role, full_name, full_name_ar, employee_code, phone, specialization')
+        .eq('id', refreshed.user.id)
+        .is('deleted_at', null)
+        .single();
+
+      if (profileError || !profile) {
+        const msg = profileError?.message ?? 'Profile not found';
+        store.setError(msg); await supabase.auth.signOut(); return { success: false, error: msg };
+      }
+
+      const authUser: AuthUser = {
+        id: profile.id,
+        email: refreshed.user.email ?? null,
+        full_name: profile.full_name ?? '',
+        full_name_ar: profile.full_name_ar ?? null,
+        role: (profile.role as AuthUser['role']) || 'receptionist',
+        tenant_id: profile.tenant_id ?? '',
+        employee_code: profile.employee_code ?? null,
+        pin_code: null,
+        phone: profile.phone ?? null,
+        specialization: profile.specialization ?? null,
+        avatar_url: refreshed.user.user_metadata?.avatar_url ?? null,
+      };
+
+      store.login(authUser, refreshed.user, refreshed.session);
+      return { success: true, user: authUser };
     } catch (err: unknown) { const msg = err instanceof Error ? err.message : 'Email login failed'; store.setError(msg); return { success: false, error: msg }; }
   }, [store]);
 
