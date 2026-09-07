@@ -41,6 +41,12 @@ function getPatientClass(display: number): string {
   return "low_priority";
 }
 
+function getPqsTier(pqs: number): "none" | "low" | "high" {
+  if (pqs >= 700) return "high";
+  if (pqs >= 400) return "low";
+  return "none";
+}
+
 function validateIndicators(value: unknown): Indicators {
   if (!value || typeof value !== "object") throw new Error("Invalid indicators");
   const source = value as Record<string, unknown>;
@@ -75,7 +81,7 @@ function computeCoreScore(indicators: Indicators) {
         : 0;
   const backend = Math.max(0, Math.min(1000, Math.round(raw - penalty)));
   const display = Math.round((backend / 10) * 10) / 10;
-  return { raw, penalty, backend, display };
+  return { raw, penalty, backend, display, pqsTier: getPqsTier(indicators.PQS) };
 }
 
 function computeWeightedScore(
@@ -209,6 +215,10 @@ serve(async (req) => {
       display: finalDisplay,
       patientClass,
       patient_class: patientClass,
+      raw: Math.round(core.raw),
+      penalty: Math.round(core.penalty),
+      pqsTier: core.pqsTier,
+      pqs_tier: core.pqsTier,
       ltvMode: ltv.mode,
       ltv_mode: ltv.mode,
     });
