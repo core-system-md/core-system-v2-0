@@ -40,7 +40,7 @@ export function useAuth() {
     const tenantId = store.tenant_id || store.user?.tenant_id || '';
     if (!tenantId) { store.setError('Missing tenant ID'); return { success: false, error: 'Missing tenant ID' }; }
     try {
-      const createPinSession = supabase.rpc.bind(supabase, 'create_pin_session') as unknown as PinSessionRpc;
+      const createPinSession = supabase.rpc as unknown as PinSessionRpc;
       const { data, error } = await createPinSession({ p_tenant_id: tenantId, p_pin: pin });
       if (error) { store.setError(error.message); store.unauthenticate(); store.incrementPinAttempt(); return { success: false, error: error.message }; }
       const result = data as RpcResult;
