@@ -3,7 +3,6 @@ import { useAuthStore, selectIsPinLocked, selectPinAttemptsRemaining, selectUser
 import { supabase } from '@/infrastructure/supabase/client';
 import type { AuthUser } from '@/shared/store/authStore';
 
-// P37-C: Local type for RPC result normalization
 type RpcResult = Record<string, unknown> | null | undefined;
 
 const PIN_SESSION_STORAGE_KEY = 'core-system-pin-session';
@@ -59,10 +58,6 @@ export function useAuth() {
       return { success: false, error: msg };
     }
 
-    // Production PIN authentication uses the secure short-lived PIN session.
-    // The legacy validate_pin RPC cannot establish a Supabase Auth identity.
-    // AuthScreen intentionally collects only the 4-digit PIN, so production
-    // login resolves a unique active user for that PIN within the tenant.
     try {
       const { data: sessionData, error: sessionError } = await (supabase.rpc as any)('create_pin_session', {
         p_tenant_id: tenantId,
@@ -150,5 +145,23 @@ export function useAuth() {
   const clearError = useCallback(() => { store.clearError(); }, [store]);
   const signOut = useCallback(async () => { await logout(); }, [logout]);
 
-  return { validateLicense, loginWithPin, loginWithEmail, logout, signOut, clearError, isChecking: store.status === 'CHECKING_SESSION', isAuthenticated: store.isAuthenticated, isPinAuthenticated: store.isPinAuthenticated, isPinLocked, attemptsRemaining, userRole, fullName, role };
+  return {
+    validateLicense,
+    loginWithPin,
+    loginWithEmail,
+    logout,
+    signOut,
+    clearError,
+    isChecking: store.status === 'CHECKING_SESSION',
+    isAuthenticated: store.isAuthenticated,
+    isPinAuthenticated: store.isPinAuthenticated,
+    user: store.user,
+    status: store.status,
+    error: store.error,
+    isPinLocked,
+    attemptsRemaining,
+    userRole,
+    fullName,
+    role,
+  };
 }
