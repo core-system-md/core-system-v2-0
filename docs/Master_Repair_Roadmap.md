@@ -8,7 +8,7 @@
 
 ## Current Baseline
 - Branch: `main`
-- Current HEAD: `5e79bb8356e762611555898de1fdd87e156dd9be`
+- Current HEAD: `cbc9b98f6246c841821ac92bbf4f9d829d5c681a`
 - Supabase production ref: `gobdznqbdaklkkqbkynx`
 - Vercel production target: `core-system-v2-0`
 
@@ -27,6 +27,7 @@
 - Doctor score path routed through `CoreScoreEngine`: VERIFIED
 - `score-calculator` production function: ACTIVE, JWT verification enabled
 - Notification processor false-success repair: CLOSED
+- P54 Analytics Snapshot RPC contract alignment: CLOSED
 
 ## Current Confirmed Evidence
 1. `patient_intake_responses` is the 5-page survey pipeline and is intended to feed the scoring engine.
@@ -54,6 +55,11 @@
 14. `notification-processor` is scheduled every 5 minutes and its cron runs are succeeding.
 15. The previous processor implementation contained `const sent = true`, which could falsely mark an undelivered notification as sent. This was removed.
 16. Current processor behavior refuses to claim external delivery when no active adapter exists; it requeues until retry exhaustion and then marks the notification `failed` with an explicit adapter-unavailable message.
+17. Blueprint Section 18 defines the analytics warehouse snapshot contract and includes `total_visits`, `total_new_patients`, `total_returning_patients`, `total_no_shows`, `total_cancellations`, `avg_wait_time_minutes`, `avg_session_duration_minutes`, `avg_core_score`, `total_revenue_subunits`, `total_discounts_subunits`, `sla_breaches_count`, `hot_leads_count`, and `conversion_rate`.
+18. Production `compute_daily_snapshot` previously returned only legacy keys (`total_visits`, `total_revenue`, `avg_wait_time`, `sla_breaches`), while the active `analytics-snapshot` Edge Function expected the Blueprint-aligned full key set.
+19. P54 replaced `compute_daily_snapshot` in production without schema changes. The RPC now returns the complete key set consumed by `analytics-snapshot`, using tenant/date-scoped session, invoice, patient, and inquiry data.
+20. P54 verification against production returned the complete contract successfully; no application rows were modified by the verification query.
+21. The four production cron jobs remain active: analytics nightly at 02:00, auto-lock every minute, leakage hourly, notification processor every 5 minutes.
 
 ## Open Work
 ### Survey → CORE Score Numeric Mapping
