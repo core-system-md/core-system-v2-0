@@ -16,10 +16,6 @@ interface ValidateRequest {
 serve(async (req) => {
   const { tenant_id, device_fingerprint, user_id }: ValidateRequest = await req.json();
 
-  // Verify the caller's JWT actually belongs to the user_id/tenant_id being
-  // requested. Without this, any authenticated user could register or query
-  // license/device data for a tenant that isn't theirs, by simply passing a
-  // different tenant_id/user_id in the request body.
   const authHeader = req.headers.get('Authorization') || '';
   const callerToken = authHeader.replace(/^Bearer\s+/i, '');
 
@@ -49,11 +45,11 @@ serve(async (req) => {
     return new Response(JSON.stringify({ valid: false, reason: 'tenant_mismatch' }), { status: 403 });
   }
 
-  // 1. Check tenant exists and is active
   const { data: tenant, error: tenantError } = await supabase
     .from('master_tenants')
     .select('id, is_active, subscription_tier, max_devices')
     .eq('id', tenant_id)
+    .is('deleted_at', null)
     .single();
 
   if (tenantError || !tenant) {
@@ -64,7 +60,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ valid: false, reason: 'tenant_suspended' }), { status: 403 });
   }
 
-  // 2. Check if device is already registered
   const { data: existingDevice } = await supabase
     .from('tenant_devices')
     .select('id, is_active')
@@ -77,7 +72,6 @@ serve(async (req) => {
     if (!existingDevice.is_active) {
       return new Response(JSON.stringify({ valid: false, reason: 'device_blocked' }), { status: 403 });
     }
-    // Update last seen
     await supabase
       .from('tenant_devices')
       .update({ last_seen_at: new Date().toISOString() })
@@ -86,7 +80,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ valid: true, device_id: existingDevice.id }), { status: 200 });
   }
 
-  // 3. Check max_devices limit
   const { count: deviceCount, error: countError } = await supabase
     .from('tenant_devices')
     .select('*', { count: 'exact', head: true })
@@ -103,12 +96,10 @@ serve(async (req) => {
     return new Response(JSON.stringify({ valid: false, reason: 'device_limit_reached', max: maxDevices }), { status: 403 });
   }
 
-  // 4. Register new device
   const { data: newDevice, error: insertError } = await supabase
     .from('tenant_devices')
     .insert({
       tenant_id,
-      user_id,
       device_fingerprint,
       device_name: 'Unknown Device',
       device_type: 'other',
