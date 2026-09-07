@@ -18,7 +18,12 @@ export function usePinAuth() {
       store.setError(null);
 
       try {
-        const { data: sessionData, error: sessionError } = await supabase.rpc('create_pin_session', {
+        const rpc = supabase.rpc as unknown as (
+          fn: string,
+          args: { p_tenant_id: string; p_employee_code: string; p_pin: string },
+        ) => Promise<{ data: unknown; error: { message: string } | null }>;
+
+        const { data: sessionData, error: sessionError } = await rpc('create_pin_session', {
           p_tenant_id: tenantId,
           p_employee_code: employeeCode,
           p_pin: pin,
