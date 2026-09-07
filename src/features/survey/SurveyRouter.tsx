@@ -9,6 +9,7 @@ import Page2ClinicalIntent from './Page2ClinicalIntent';
 import Page3BehavioralProfile from './Page3BehavioralProfile';
 import Page4Expectations from './Page4Expectations';
 import Page5ConsentSign from './Page5ConsentSign';
+import SurveyProgressBar from './SurveyProgressBar';
 
 type SurveyPage = 1 | 2 | 3 | 4 | 5;
 type SurveyFormData = {
@@ -47,6 +48,7 @@ export default function SurveyRouter() {
   if (completed) return <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl"><Card className="max-w-md border-emerald-200 shadow-sm"><CardContent className="pt-8 pb-8 text-center space-y-4"><CheckCircle2 className="h-14 w-14 text-emerald-600 mx-auto" /><h1 className="text-xl font-bold text-slate-900">تم إكمال الاستبيان بنجاح</h1><p className="text-sm text-slate-600 leading-6">تم حفظ إجاباتك وتوقيعك الإلكتروني بنجاح. شكراً لوقتك.</p></CardContent></Card></div>;
 
   return <div className="min-h-screen bg-slate-50 py-6" dir="rtl">
+    <SurveyProgressBar currentPage={currentPage} />
     {saving && <div className="max-w-2xl mx-auto px-4 mb-3"><div className="flex items-center justify-center gap-2 text-xs text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> جارٍ حفظ البيانات...</div></div>}
     {error && <div className="max-w-2xl mx-auto px-4 mb-3"><div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 flex items-center gap-2"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div></div>}
     {currentPage === 1 && <Page1Identity sessionId={sessionId} initialData={formData.page1 ?? undefined} onNext={handlePage1Next} />}
