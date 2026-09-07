@@ -40,14 +40,21 @@ export function useQueue() {
       const sessionToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
       if (!sessionToken) throw new Error('MISSING_PIN_SESSION');
 
-      const { data, error } = await supabase.rpc('get_queue_for_pin_session', {
+      const rpc = supabase.rpc as unknown as (
+        fn: string,
+        args: { p_tenant_id: string; p_session_token: string },
+      ) => Promise<{ data: unknown; error: { message: string } | null }>;
+
+      const { data, error } = await rpc('get_queue_for_pin_session', {
         p_tenant_id: tenantId,
         p_session_token: sessionToken,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
-      return ((data ?? []) as QueueRpcRow[]).map((row) => {
+      const rows = (Array.isArray(data) ? data : []) as QueueRpcRow[];
+
+      return rows.map((row) => {
         const waitMinutes = Number(row.wait_time_minutes ?? 0);
         const score = row.core_score_display;
 
@@ -60,7 +67,7 @@ export function useQueue() {
 
         return {
           sessionId: row.id,
-          patientId: row.patient_id,
+          patientId: row.patient_id ?? '',
           patientName: row.clinic_patients?.full_name ?? 'Unknown',
           priority,
           slaStatus,
