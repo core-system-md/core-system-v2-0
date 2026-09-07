@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../infrastructure/supabase/client';
 import { useQueueChannel } from '../../core/realtime/useQueueChannel';
 import { useQueueStore, type QueueItem } from '../store/queueStore';
@@ -36,8 +36,15 @@ export function useQueue() {
   const tenantId = useAuthStore((s) => s.tenant_id);
   const isPinAuthenticated = useAuthStore((s) => s.isPinAuthenticated);
   const { setItems, setLoading } = useQueueStore();
+  const queryClient = useQueryClient();
 
-  useQueueChannel(tenantId || '');
+  const handleQueueChange = useCallback(() => {
+    if (tenantId) {
+      void queryClient.invalidateQueries({ queryKey: [QUEUE_KEY, tenantId] });
+    }
+  }, [queryClient, tenantId]);
+
+  useQueueChannel(tenantId || '', handleQueueChange);
 
   const query = useQuery({
     queryKey: [QUEUE_KEY, tenantId, isPinAuthenticated],
@@ -47,8 +54,6 @@ export function useQueue() {
       const sessionToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
       if (!sessionToken) throw new Error('MISSING_PIN_SESSION');
 
-      // The generated database types do not yet include the production PIN-session RPC.
-      // Cast the client, not the method, so the RPC retains its Supabase client context.
       const queueClient = supabase as unknown as QueueRpcClient;
       const { data, error } = await queueClient.rpc('get_queue_for_pin_session', {
         p_tenant_id: tenantId,
