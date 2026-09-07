@@ -6,6 +6,8 @@ import type { AuthUser } from '@/shared/store/authStore';
 // P37-C: Local type for RPC result normalization
 type RpcResult = Record<string, unknown> | null | undefined;
 
+const PIN_SESSION_STORAGE_KEY = 'core-system-pin-session';
+
 export function useAuth() {
   const store = useAuthStore();
   const isPinLocked = selectIsPinLocked(store);
@@ -42,36 +44,76 @@ export function useAuth() {
       store.setError('PIN must be exactly 4 digits');
       return { success: false, error: 'PIN must be exactly 4 digits' };
     }
+
     if (import.meta.env.DEV) {
       const mockUser: AuthUser = { id: 'dev-user', email: null, full_name: 'Dev Doctor', full_name_ar: null, role: 'doctor', tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', employee_code: 'DEV-EMP', pin_code: null, phone: null, specialization: null };
-      store.login(mockUser, null, null); store.setPinAuthenticated(true); return { success: true, user: mockUser };
-    }
-    const tenantId = store.tenant_id || store.user?.tenant_id || '';
-    if (!tenantId) return { success: false, error: 'Missing tenant ID' };
-    try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc('validate_pin', { p_tenant_id: tenantId, p_pin: pin });
-      if (rpcError) { store.setError(rpcError.message); store.unauthenticate(); store.incrementPinAttempt(); return { success: false, error: rpcError.message }; }
-      const pinUserRows = Array.isArray(rpcData) ? rpcData : [rpcData];
-      const pinUser = pinUserRows.length > 0 ? (pinUserRows[0] as RpcResult) : null;
-      if (!pinUser) { const msg = 'Invalid PIN'; store.setError(msg); store.unauthenticate(); store.incrementPinAttempt(); return { success: false, error: msg }; }
-      store.resetPinAttempts();
-      const profile = pinUser;
-      const { data: sessionData } = await supabase.auth.getSession();
-      const sbSession = sessionData?.session;
-      const authUser: AuthUser = {
-        id: String(profile.id ?? ''),
-        email: (profile.email as string | null) ?? null,
-        full_name: (profile.full_name as string) ?? '',
-        full_name_ar: (profile.full_name_ar as string | null) ?? null,
-        role: (profile.role as AuthUser['role']) || 'receptionist',
-        tenant_id: (profile.tenant_id as string) ?? '',
-        employee_code: (profile.employee_code as string | null) ?? null,
-        pin_code: (profile.pin_code as string | null) ?? null,
-        phone: (profile.phone as string | null) ?? null,
-        specialization: (profile.specialization as string | null) ?? null,
-      };
-      store.login(authUser, sbSession?.user ?? null, sbSession ?? null);
+      store.login(mockUser, null, null);
       store.setPinAuthenticated(true);
+      return { success: true, user: mockUser };
+    }
+
+    const tenantId = store.tenant_id || store.user?.tenant_id || '';
+    if (!tenantId) {
+      const msg = 'Missing tenant ID';
+      store.setError(msg);
+      return { success: false, error: msg };
+    }
+
+    // Production PIN authentication uses the secure short-lived PIN session.
+    // The legacy validate_pin RPC cannot establish a Supabase Auth identity.
+    try {
+      // License validation supplies the tenant, while the employee code is
+      // selected/stored by the current auth flow before PIN verification.
+      const employeeCode = store.user?.employee_code ?? '';
+      if (!employeeCode) {
+        const msg = 'Missing employee code';
+        store.setError(msg);
+        return { success: false, error: msg };
+      }
+
+      const { data: sessionData, error: sessionError } = await (supabase.rpc as any)('create_pin_session', {
+        p_tenant_id: tenantId,
+        p_employee_code: employeeCode,
+        p_pin: pin,
+      });
+
+      if (sessionError) {
+        store.setError(sessionError.message);
+        store.unauthenticate();
+        store.incrementPinAttempt();
+        return { success: false, error: sessionError.message };
+      }
+
+      const sessionResult = sessionData as RpcResult;
+      if (!sessionResult?.success || !sessionResult.session_token) {
+        const code = String(sessionResult?.error ?? 'INVALID_CREDENTIALS');
+        const msg = code === 'RATE_LIMIT_EXCEEDED'
+          ? 'Too many PIN attempts. Try again later.'
+          : 'Invalid PIN or employee code';
+        store.setError(msg);
+        store.unauthenticate();
+        store.incrementPinAttempt();
+        return { success: false, error: msg };
+      }
+
+      const authUser: AuthUser = {
+        id: String(sessionResult.user_id ?? ''),
+        email: (sessionResult.email as string | null) ?? null,
+        full_name: (sessionResult.full_name as string) ?? '',
+        full_name_ar: (sessionResult.full_name_ar as string | null) ?? null,
+        role: (sessionResult.role as AuthUser['role']) || 'receptionist',
+        tenant_id: String(sessionResult.tenant_id ?? tenantId),
+        employee_code: (sessionResult.employee_code as string | null) ?? employeeCode,
+        pin_code: null,
+        phone: (sessionResult.phone as string | null) ?? null,
+        specialization: (sessionResult.specialization as string | null) ?? null,
+      };
+
+      sessionStorage.setItem(PIN_SESSION_STORAGE_KEY, String(sessionResult.session_token));
+      store.resetPinAttempts();
+      store.login(authUser, null, null);
+      store.setPinAuthenticated(true);
+
       return { success: true, user: authUser };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'PIN validation failed';
@@ -114,5 +156,5 @@ export function useAuth() {
   const clearError = useCallback(() => { store.clearError(); }, [store]);
   const signOut = useCallback(async () => { await logout(); }, [logout]);
 
-  return { validateLicense, loginWithPin, loginWithEmail, logout, signOut, clearError, isChecking: store.status === 'CHECKING_SESSION', isAuthenticated: store.isAuthenticated, isPinAuthenticated: store.isPinAuthenticated, user: store.user, status: store.status, error: store.error, isPinLocked, attemptsRemaining, userRole, fullName, role };
+  return { validateLicense, loginWithPin, loginWithEmail, logout, signOut, clearError, isChecking: store.status === 'CHECKING_SESSION', isAuthenticated: store.isAuthenticated, isPinAuthenticated: store.isPinAuthenticated, isPinLocked, attemptsRemaining, userRole, fullName, role };
 }
