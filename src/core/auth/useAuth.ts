@@ -38,7 +38,7 @@ export function useAuth() {
     }
   }, [store]);
 
-  const loginWithPin = useCallback(async (pin: string) => {
+  const loginWithPin = useCallback(async (pin: string, employeeCode?: string) => {
     if (!pin || pin.length !== 4) {
       store.setError('PIN must be exactly 4 digits');
       return { success: false, error: 'PIN must be exactly 4 digits' };
@@ -58,9 +58,17 @@ export function useAuth() {
       return { success: false, error: msg };
     }
 
+    const normalizedEmployeeCode = employeeCode?.trim() ?? '';
+    if (!normalizedEmployeeCode) {
+      const msg = 'Employee code is required';
+      store.setError(msg);
+      return { success: false, error: msg };
+    }
+
     try {
       const { data: sessionData, error: sessionError } = await (supabase.rpc as any)('create_pin_session', {
         p_tenant_id: tenantId,
+        p_employee_code: normalizedEmployeeCode,
         p_pin: pin,
       });
 
@@ -76,9 +84,7 @@ export function useAuth() {
         const code = String(sessionResult?.error ?? 'INVALID_CREDENTIALS');
         const msg = code === 'RATE_LIMIT_EXCEEDED'
           ? 'Too many PIN attempts. Try again later.'
-          : code === 'AMBIGUOUS_PIN'
-            ? 'هذا الرمز PIN مستخدم لأكثر من موظف. يرجى استخدام رمز موظف فريد.'
-            : 'Invalid PIN';
+          : 'Invalid employee code or PIN';
         store.setError(msg);
         store.unauthenticate();
         store.incrementPinAttempt();
@@ -92,7 +98,7 @@ export function useAuth() {
         full_name_ar: (sessionResult.full_name_ar as string | null) ?? null,
         role: (sessionResult.role as AuthUser['role']) || 'receptionist',
         tenant_id: String(sessionResult.tenant_id ?? tenantId),
-        employee_code: (sessionResult.employee_code as string | null) ?? null,
+        employee_code: (sessionResult.employee_code as string | null) ?? normalizedEmployeeCode,
         pin_code: null,
         phone: (sessionResult.phone as string | null) ?? null,
         specialization: (sessionResult.specialization as string | null) ?? null,
