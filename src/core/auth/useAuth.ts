@@ -40,7 +40,10 @@ export function useAuth() {
     const tenantId = store.tenant_id || store.user?.tenant_id || '';
     if (!tenantId) { store.setError('Missing tenant ID'); return { success: false, error: 'Missing tenant ID' }; }
     try {
-      const createPinSession = supabase.rpc.bind(supabase, 'create_pin_session') as unknown as PinSessionRpc;
+      // database.types.ts does not yet contain the production-only PIN session RPC.
+      // Keep the generated Supabase types unchanged and narrow the call locally.
+      const rpc = supabase.rpc as unknown as (fn: string, args: { p_tenant_id: string; p_pin: string }) => ReturnType<typeof supabase.rpc>;
+      const createPinSession = rpc.bind(supabase, 'create_pin_session') as unknown as PinSessionRpc;
       const { data, error } = await createPinSession({ p_tenant_id: tenantId, p_pin: pin });
       if (error) { store.setError(error.message); store.unauthenticate(); store.incrementPinAttempt(); return { success: false, error: error.message }; }
       const result = data as RpcResult;
