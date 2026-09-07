@@ -134,7 +134,7 @@ export default function Page2ClinicalIntent({ sessionId, initialData, onNext, on
       </Card>
 
       <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-        البيانات تُحفظ محلياً فقط في هذه المرحلة — لا يوجد اتصال بقاعدة البيانات (P43-B UI Foundation)
+        يتم حفظ بيانات هذه الصفحة في جلسة الاستبيان عبر قاعدة البيانات عند المتابعة.
       </p>
     </div>
   );
