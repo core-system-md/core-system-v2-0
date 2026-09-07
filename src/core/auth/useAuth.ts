@@ -61,19 +61,11 @@ export function useAuth() {
 
     // Production PIN authentication uses the secure short-lived PIN session.
     // The legacy validate_pin RPC cannot establish a Supabase Auth identity.
+    // AuthScreen intentionally collects only the 4-digit PIN, so production
+    // login resolves a unique active user for that PIN within the tenant.
     try {
-      // License validation supplies the tenant, while the employee code is
-      // selected/stored by the current auth flow before PIN verification.
-      const employeeCode = store.user?.employee_code ?? '';
-      if (!employeeCode) {
-        const msg = 'Missing employee code';
-        store.setError(msg);
-        return { success: false, error: msg };
-      }
-
       const { data: sessionData, error: sessionError } = await (supabase.rpc as any)('create_pin_session', {
         p_tenant_id: tenantId,
-        p_employee_code: employeeCode,
         p_pin: pin,
       });
 
@@ -89,7 +81,9 @@ export function useAuth() {
         const code = String(sessionResult?.error ?? 'INVALID_CREDENTIALS');
         const msg = code === 'RATE_LIMIT_EXCEEDED'
           ? 'Too many PIN attempts. Try again later.'
-          : 'Invalid PIN or employee code';
+          : code === 'AMBIGUOUS_PIN'
+            ? 'هذا الرمز PIN مستخدم لأكثر من موظف. يرجى استخدام رمز موظف فريد.'
+            : 'Invalid PIN';
         store.setError(msg);
         store.unauthenticate();
         store.incrementPinAttempt();
@@ -103,7 +97,7 @@ export function useAuth() {
         full_name_ar: (sessionResult.full_name_ar as string | null) ?? null,
         role: (sessionResult.role as AuthUser['role']) || 'receptionist',
         tenant_id: String(sessionResult.tenant_id ?? tenantId),
-        employee_code: (sessionResult.employee_code as string | null) ?? employeeCode,
+        employee_code: (sessionResult.employee_code as string | null) ?? null,
         pin_code: null,
         phone: (sessionResult.phone as string | null) ?? null,
         specialization: (sessionResult.specialization as string | null) ?? null,
