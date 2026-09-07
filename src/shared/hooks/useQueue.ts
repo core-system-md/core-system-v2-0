@@ -20,9 +20,8 @@ export function useQueue() {
     queryFn: async (): Promise<QueueItem[]> => {
       if (!tenantId) throw new Error('MISSING_TENANT_ID');
 
-      // Reception PIN authentication is intentionally separate from Supabase Auth.
-      // The queue must therefore use the same tenant-scoped table access already
-      // used by ReceptionDashboard instead of requiring auth.uid() inside an RPC.
+      // Reception PIN authentication is separate from Supabase Auth. Use the
+      // same tenant-scoped table access already used by ReceptionDashboard.
       const { data: sessions, error: sessionsError } = await supabase
         .from('clinic_visit_sessions')
         .select(
@@ -37,13 +36,7 @@ export function useQueue() {
       if (!sessions?.length) return [];
 
       const patientIds = [...new Set(sessions.map((row) => row.patient_id).filter(Boolean))] as string[];
-      const userIds = [
-        ...new Set(
-          sessions
-            .flatMap((row) => [row.doctor_id, row.lock_holder_id])
-            .filter(Boolean)
-        ),
-      ] as string[];
+      const userIds = [...new Set(sessions.flatMap((row) => [row.doctor_id, row.lock_holder_id]).filter(Boolean))] as string[];
       const procedureIds = [...new Set(sessions.map((row) => row.procedure_id).filter(Boolean))] as string[];
 
       const [patientsResult, usersResult, proceduresResult] = await Promise.all([
@@ -66,7 +59,7 @@ export function useQueue() {
         procedureIds.length
           ? supabase
               .from('clinic_procedures')
-              .select('id, name, procedure_name')
+              .select('id, procedure_name')
               .eq('tenant_id', tenantId)
               .is('deleted_at', null)
               .in('id', procedureIds)
@@ -108,7 +101,7 @@ export function useQueue() {
           lockHolderName: lockHolder?.full_name ?? null,
           roomId: row.room_id,
           doctorId: doctor?.id ?? row.doctor_id,
-          procedureName: procedure?.procedure_name ?? procedure?.name ?? null,
+          procedureName: procedure?.procedure_name ?? null,
           coreScoreDisplay: score,
         };
       });
