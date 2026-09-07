@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import CoreScoreEngine from '@/core/rules/scoring/CoreScoreEngine';
 import CoreScoreMeter from '@/shared/components/ui/CoreScoreMeter';
 import SlaTimer from '@/shared/components/ui/SlaTimer';
 import { ArrowRight, Save, CheckCircle, Calculator, RefreshCw } from 'lucide-react';
@@ -112,28 +113,15 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
   };
 
   const handleCalculateScore = async () => {
-    if (!sessionId || !session) return;
+    if (!sessionId || !session || !tenant_id) return;
     setCalculating(true);
     try {
-      const { error: updateError } = await supabase.from('clinic_visit_sessions').update({
-        score_aps: indicators.APS, score_dri: indicators.DRI, score_rvs: indicators.RVS,
-        score_uri: indicators.URI, score_tsi: indicators.TSI, score_pqs: indicators.PQS,
-        updated_at: new Date().toISOString()
-      }).eq('id', sessionId).eq('tenant_id', tenant_id);
-      if (updateError) throw updateError;
-      const { data, error } = await supabase.functions.invoke('score-calculator', {
-        body: {
-          indicators: { APS: indicators.APS, DRI: indicators.DRI, RVS: indicators.RVS, URI: indicators.URI, TSI: indicators.TSI, PQS: indicators.PQS },
-          historicalAvg: longitudinal?.historical_core_score_avg,
-          lastVisitDate: longitudinal?.last_visit_date,
-          sessionId: sessionId, tenantId: tenant_id
-        }
+      const result = await CoreScoreEngine.calculate(indicators, {
+        sessionId,
+        tenantId: tenant_id,
       });
-      if (error) throw error;
-      if (data?.success) {
-        toast.success(`تم حساب Core Score: ${data.display} (${data.patientClass})`);
-        fetchSessionData();
-      } else { throw new Error(data?.error || 'فشل في حساب الدرجة'); }
+      toast.success(`تم حساب Core Score: ${result.display} (${result.patientClass})`);
+      await fetchSessionData();
     } catch (err: unknown) {
       console.error('Score calculation error:', err);
       toast.error(getErrorMessage(err, 'فشل في حساب Core Score'));
