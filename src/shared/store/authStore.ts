@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/infrastructure/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
+const PIN_SESSION_STORAGE_KEY = 'core-system-pin-session';
+
 // ────────────────────────────────────────────────────────────
 // STATE MACHINE: Auth Status
 // BOOTING → CHECKING_SESSION → AUTHENTICATED | UNAUTHENTICATED | PIN_REQUIRED | LOCKED
@@ -117,7 +119,10 @@ export const useAuthStore = create<AuthState>()(
           tenant_id: authUser.tenant_id,
         }),
 
-      unauthenticate: (error = null) =>
+      unauthenticate: (error = null) => {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.removeItem(PIN_SESSION_STORAGE_KEY);
+        }
         set({
           user: null,
           supabaseUser: null,
@@ -130,7 +135,8 @@ export const useAuthStore = create<AuthState>()(
           pinLockedUntil: null,
           // tenant_id and tenantData are NOT cleared here
           // They are managed separately by clearTenantContext
-        }),
+        });
+      },
 
       requirePin: () => set({ status: 'PIN_REQUIRED', isAuthenticated: false }),
 
