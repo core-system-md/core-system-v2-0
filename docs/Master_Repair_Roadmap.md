@@ -8,7 +8,7 @@
 
 ## Current Baseline
 - Branch: `main`
-- Current HEAD: `5263f972cd76c07874814602733588b227764a05`
+- Current HEAD: `5e79bb8356e762611555898de1fdd87e156dd9be`
 - Supabase production ref: `gobdznqbdaklkkqbkynx`
 - Vercel production target: `core-system-v2-0`
 
@@ -26,6 +26,7 @@
 - Leakage detector RPC contract restoration: CLOSED
 - Doctor score path routed through `CoreScoreEngine`: VERIFIED
 - `score-calculator` production function: ACTIVE, JWT verification enabled
+- Notification processor false-success repair: CLOSED
 
 ## Current Confirmed Evidence
 1. `patient_intake_responses` is the 5-page survey pipeline and is intended to feed the scoring engine.
@@ -43,11 +44,16 @@
 4. Production `core_rules_config` contains scoring weights and PQS penalty thresholds, but no authoritative survey-answer-to-indicator numeric mapping.
 5. `DecisionCard` currently calls `CoreScoreEngine.calculate(...)`; it does not pre-write indicator values before backend calculation.
 6. Production `score-calculator` is ACTIVE and validates JWT, clinic-user role, tenant, session ownership, and uses database-backed LTV inputs.
-7. Production `notification_queue` schema differs from the original 010 migration and uses the later canonical shape with `recipient_type`, `recipient_id`, `recipient_phone`, `recipient_email`, `template_key`, `message_body`, `retry_count`, `max_retries`, and status `queued|processing|sent|...`.
-8. Production `notification_queue` is currently empty, so no queued notification was mutated during verification.
-9. `notification-processor` is scheduled every 5 minutes and its cron runs are succeeding.
-10. The previous processor implementation contained `const sent = true`, which could falsely mark an undelivered notification as sent. This was removed.
-11. Current processor behavior refuses to claim external delivery when no active adapter exists; it requeues until retry exhaustion and then marks the notification `failed` with an explicit adapter-unavailable message.
+7. Blueprint Section 12 defines `retention_followups` as the automated + manual follow-up pipeline and specifies `scheduled_for`, `followup_type`, channel, message fields, delivery status, response tracking, and audit timestamps.
+8. Production `retention_followups` exists and its core columns match the Blueprint contract (`scheduled_for`, `followup_type`, `channel`, `message_template_id`, `message_body`, `delivery_status`, `sent_at`, `delivered_at`, `response_received`, `response_text`, `sent_by`, `created_at`, `updated_at`), with an additional `deleted_at` column.
+9. Production `retention_followups` has tenant-scoped RLS via `rls_followups_isolation` and the Blueprint-aligned pending scheduling index `idx_followups_scheduled`.
+10. Production `retention_followups` is currently empty; no follow-up records were mutated during verification.
+11. Active source contains the follow-up type/status aliases, but no active retention UI/service/automation implementation was found outside the database/type definitions searched so far.
+12. Production `notification_queue` schema uses the later canonical shape with `recipient_type`, `recipient_id`, `recipient_phone`, `recipient_email`, `template_key`, `message_body`, `retry_count`, `max_retries`, and status `queued|processing|sent|...`.
+13. Production `notification_queue` is currently empty, so no queued notification was mutated during verification.
+14. `notification-processor` is scheduled every 5 minutes and its cron runs are succeeding.
+15. The previous processor implementation contained `const sent = true`, which could falsely mark an undelivered notification as sent. This was removed.
+16. Current processor behavior refuses to claim external delivery when no active adapter exists; it requeues until retry exhaustion and then marks the notification `failed` with an explicit adapter-unavailable message.
 
 ## Open Work
 ### Survey → CORE Score Numeric Mapping
@@ -61,6 +67,12 @@
 - Safe completed repair: notification processor no longer produces false-positive delivery results.
 - Next implementation evidence needed: exact provider contract, configured provider/secrets, and approved channel behavior.
 
+### Retention / Follow-up Automation
+- Classification: INSUFFICIENT EVIDENCE for implementation
+- Database contract is present and aligned with Blueprint Section 12, but active source currently does not provide the retention service/UI/automation behavior needed to implement the full automated + manual pipeline without inventing business rules.
+- Safe finding: no production follow-up records were changed during discovery.
+- Next implementation evidence needed: exact scheduling/creation triggers, ownership/workflow rules, and approved message/template behavior.
+
 ### Automated Test Coverage
 - Classification: CONFIRMED gap in repository tooling
 - Current repository scripts do not expose Vitest/Playwright/Cypress commands.
@@ -72,7 +84,7 @@
 - No blanket remediation without evidence and scope.
 
 ## Next Stage
-**Evidence Discovery — authoritative Survey → Indicator numeric mapping OR approved notification provider contract, whichever becomes fully evidenced first.**
+**Evidence Discovery — authoritative Survey → Indicator numeric mapping, approved notification provider contract, or fully specified Retention automation workflow, whichever becomes fully evidenced first.**
 
 ## Closure Rule
 An open stage becomes CLOSED only after implementation (when supported by evidence), verification against the real runtime/production contracts, and an update to this roadmap.
