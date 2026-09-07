@@ -2,19 +2,20 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const CRON_SECRET = Deno.env.get('CRON_SECRET');
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false }
 });
 
-function isAuthorized(req: Request): boolean {
+async function isAuthorized(req: Request): Promise<boolean> {
   const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
-  return Boolean(token) && [SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET].filter(Boolean).includes(token);
+  if (!token) return false;
+  const { data, error } = await supabase.rpc('get_internal_cron_secret');
+  return !error && typeof data === 'string' && data.length > 0 && data === token;
 }
 
 Deno.serve(async (req) => {
-  if (!isAuthorized(req)) {
+  if (!(await isAuthorized(req))) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
@@ -41,9 +42,6 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // P37-A FIX: Persist computed snapshot to analytics_daily_snapshots
-    // ═══════════════════════════════════════════════════════════════
     const snapshot = (stats ?? {}) as Record<string, unknown>;
     const { error: upsertError } = await supabase
       .from('analytics_daily_snapshots')
