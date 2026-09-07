@@ -25,6 +25,13 @@ type QueueRpcRow = {
   clinic_procedures: { procedure_name?: string | null } | null;
 };
 
+type QueueRpcClient = {
+  rpc: (
+    fn: string,
+    args: { p_tenant_id: string; p_session_token: string },
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
 export function useQueue() {
   const tenantId = useAuthStore((s) => s.tenant_id);
   const isPinAuthenticated = useAuthStore((s) => s.isPinAuthenticated);
@@ -40,12 +47,10 @@ export function useQueue() {
       const sessionToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
       if (!sessionToken) throw new Error('MISSING_PIN_SESSION');
 
-      const rpc = supabase.rpc as unknown as (
-        fn: string,
-        args: { p_tenant_id: string; p_session_token: string },
-      ) => Promise<{ data: unknown; error: { message: string } | null }>;
-
-      const { data, error } = await rpc('get_queue_for_pin_session', {
+      // The generated database types do not yet include the production PIN-session RPC.
+      // Cast the client, not the method, so the RPC retains its Supabase client context.
+      const queueClient = supabase as unknown as QueueRpcClient;
+      const { data, error } = await queueClient.rpc('get_queue_for_pin_session', {
         p_tenant_id: tenantId,
         p_session_token: sessionToken,
       });
