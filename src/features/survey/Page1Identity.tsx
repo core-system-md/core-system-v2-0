@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { CheckCircle, AlertCircle, Stethoscope, FileText, ListChecks } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ const VISIT_TYPE_OPTIONS = [
   { value: 'returning' as const, label: 'زيارة متابعة', description: 'زيارة متابعة لحالة سابقة' },
 ];
 
-const PLACEHOLDER_PROCEDURES = [
+const PROCEDURE_OPTIONS = [
   'فحص عام', 'تنظيف أسنان', 'حشوة', 'قلع سن', 'تبييض', 'تقويم', 'زراعة أسنان', 'تجميل'
 ];
 
@@ -143,10 +143,10 @@ export default function Page1Identity({ sessionId, initialData, onNext }: Page1I
             <label className="text-sm font-semibold text-slate-800 flex items-center gap-2">
               <ListChecks className="h-4 w-4 text-slate-400" />
               الإجراءات المطلوبة <span className="text-red-500">*</span>
-              <span className="text-[10px] text-slate-400 font-normal">(قائمة مؤقتة — سيتم ربطها بقاعدة البيانات لاحقًا)</span>
+              <span className="text-[10px] text-slate-400 font-normal">(القائمة الحالية جزء من نموذج الاستبيان)</span>
             </label>
             <div className="flex flex-wrap gap-2">
-              {PLACEHOLDER_PROCEDURES.map((proc) => {
+              {PROCEDURE_OPTIONS.map((proc) => {
                 const selected = data.procedures_requested.includes(proc);
                 return (
                   <button
@@ -209,7 +209,7 @@ export default function Page1Identity({ sessionId, initialData, onNext }: Page1I
       </Card>
 
       <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-        البيانات تُحفظ محلياً فقط في هذه المرحلة — لا يوجد اتصال بقاعدة البيانات (P43-A UI Foundation)
+        يتم حفظ بيانات هذه الصفحة في جلسة الاستبيان عبر قاعدة البيانات عند المتابعة.
       </p>
     </div>
   );
