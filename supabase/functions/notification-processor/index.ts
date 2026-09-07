@@ -14,6 +14,10 @@ async function isAuthorized(req: Request): Promise<boolean> {
   return !error && typeof data === 'string' && data.length > 0 && data === token;
 }
 
+function getUnsupportedChannelMessage(channel: string): string {
+  return `Notification channel '${channel}' has no configured delivery adapter`;
+}
+
 Deno.serve(async (req) => {
   if (!(await isAuthorized(req))) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -27,35 +31,48 @@ Deno.serve(async (req) => {
     .order('priority', { ascending: false })
     .limit(50);
 
-  if (error || !notifications || notifications.length === 0) {
-    return new Response(JSON.stringify({ success: true, processed: 0 }), { status: 200 });
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+
+  if (!notifications || notifications.length === 0) {
+    return new Response(JSON.stringify({ success: true, processed: 0, results: [] }), { status: 200 });
   }
 
   const results = [];
   for (const notif of notifications) {
     await supabase
       .from('notification_queue')
-      .update({ status: 'processing', updated_at: new Date().toISOString() })
-      .eq('id', notif.id);
+      .update({ status: 'processing' })
+      .eq('id', notif.id)
+      .eq('status', 'queued');
 
-    const sent = true; // TODO: Integrate with WhatsApp/SMS API
+    // Delivery adapters are not implemented in the active codebase yet.
+    // Never report a notification as sent unless a real adapter confirms delivery.
+    const errorMessage = getUnsupportedChannelMessage(notif.channel);
+    const nextRetryCount = (notif.retry_count ?? 0) + 1;
+    const exhausted = nextRetryCount >= (notif.max_retries ?? 3);
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('notification_queue')
       .update({
-        status: sent ? 'sent' : 'failed',
-        sent_at: sent ? new Date().toISOString() : null,
-        retry_count: notif.retry_count + 1,
-        updated_at: new Date().toISOString()
+        status: exhausted ? 'failed' : 'queued',
+        retry_count: nextRetryCount,
+        error_message: errorMessage,
       })
       .eq('id', notif.id);
 
-    results.push({ id: notif.id, status: sent ? 'sent' : 'failed' });
+    results.push({
+      id: notif.id,
+      status: exhausted ? 'failed' : 'queued',
+      retry_count: nextRetryCount,
+      error: updateError?.message ?? errorMessage,
+    });
   }
 
   return new Response(JSON.stringify({
     success: true,
     processed: results.length,
-    results
+    results,
   }), { status: 200 });
 });
