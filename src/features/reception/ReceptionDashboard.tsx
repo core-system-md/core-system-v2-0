@@ -1,10 +1,11 @@
 import { useAuthStore } from "@/shared/store/authStore";
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuth } from '@/core/auth/AuthProvider';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { PIN_SESSION_STORAGE_KEY } from '@/core/auth/PinAuthProvider';
 import {
   Users, Plus, Calendar, Clock, Stethoscope,
   Search, UserPlus, ClipboardList
@@ -28,24 +29,31 @@ interface Doctor {
 interface AgendaEvent {
   id: string;
   patient_id: string | null;
+  patient_name: string;
   doctor_id: string | null;
+  doctor_name: string;
   scheduled_start: string;
   scheduled_end: string;
   status: string | null;
 }
 
+type ReceptionRpcClient = {
+  rpc: (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
 export default function ReceptionDashboard() {
   const navigate = useNavigate();
   const { fullName } = useAuth();
   const [activeTab, setActiveTab] = useState<'queue' | 'booking' | 'patients'>('queue');
-  const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [agendaEvents, setAgendaEvents] = useState<AgendaEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchPhone, setSearchPhone] = useState('');
   const [foundPatient, setFoundPatient] = useState<Patient | null>(null);
 
-  // Quick Booking form state
   const [bookingForm, setBookingForm] = useState({
     firstName: '',
     lastName: '',
@@ -61,101 +69,79 @@ export default function ReceptionDashboard() {
 
   const tenant_id = useAuthStore((s) => s.tenant_id);
 
-  useEffect(() => {
-    if (tenant_id) {
-      fetchData();
-    }
-  }, [tenant_id]);
+  const getReceptionRpcClient = () => supabase as unknown as ReceptionRpcClient;
 
-  const fetchData = async () => {
-    setLoading(true);
+  const getSessionToken = () => {
+    const token = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
+    if (!token) throw new Error('MISSING_PIN_SESSION');
+    return token;
+  };
+
+  const fetchData = async (showLoader = true) => {
+    if (!tenant_id) return;
+    if (showLoader) setLoading(true);
+
     try {
-      // Fetch active sessions (waiting + in_consultation)
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('clinic_visit_sessions')
-        .select('id, patient_id, session_status, created_at, core_score_backend, patient_class')
-        .eq('tenant_id', tenant_id)
-        .is('deleted_at', null)
-        .not('session_status', 'in', '("completed","cancelled")')
-        .order('created_at', { ascending: true });
-
-      if (sessionsError) throw sessionsError;
-
-      // Fetch patients for these sessions
-      if (sessionsData && sessionsData.length > 0) {
-        const patientIds = sessionsData.map((s) => s.patient_id);
-        const { data: patientsData, error: patientsError } = await supabase
-          .from('clinic_patients')
-          .select('id, first_name, last_name, phone_primary, patient_status')
-          .eq('tenant_id', tenant_id)
-          .is('deleted_at', null)
-          .in('id', patientIds);
-
-        if (patientsError) throw patientsError;
-        setPatients(patientsData || []);
-      } else {
-        setPatients([]);
-      }
-
-      // Fetch doctors
-      const { data: doctorsData, error: doctorsError } = await supabase
-        .from('clinic_users')
-        .select('id, full_name, specialization')
-        .eq('tenant_id', tenant_id)
-        .is('deleted_at', null)
-        .eq('role', 'doctor')
-        .eq('is_active', true);
-
-      if (doctorsError) throw doctorsError;
-      setDoctors(doctorsData || []);
-
-      // Fetch today's agenda
+      const sessionToken = getSessionToken();
       const today = new Date().toISOString().split('T')[0];
-      const { data: agendaData, error: agendaError } = await supabase
-        .from('master_agenda_events')
-        .select('id, patient_id, doctor_id, scheduled_start, scheduled_end, status')
-        .eq('tenant_id', tenant_id)
-        .is('deleted_at', null)
-        .gte('scheduled_start', `${today}T00:00:00`)
-        .lt('scheduled_start', `${today}T23:59:59`)
-        .not('status', 'in', '("cancelled","no_show")')
-        .order('scheduled_start', { ascending: true });
+      const { data, error } = await getReceptionRpcClient().rpc('get_reception_dashboard_for_pin_session', {
+        p_tenant_id: tenant_id,
+        p_session_token: sessionToken,
+        p_date: today,
+      });
 
-      if (agendaError) throw agendaError;
-      setAgendaEvents(agendaData || []);
+      if (error) throw new Error(error.message);
 
+      const result = (data ?? {}) as {
+        doctors?: Doctor[];
+        agenda?: AgendaEvent[];
+      };
+
+      setDoctors(Array.isArray(result.doctors) ? result.doctors : []);
+      setAgendaEvents(Array.isArray(result.agenda) ? result.agenda : []);
     } catch (err: unknown) {
       console.error('Reception dashboard error:', err);
-      toast.error(err instanceof Error ? err.message : 'فشل في تحميل البيانات');
+      toast.error(err instanceof Error ? err.message : 'فشل في تحميل بيانات الاستقبال');
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!tenant_id) return;
+
+    void fetchData();
+    const refreshTimer = window.setInterval(() => {
+      void fetchData(false);
+    }, 30000);
+
+    return () => window.clearInterval(refreshTimer);
+  }, [tenant_id]);
 
   const searchPatient = async () => {
     if (!searchPhone || searchPhone.length < 7) {
       toast.error('أدخل رقم هاتف صحيح');
       return;
     }
+
     try {
-      const { data, error } = await supabase
-        .from('clinic_patients')
-        .select('id, first_name, last_name, phone_primary, patient_status')
-        .eq('tenant_id', tenant_id)
-        .is('deleted_at', null)
-        .ilike('phone_primary', `%${searchPhone}%`)
-        .limit(1)
-        .single();
+      const sessionToken = getSessionToken();
+      const { data, error } = await getReceptionRpcClient().rpc('search_reception_patient_for_pin_session', {
+        p_tenant_id: tenant_id,
+        p_session_token: sessionToken,
+        p_phone: searchPhone,
+      });
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) throw new Error(error.message);
 
-      if (data) {
-        setFoundPatient(data);
+      const patient = (data ?? null) as Patient | null;
+      if (patient) {
+        setFoundPatient(patient);
         setBookingForm(prev => ({
           ...prev,
-          firstName: data.first_name || '',
-          lastName: data.last_name || '',
-          phone: data.phone_primary || '',
+          firstName: patient.first_name || '',
+          lastName: patient.last_name || '',
+          phone: patient.phone_primary || '',
           isNewPatient: false
         }));
         toast.success('المريض موجود — سيتم إضافة زيارة جديدة');
@@ -165,6 +151,7 @@ export default function ReceptionDashboard() {
         toast.info('مريض جديد — املأ البيانات');
       }
     } catch (err: unknown) {
+      console.error('Patient search error:', err);
       toast.error(err instanceof Error ? err.message : 'فشل في البحث');
     }
   };
@@ -177,78 +164,29 @@ export default function ReceptionDashboard() {
 
     setBookingLoading(true);
     try {
-      let patientId = foundPatient?.id;
+      const sessionToken = getSessionToken();
+      const scheduledStart = new Date(`${bookingForm.scheduledDate}T${bookingForm.scheduledTime}:00`).toISOString();
 
-      // Step 1: Create patient if new
-      if (!patientId) {
-        const { data: newPatient, error: patientError } = await supabase
-          .from('clinic_patients')
-          .insert({
-            tenant_id: tenant_id,
-            first_name: bookingForm.firstName,
-            last_name: bookingForm.lastName,
-            full_name: `${bookingForm.firstName} ${bookingForm.lastName}`.trim(),
-            phone_primary: bookingForm.phone,
-            gender: bookingForm.gender,
-            patient_status: 'active',
-            preferred_channel: 'whatsapp',
-            mrn: `MRN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
-          })
-          .select('id')
-          .single();
+      const { data, error } = await getReceptionRpcClient().rpc('create_reception_quick_booking_for_pin_session', {
+        p_tenant_id: tenant_id,
+        p_session_token: sessionToken,
+        p_first_name: bookingForm.firstName,
+        p_last_name: bookingForm.lastName,
+        p_phone: bookingForm.phone,
+        p_gender: bookingForm.gender,
+        p_doctor_id: bookingForm.doctorId,
+        p_scheduled_start: scheduledStart,
+        p_inquiry_reason: bookingForm.inquiryReason || null,
+        p_existing_patient_id: foundPatient?.id ?? null,
+      });
 
-        if (patientError) throw patientError;
-        patientId = newPatient.id;
+      if (error) throw new Error(error.message);
 
-        // Create longitudinal profile
-        await supabase.from('patient_longitudinal_profiles').insert({
-          tenant_id: tenant_id,
-          patient_id: patientId,
-          loyalty_tier: 'standard'
-        });
-      }
-
-      // Step 2: Create agenda event
-      const scheduledStart = `${bookingForm.scheduledDate}T${bookingForm.scheduledTime}:00`;
-      const scheduledEnd = new Date(new Date(scheduledStart).getTime() + 30 * 60000).toISOString();
-
-      const { data: agendaEvent, error: agendaError } = await supabase
-        .from('master_agenda_events')
-        .insert({
-          tenant_id: tenant_id,
-          patient_id: patientId,
-          doctor_id: bookingForm.doctorId,
-          scheduled_start: scheduledStart,
-          scheduled_end: scheduledEnd,
-          buffer_end: scheduledEnd,
-          event_type: 'appointment',
-          visit_type: foundPatient ? 'follow_up' : 'first_time',
-          status: 'scheduled'
-        })
-        .select('id')
-        .single();
-
-      if (agendaError) throw agendaError;
-
-      // Step 3: Create visit session (opens the "gate" for doctor)
-      const { data: userData } = await supabase.auth.getUser();
-      const { error: sessionError } = await supabase
-        .from('clinic_visit_sessions')
-        .insert({
-          tenant_id: tenant_id,
-          patient_id: patientId,
-          doctor_id: bookingForm.doctorId,
-          agenda_event_id: agendaEvent.id,
-          session_status: 'waiting',
-          initialized_by_receptionist: userData.user?.id ?? null,
-          is_insured: false
-        });
-
-      if (sessionError) throw sessionError;
+      const result = (data ?? {}) as { success?: boolean };
+      if (!result.success) throw new Error('BOOKING_FAILED');
 
       toast.success('تم حجز الموعد بنجاح! سيظهر في قائمة الطبيب');
 
-      // Reset form
       setBookingForm({
         firstName: '',
         lastName: '',
@@ -263,27 +201,14 @@ export default function ReceptionDashboard() {
       setFoundPatient(null);
       setSearchPhone('');
 
-      // Refresh data
-      fetchData();
+      await fetchData(false);
       setActiveTab('queue');
-
     } catch (err: unknown) {
       console.error('Booking error:', err);
       toast.error(err instanceof Error ? err.message : 'فشل في الحجز');
     } finally {
       setBookingLoading(false);
     }
-  };
-
-  const getPatientName = (patientId: string | null) => {
-    if (!patientId) return 'مريض غير معروف';
-    const p = patients.find(p => p.id === patientId);
-    return p ? `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'مريض غير معروف' : 'مريض غير معروف';
-  };
-
-  const getDoctorName = (doctorId: string | null) => {
-    const d = doctors.find(d => d.id === doctorId);
-    return d?.full_name || 'طبيب غير معروف';
   };
 
   if (loading) {
@@ -297,7 +222,6 @@ export default function ReceptionDashboard() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto" dir="rtl">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">لوحة الاستقبال</h1>
@@ -319,21 +243,18 @@ export default function ReceptionDashboard() {
         </div>
       </div>
 
-      {/* Queue Tab */}
       {activeTab === 'queue' && (
         <LiveQueueBoard
           onSelectSession={(id) => navigate(`/doctor/session/${id}`)}
         />
       )}
 
-      {/* Quick Booking Tab */}
       {activeTab === 'booking' && (
         <div className="bg-white/5 border border-white/10 rounded-xl p-6">
           <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
             <Plus className="w-5 h-5 text-green-400" /> حجز موعد سريع
           </h2>
 
-          {/* Search existing patient */}
           <div className="mb-6 p-4 bg-white/5 rounded-lg">
             <label className="block text-white/70 text-sm mb-2">البحث عن مريض موجود (رقم الهاتف)</label>
             <div className="flex gap-2">
@@ -350,7 +271,6 @@ export default function ReceptionDashboard() {
             )}
           </div>
 
-          {/* Patient Info */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-white/70 text-sm mb-2">الاسم الأول *</label>
@@ -385,7 +305,6 @@ export default function ReceptionDashboard() {
             </div>
           </div>
 
-          {/* Doctor + Schedule */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-white/70 text-sm mb-2">الطبيب *</label>
@@ -424,7 +343,6 @@ export default function ReceptionDashboard() {
             </div>
           </div>
 
-          {/* Quick Booking Submit — guarded by edit_queue permission */}
           <PermissionGuard required="edit_queue">
             <button onClick={handleQuickBooking} disabled={bookingLoading}
               className="w-full bg-green-500/20 hover:bg-green-500/30 disabled:bg-white/5 text-green-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4">
@@ -435,7 +353,6 @@ export default function ReceptionDashboard() {
         </div>
       )}
 
-      {/* Appointments Tab */}
       {activeTab === 'patients' && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-white">مواعيد اليوم</h2>
@@ -455,12 +372,12 @@ export default function ReceptionDashboard() {
                         <p className="text-white font-medium">
                           {new Date(event.scheduled_start).toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}
                         </p>
-                        <p className="text-white/50 text-sm">{getPatientName(event.patient_id)}</p>
+                        <p className="text-white/50 text-sm">{event.patient_name}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Stethoscope className="w-4 h-4 text-white/30" />
-                      <span className="text-white/50 text-sm">{getDoctorName(event.doctor_id)}</span>
+                      <span className="text-white/50 text-sm">{event.doctor_name}</span>
                       <span className={`text-xs px-2 py-0.5 rounded ${event.status === 'scheduled' ? 'bg-blue-500/20 text-blue-400' :
                           event.status === 'arrived' ? 'bg-yellow-500/20 text-yellow-400' :
                             event.status === 'in_session' ? 'bg-green-500/20 text-green-400' :
