@@ -41,7 +41,8 @@ serve(async (req) => {
   const { data: callerProfile, error: profileError } = await supabase
     .from('clinic_users')
     .select('id, tenant_id')
-    .eq('auth_user_id', callerData.user.id)
+    .eq('id', callerData.user.id)
+    .is('deleted_at', null)
     .single();
 
   if (profileError || !callerProfile || callerProfile.tenant_id !== tenant_id) {
@@ -69,6 +70,7 @@ serve(async (req) => {
     .select('id, is_active')
     .eq('tenant_id', tenant_id)
     .eq('device_fingerprint', device_fingerprint)
+    .is('deleted_at', null)
     .single();
 
   if (existingDevice) {
@@ -78,7 +80,7 @@ serve(async (req) => {
     // Update last seen
     await supabase
       .from('tenant_devices')
-      .update({ last_used_at: new Date().toISOString() })
+      .update({ last_seen_at: new Date().toISOString() })
       .eq('id', existingDevice.id);
 
     return new Response(JSON.stringify({ valid: true, device_id: existingDevice.id }), { status: 200 });
@@ -89,7 +91,8 @@ serve(async (req) => {
     .from('tenant_devices')
     .select('*', { count: 'exact', head: true })
     .eq('tenant_id', tenant_id)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .is('deleted_at', null);
 
   if (countError) {
     return new Response(JSON.stringify({ valid: false, reason: 'count_error' }), { status: 500 });
@@ -109,9 +112,8 @@ serve(async (req) => {
       device_fingerprint,
       device_name: 'Unknown Device',
       device_type: 'other',
-      is_trusted: false,
       is_active: true,
-      last_used_at: new Date().toISOString(),
+      last_seen_at: new Date().toISOString(),
     })
     .select('id')
     .single();
