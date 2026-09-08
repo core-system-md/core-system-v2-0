@@ -1,24 +1,28 @@
 # CORE SYSTEM™ v2.1
 **Clinic Operations and Revenues Excellence**
 
-Regional Enterprise Medical SaaS — Multi-tenant clinic operations platform.
+Regional enterprise medical SaaS — multi-tenant clinic operations platform.
 
 ## Stack
-- React + TypeScript + Vite + Tailwind + Shadcn/UI
-- Supabase (PostgreSQL 15) + Edge Functions
+- React + TypeScript + Vite + Tailwind + shadcn/ui
+- Supabase (PostgreSQL) + Edge Functions
 - Zustand + React Query + Supabase Realtime
+- Vercel production deployment
 
-## Backend Status (Complete)
-- 21 Database Migrations
-- 7 Edge Functions
-- 4 PostgreSQL RPC + CRON
-- TypeScript Types, Rules Engine, Stores, Domain Hooks
-- Auth, Realtime, Offline-First, Permissions
+## Current Verified State
+- Active repository: `core-system-md/core-system-v2-0` (`main`)
+- Production Supabase ref: `gobdznqbdaklkkqbkynx`
+- Production application: `https://core-system-v2-0.vercel.app`
+- Survey pipeline: Page 1–5 with persistence and page-order validation
+- Doctor session flow: session loading, allergy confirmation gate, decision, clinical notes, session close, DISC profile, Sandler scripts, and Core Score visualization
+- Reception, clinic-admin, super-admin, authentication, realtime, notification processing, analytics snapshot, and score-calculation paths are implemented across the active codebase
 
-## Next: UI Layer (Bolt)
-- Wire Domain hooks to Supabase
-- Build LiveQueueBoard, PatientSessionView, CoreScoreWidget
-- Realtime channels, PWA, Auth screens
+## Repair Program
+The current repair program is tracked in `docs/Master_Repair_Roadmap.md` and is executed using:
 
-## Repo
-github.com/mdcode2026-core-sys/core-system-v2.0
+`Evidence First → Constitution First → Blueprint First → Minimal → Surgical → Verification Before Closure`
+
+Closed repair stages include P62 CoreScoreWidget Integration and P63 OfflineBanner Integration. The next staged repairs are maintained in the roadmap and are only closed after implementation and verification.
+
+## Repository
+`https://github.com/core-system-md/core-system-v2-0`
