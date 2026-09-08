@@ -20,7 +20,6 @@ Allowed classifications: `CONFIRMED | LIKELY | INSUFFICIENT EVIDENCE | NOT FOUND
 - No physical DELETE; use soft-delete when the table contract requires it.
 - Financial values remain integer/bigint subunits.
 - CORE weights remain APS 0.28, DRI 0.24, RVS 0.20, URI 0.15, TSI 0.13.
-- CORE backend remains 0–1000; display remains 0–100.
 - Protected active Doctor files remain untouched unless directly scoped.
 - Archive content is read-only unless explicit evidence-backed disposition is approved.
 - No new npm dependency.
@@ -30,6 +29,10 @@ Allowed classifications: `CONFIRMED | LIKELY | INSUFFICIENT EVIDENCE | NOT FOUND
 P0–P19, P22, P28, P30-B, P31, P32, P33, P35, P36, P38, P39-C, P40-B, P41-B, P42-E — CLOSED.
 
 Additional closed repairs: P0-1, P0-2, P0-3, Reception PIN-session operations, Reception Queue Realtime Broadcast, Auth/JWT app_metadata alignment, Core Score authorization and LTV hardening, cron request/auth fixes, leakage RPC restoration, Doctor score path through CoreScoreEngine, production score-calculator JWT authorization, notification false-success repair, P54, P55, P59, P60, P61.
+
+### P84 — Screen Permission & Session Access Reconciliation
+`CLOSED — CONFIRMED`.
+Active screen guards were aligned to the existing Blueprint permission model: clinic analytics uses `view_analytics`, clinic revenue uses `view_invoices`, and clinic staff uses `view_staff`. Doctor session list/detail now apply role scope consistently: doctors are restricted to their own sessions while `clinic_admin` and `super_admin` can access tenant sessions. Session close is guarded by `edit_sessions` and uses doctor ownership only for the doctor role. Production `clinic_visit_sessions` SELECT RLS was repaired to require current-tenant isolation plus either the administrative/reception roles or `doctor_id = auth.uid()`. Production read-back confirmed the resulting policy and the migration `20260908151404 / p84_session_select_role_boundary` is present. The latest Vercel Production deployment for commit `546509459185728b3558a3b3e66366ce2c28c417` is `READY`. Archive remains unchanged.
 
 ## Current repair status
 ### P62 — CoreScoreWidget Integration
