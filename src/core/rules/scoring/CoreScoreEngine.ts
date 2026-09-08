@@ -72,8 +72,8 @@ function getPqsTier(pqs: number): PqsTier {
 function calculatePqsPenalty(pqs: number): { penalty: number; tier: PqsTier } {
   const tier = getPqsTier(pqs);
   switch (tier) {
-    case 'high': return { penalty: Math.round(pqs * 0.20), tier };
-    case 'low': return { penalty: Math.round(pqs * 0.10), tier };
+    case 'high': return { penalty: pqs * 0.20, tier };
+    case 'low': return { penalty: pqs * 0.10, tier };
     case 'none': return { penalty: 0, tier };
   }
 }
