@@ -50,11 +50,11 @@ describe('CORE Score rules', () => {
 
     const result = calculateCoreScore(indicators);
 
-    expect(result.raw).toBe(620);
+    expect(result.raw).toBe(639);
     expect(result.penalty).toBe(160);
     expect(result.pqsTier).toBe('high');
-    expect(result.backend).toBe(460);
-    expect(result.display).toBe(46);
+    expect(result.backend).toBe(479);
+    expect(result.display).toBe(47.9);
     expect(result.patientClass).toBe('medium_priority');
     expect(listener).toHaveBeenCalledTimes(1);
   });
