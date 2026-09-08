@@ -18,39 +18,49 @@ export default function AnalyticsOverview() {
   const { tenantId } = useTenantStore();
   const [kpi, setKpi] = useState<DashboardKPI | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
-    fetchDashboardKPI();
+    void fetchDashboardKPI();
   }, [tenantId]);
 
   async function fetchDashboardKPI() {
     setLoading(true);
+    setError(null);
     const today = new Date().toISOString().split('T')[0]!;
 
-    const { data: snapshot } = await supabase
+    const { data: snapshot, error: snapshotError } = await supabase
       .from('analytics_daily_snapshots')
       .select('*')
       .eq('tenant_id', tenantId!)
       .eq('snapshot_date', today)
-      .single();
+      .is('deleted_at', null)
+      .maybeSingle();
 
-    const { count: activeSessions } = await supabase
-      .from('clinic_visit_sessions')
-      .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId!)
-      .in('session_status', ['waiting', 'in_consultation'])
-      .is('deleted_at', null);  // G28 FIX: Constitution §2.4 soft delete compliance
+    if (snapshotError) {
+      setError(snapshotError.message);
+      setKpi(null);
+      setLoading(false);
+      return;
+    }
 
-    const { count: totalPatients } = await supabase
+    const { count: totalPatients, error: patientError } = await supabase
       .from('clinic_patients')
       .select('*', { count: 'exact', head: true })
       .eq('tenant_id', tenantId!)
       .is('deleted_at', null);
 
+    if (patientError) {
+      setError(patientError.message);
+      setKpi(null);
+      setLoading(false);
+      return;
+    }
+
     setKpi({
       totalPatients: totalPatients || 0,
-      totalVisitsToday: snapshot?.total_visits || activeSessions || 0,
+      totalVisitsToday: snapshot?.total_visits || 0,
       totalRevenueSubunits: snapshot?.total_revenue_subunits || 0,
       avgWaitTimeMinutes: snapshot?.avg_wait_time_minutes || 0,
       slaBreaches: snapshot?.sla_breaches_count || 0,
@@ -69,6 +79,16 @@ export default function AnalyticsOverview() {
             <div className="h-8 bg-gray-200 rounded w-3/4" />
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4" dir="rtl">
+        <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6 text-sm text-red-700">
+          تعذر تحميل مؤشرات التحليلات: {error}
+        </div>
       </div>
     );
   }
