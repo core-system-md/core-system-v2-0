@@ -33,31 +33,52 @@ export default function RevenueCards() {
     avgPerVisit: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
-    fetchRevenueData();
+    void fetchRevenueData();
   }, [tenantId]);
 
   async function fetchRevenueData() {
     setLoading(true);
+    setError(null);
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const startDate = sevenDaysAgo.toISOString().split('T')[0]!;
 
-    const { data: snapshots } = await supabase
+    const { data: snapshots, error: snapshotError } = await supabase
       .from('analytics_daily_snapshots')
       .select('*')
       .eq('tenant_id', tenantId!)
-      .gte('snapshot_date', sevenDaysAgo.toISOString().split('T')[0])
+      .gte('snapshot_date', startDate)
+      .is('deleted_at', null)
       .order('snapshot_date', { ascending: true });
 
-    const { data: invoices } = await supabase
+    if (snapshotError) {
+      setError(snapshotError.message);
+      setRevenueData([]);
+      setSummary({ totalRevenue: 0, totalDiscounts: 0, netRevenue: 0, avgPerVisit: 0 });
+      setLoading(false);
+      return;
+    }
+
+    const { data: invoices, error: invoiceError } = await supabase
       .from('clinic_invoices')
       .select('total_subunits, discount_subunits, invoice_date')
       .eq('tenant_id', tenantId!)
-      .gte('invoice_date', sevenDaysAgo.toISOString().split('T')[0])
-      .in('invoice_status', ['paid', 'partial']);
+      .gte('invoice_date', startDate)
+      .in('invoice_status', ['paid', 'partial'])
+      .is('deleted_at', null);
+
+    if (invoiceError) {
+      setError(invoiceError.message);
+      setRevenueData([]);
+      setSummary({ totalRevenue: 0, totalDiscounts: 0, netRevenue: 0, avgPerVisit: 0 });
+      setLoading(false);
+      return;
+    }
 
     const chartData: RevenueData[] = (snapshots || []).map((s: SnapshotRecord) => ({
       date: s.snapshot_date.slice(5),
@@ -157,6 +178,16 @@ export default function RevenueCards() {
           ))}
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse h-64" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4" dir="rtl">
+        <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6 text-sm text-red-700">
+          تعذر تحميل بيانات الإيرادات: {error}
+        </div>
       </div>
     );
   }
