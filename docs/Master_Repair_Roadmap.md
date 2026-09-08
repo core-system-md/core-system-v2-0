@@ -60,6 +60,14 @@
 - Targeted active-source searches for the survey field names and indicator terms found only the survey UI, persistence validation, type definitions, Blueprint directional mappings, and roadmap evidence; no authoritative numeric conversion implementation was found.
 - Result: no scoring formula or lookup table was invented or changed. The mapping remains open pending an authoritative business rule.
 
+## P58 Evidence Discovery — Browser E2E Foundation
+- Classification: INSUFFICIENT EVIDENCE / environment-blocked for browser execution.
+- A Playwright runtime and Chromium executable are available in the execution environment.
+- Direct browser navigation to the Vercel production deployment is blocked by the execution environment with `ERR_BLOCKED_BY_ADMINISTRATOR`.
+- The Vercel production deployment also redirects protected deployment URLs through Vercel SSO, preventing unauthenticated browser execution from this environment.
+- Vercel's protected URL fetch can confirm the redirect, but that is not equivalent to interactive browser E2E.
+- Result: no browser E2E result is claimed. No application behavior was modified for P58.
+
 ## Current Confirmed Evidence
 1. `patient_intake_responses` is the 5-page survey pipeline and is intended to feed the scoring engine.
 2. Blueprint explicitly maps survey fields directionally:
@@ -117,9 +125,9 @@
 - No changes made to the EventBus during discovery.
 
 ### Automated Browser E2E Coverage
-- Classification: INSUFFICIENT EVIDENCE / tooling not established
-- Repository now has automated unit/contract coverage through Vitest.
-- Browser-based E2E has not been executed in this environment and cannot be claimed as verified from the current toolset.
+- Classification: INSUFFICIENT EVIDENCE / environment-blocked
+- Playwright and Chromium are available, but production browser navigation is blocked by the execution environment and the Vercel deployment is SSO protected.
+- No browser E2E result is claimed from this environment.
 - Owner-run browser testing remains separately classifiable as OWNER-CONFIRMED.
 
 ### Supabase Advisor Follow-up
@@ -128,7 +136,7 @@
 - No blanket remediation without evidence and scope.
 
 ## Next Stage
-**P58 — Actionable Verification / Browser E2E Foundation:** determine the repository-native and environment-supported path for browser-level E2E verification without changing application behavior or inventing missing business rules. Any unavailable authenticated/browser capability will be explicitly recorded rather than simulated or falsely claimed.
+**P59 — Actionable repair selection:** continue with the first remaining item that has an authoritative implementation contract or a safely isolated verification path. Priority remains: authenticated/browser E2E when an executable browser path is available; otherwise verified provider contract, retention workflow contract, event-handler contract, or approved Survey scoring mapping.
 
 ## Closure Rule
 An open stage becomes CLOSED only after implementation (when supported by evidence), verification against the real runtime/production contracts, and an update to this roadmap.
