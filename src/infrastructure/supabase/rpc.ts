@@ -21,6 +21,22 @@ export interface LicensePayload {
   user_id: string;
 }
 
+export interface DailySnapshot {
+  total_visits: number;
+  total_new_patients: number;
+  total_returning_patients: number;
+  total_no_shows: number;
+  total_cancellations: number;
+  avg_wait_time_minutes: number;
+  avg_session_duration_minutes: number;
+  avg_core_score: number;
+  total_revenue_subunits: number;
+  total_discounts_subunits: number;
+  sla_breaches_count: number;
+  hot_leads_count: number;
+  conversion_rate: number;
+}
+
 export const rpc = {
   // Edge Functions (via supabase.functions.invoke)
   async calculateScore(payload: ScorePayload) {
@@ -48,12 +64,13 @@ export const rpc = {
     return data as number;
   },
 
-  async generateDailySnapshot(date: string) {
-    const { data, error } = await supabase.rpc('generate_daily_snapshot', {
-      p_snapshot_date: date,
+  async generateDailySnapshot(tenantId: string, date: string): Promise<DailySnapshot> {
+    const { data, error } = await supabase.rpc('compute_daily_snapshot', {
+      p_tenant_id: tenantId,
+      p_date: date,
     });
     if (error) throw error;
-    return data as number;
+    return data as DailySnapshot;
   },
 
   async processNotifications(batchSize: number = 50) {
