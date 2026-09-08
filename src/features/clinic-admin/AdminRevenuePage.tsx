@@ -3,7 +3,7 @@ import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 
 export default function AdminRevenuePage() {
   return (
-    <PermissionGuard required="view_invoices">
+    <PermissionGuard required="view_analytics">
       <RevenueCards />
     </PermissionGuard>
   );
