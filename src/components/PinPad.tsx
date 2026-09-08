@@ -13,119 +13,90 @@ interface PinPadProps {
 export default function PinPad({
   onSuccess,
   onCancel,
-  allowedRoles = ["receptionist", "doctor", "admin", "super-admin"],
-  title = "Staff Login",
-  subtitle = "Enter your 4-digit PIN",
+  allowedRoles = ["receptionist", "doctor", "clinic_admin", "super_admin"],
+  title = "دخول الموظف",
+  subtitle = "أدخل رمز PIN المكوّن من 4 أرقام",
 }: PinPadProps) {
-  const { isChecking } = useAuth();
+  const { loginWithPin, logout, isChecking, isPinLocked, attemptsRemaining } = useAuth();
   const [pin, setPin] = useState<string[]>(["", "", "", ""]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [shake, setShake] = useState(false);
-  const [attempts, setAttempts] = useState(0);
-  const [isLocked, setIsLocked] = useState(false);
-  const [lockTimer, setLockTimer] = useState(0);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const MAX_ATTEMPTS = 5;
-  const LOCKOUT_SECONDS = 30;
+  const resetPin = useCallback(() => {
+    setPin(["", "", "", ""]);
+    setActiveIndex(0);
+  }, []);
 
-  useEffect(() => {
-    if (isLocked && lockTimer > 0) {
-      const timer = setInterval(() => {
-        setLockTimer((prev) => {
-          if (prev <= 1) {
-            setIsLocked(false);
-            setAttempts(0);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-    return undefined;
-  }, [isLocked, lockTimer]);
-
-  const handleKeyPress = useCallback(
-    (key: string) => {
-      if (isLocked || isChecking) return;
-
-      if (key === "backspace") {
-        if (activeIndex > 0) {
-          const newPin = [...pin];
-          newPin[activeIndex - 1] = "";
-          setPin(newPin);
-          setActiveIndex(activeIndex - 1);
-        }
-        return;
-      }
-
-      if (key === "clear") {
-        setPin(["", "", "", ""]);
-        setActiveIndex(0);
-        return;
-      }
-
-      if (activeIndex < 4) {
-        const newPin = [...pin];
-        newPin[activeIndex] = key;
-        setPin(newPin);
-        setActiveIndex(activeIndex + 1);
-
-        if (activeIndex === 3) {
-          const fullPin = newPin.join("");
-          void fullPin;
-          handleSubmit(fullPin);
-        }
-      }
-    },
-    [pin, activeIndex, isLocked, isChecking]
-  );
-
-  const handleSubmit = async (fullPin: string) => {
-    if (fullPin.length !== 4) return;
+  const handleSubmit = useCallback(async (fullPin: string) => {
+    if (!/^\d{4}$/.test(fullPin) || isPinLocked || isChecking) return;
     setLocalError(null);
 
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const mockRole = "doctor";
-      
-      if (allowedRoles.includes(mockRole)) {
-        onSuccess?.("mock-user-id", mockRole);
-      } else {
-        setLocalError("Unauthorized role");
-        setShake(true);
-        setTimeout(() => setShake(false), 500);
-        setPin(["", "", "", ""]);
-        setActiveIndex(0);
-      }
-    } catch {
-      setAttempts((prev) => {
-        const newAttempts = prev + 1;
-        if (newAttempts >= MAX_ATTEMPTS) {
-          setIsLocked(true);
-          setLockTimer(LOCKOUT_SECONDS);
-        }
-        return newAttempts;
-      });
-      setLocalError("Invalid PIN");
+    const result = await loginWithPin(fullPin);
+    resetPin();
+
+    if (!result.success) {
+      setLocalError(result.error || "رمز PIN غير صحيح");
       setShake(true);
-      setTimeout(() => setShake(false), 500);
-      setPin(["", "", "", ""]);
-      setActiveIndex(0);
+      window.setTimeout(() => setShake(false), 500);
+      return;
     }
-  };
+
+    const user = result.user;
+    if (!user || !allowedRoles.includes(user.role)) {
+      await logout();
+      setLocalError("هذا الدور غير مسموح له بالدخول من هذه الشاشة");
+      setShake(true);
+      window.setTimeout(() => setShake(false), 500);
+      return;
+    }
+
+    onSuccess?.(user.id, user.role);
+  }, [allowedRoles, isChecking, isPinLocked, loginWithPin, logout, onSuccess, resetPin]);
+
+  const handleKeyPress = useCallback((key: string) => {
+    if (isPinLocked || isChecking) return;
+
+    if (key === "backspace") {
+      if (activeIndex > 0) {
+        setPin((current) => {
+          const next = [...current];
+          next[activeIndex - 1] = "";
+          return next;
+        });
+        setActiveIndex((index) => index - 1);
+      }
+      return;
+    }
+
+    if (key === "clear") {
+      resetPin();
+      setLocalError(null);
+      return;
+    }
+
+    if (!/^\d$/.test(key) || activeIndex >= 4) return;
+
+    const next = [...pin];
+    next[activeIndex] = key;
+    const nextIndex = activeIndex + 1;
+    setPin(next);
+    setActiveIndex(nextIndex);
+
+    if (nextIndex === 4) {
+      void handleSubmit(next.join(""));
+    }
+  }, [activeIndex, handleSubmit, isChecking, isPinLocked, pin, resetPin]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isLocked || isChecking) return;
-      if (e.key >= "0" && e.key <= "9") handleKeyPress(e.key);
-      else if (e.key === "Backspace") handleKeyPress("backspace");
-      else if (e.key === "Escape") onCancel?.();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key >= "0" && event.key <= "9") handleKeyPress(event.key);
+      else if (event.key === "Backspace") handleKeyPress("backspace");
+      else if (event.key === "Escape") onCancel?.();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyPress, isLocked, isChecking, onCancel]);
+  }, [handleKeyPress, onCancel]);
 
   const keypadKeys = [
     ["1", "2", "3"],
@@ -136,12 +107,12 @@ export default function PinPad({
 
   const getKeyIcon = (key: string) => {
     if (key === "backspace") return <Delete className="w-6 h-6 md:w-8 md:h-8" />;
-    if (key === "clear") return <span className="text-sm md:text-lg font-semibold">CLR</span>;
+    if (key === "clear") return <span className="text-sm md:text-lg font-semibold">مسح</span>;
     return <span className="text-2xl md:text-4xl font-bold">{key}</span>;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1B2A4A] via-[#243656] to-[#1B2A4A] text-white flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#1B2A4A] via-[#243656] to-[#1B2A4A] text-white flex flex-col items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-md bg-white/5 border border-white/10 backdrop-blur-sm rounded-xl shadow-2xl">
         <div className="p-6 md:p-10">
           <div className="text-center mb-8">
@@ -152,29 +123,29 @@ export default function PinPad({
             <p className="text-base md:text-lg text-white/60">{subtitle}</p>
           </div>
 
-          {isLocked && (
+          {isPinLocked && (
             <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-3">
               <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
               <div>
-                <p className="font-semibold text-red-300">Too many attempts</p>
-                <p className="text-sm text-red-300/70">Please wait {lockTimer} seconds</p>
+                <p className="font-semibold text-red-300">تم قفل PIN مؤقتًا</p>
+                <p className="text-sm text-red-300/70">التحقق يتم فرضه من طبقة المصادقة وقاعدة البيانات.</p>
               </div>
             </div>
           )}
 
-          {localError && !isLocked && (
+          {localError && !isPinLocked && (
             <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-3">
               <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
               <p className="text-red-300">{localError}</p>
             </div>
           )}
 
-          <div className={`flex justify-center gap-3 md:gap-4 mb-8 ${shake ? "animate-shake" : ""}`}>
+          <div className={`flex justify-center gap-3 md:gap-4 mb-4 ${shake ? "animate-shake" : ""}`}>
             {[0, 1, 2, 3].map((index) => (
               <div
                 key={index}
                 className={`w-14 h-14 md:w-20 md:h-20 rounded-xl flex items-center justify-center text-2xl md:text-4xl font-bold transition-all duration-200 ${
-                  index === activeIndex && !isLocked
+                  index === activeIndex && !isPinLocked
                     ? "bg-white/20 border-2 border-white/40 shadow-lg shadow-white/10"
                     : pin[index]
                     ? "bg-white/15 border-2 border-white/30"
@@ -190,10 +161,10 @@ export default function PinPad({
             ))}
           </div>
 
-          {!isLocked && attempts > 0 && (
+          {attemptsRemaining > 0 && !isPinLocked && (
             <div className="text-center mb-4">
-              <span className="bg-red-500/20 text-red-300 border border-red-500/30 text-sm px-3 py-1 rounded-full">
-                Attempt {attempts} of {MAX_ATTEMPTS}
+              <span className="bg-white/10 text-white/70 border border-white/10 text-xs px-3 py-1 rounded-full">
+                المحاولات المتبقية: {attemptsRemaining}
               </span>
             </div>
           )}
@@ -202,36 +173,28 @@ export default function PinPad({
             {keypadKeys.flat().map((key) => (
               <button
                 key={key}
+                type="button"
                 onClick={() => handleKeyPress(key)}
-                disabled={isLocked || isChecking}
-                className={`h-16 md:h-20 text-white font-bold rounded-xl transition-all duration-150 active:scale-95 border border-white/20 ${
-                  key === "backspace" || key === "clear"
-                    ? "bg-white/10 hover:bg-white/20"
-                    : "bg-white/15 hover:bg-white/25 text-2xl md:text-4xl"
-                } disabled:opacity-30 disabled:cursor-not-allowed`}
+                disabled={isPinLocked || isChecking}
+                className="h-16 md:h-20 text-white font-bold rounded-xl transition-all duration-150 active:scale-95 border border-white/20 bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 {isChecking && key === "0" ? (
                   <div className="w-6 h-6 md:w-8 md:h-8 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto" />
-                ) : (
-                  getKeyIcon(key)
-                )}
+                ) : getKeyIcon(key)}
               </button>
             ))}
           </div>
 
           {onCancel && (
             <button
+              type="button"
               onClick={onCancel}
               className="w-full mt-6 h-14 md:h-16 text-white/60 hover:text-white hover:bg-white/10 text-lg md:text-xl font-medium rounded-xl flex items-center justify-center gap-2 transition-colors"
             >
               <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
-              Cancel
+              رجوع
             </button>
           )}
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-white/40">CORE SYSTEM v2.0 - Secure PIN Entry</p>
-          </div>
         </div>
       </div>
 
@@ -241,9 +204,7 @@ export default function PinPad({
           10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
           20%, 40%, 60%, 80% { transform: translateX(8px); }
         }
-        .animate-shake {
-          animation: shake 0.5s ease-in-out;
-        }
+        .animate-shake { animation: shake 0.5s ease-in-out; }
       `}</style>
     </div>
   );
