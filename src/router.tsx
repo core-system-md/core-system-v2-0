@@ -31,9 +31,9 @@ const BreachLogPage = lazy(() => import('@/features/clinic-admin/BreachLogPage')
 const BillingStatusPage = lazy(() => import('@/features/clinic-admin/BillingStatusPage'));
 const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
 const FeatureFlagManager = lazy(() => import('@/features/super-admin/FeatureFlagManager'));
+const CoreRulesConfigManager = lazy(() => import('@/features/super-admin/CoreRulesConfigManager'));
 const TenantBillingAdminPage = lazy(() => import('@/features/super-admin/TenantBillingAdminPage'));
 const SurveyRouter = lazy(() => import('@/features/survey/SurveyRouter'));
-import CoreRulesConfigManager from '@/features/super-admin/CoreRulesConfigManager';
 
 function AuthWrapper() {
   const { status, isAuthenticated, user } = useAuthStore();
