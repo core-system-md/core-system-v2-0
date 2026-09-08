@@ -31,6 +31,7 @@ export default function DoctorSessionView() {
   const navigate = useNavigate();
   const tenantId = useAuthStore((state) => state.tenant_id);
   const user = useAuthStore((state) => state.user);
+  const role = user?.role;
   const [session, setSession] = useState<SessionData | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const sessionMetaRef = useRef<{ clinical_notes?: Note[] } | null>(null);
@@ -42,9 +43,16 @@ export default function DoctorSessionView() {
   const fetchSession = useCallback(async () => {
     if (!tenantId) { setError('Tenant not initialized'); setLoading(false); return; }
     if (!sessionId) { setError('Session ID required'); setLoading(false); return; }
-    if (!user?.id) { setError('User not authenticated'); setLoading(false); return; }
+    if (!user?.id || !role) { setError('User not authenticated'); setLoading(false); return; }
+    if (!['doctor', 'clinic_admin', 'super_admin'].includes(role)) { setError('Access denied'); setLoading(false); return; }
     setLoading(true); setError(null);
-    const { data, error: dbError } = await supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId).eq('doctor_id', user.id).single();
+
+    let query = supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId);
+    if (role === 'doctor') {
+      query = query.eq('doctor_id', user.id);
+    }
+
+    const { data, error: dbError } = await query.single();
     if (dbError || !data) { setError(dbError?.message || 'Session not found or access denied'); setLoading(false); return; }
     const row = data as unknown as SessionQueryResult;
     const patient = row.clinic_patients;
@@ -54,7 +62,7 @@ export default function DoctorSessionView() {
     sessionMetaRef.current = meta ?? null;
     setNotes(Array.isArray(meta?.clinical_notes) ? meta.clinical_notes : []);
     setLoading(false);
-  }, [tenantId, sessionId, user?.id]);
+  }, [tenantId, sessionId, user?.id, role]);
   useEffect(() => { fetchSession(); }, [fetchSession, refreshKey]);
 
   const persistNotes = useCallback(async (updatedNotes: Note[]) => {
