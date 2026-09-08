@@ -8,7 +8,7 @@
 
 ## Current Baseline
 - Branch: `main`
-- Current HEAD: `072c2a04d9a0b4aa99e3bce9529add10cd66b373`
+- Current HEAD: `b17785d24e9d1c4ef12bcaa83e17a278e5a33738`
 - Supabase production ref: `gobdznqbdaklkkqbkynx`
 - Vercel production target: `core-system-v2-0`
 
@@ -38,19 +38,27 @@
 - CI `npm run test`: SUCCESS.
 - Automated test suite: 2 files passed, 11 tests passed.
 - Test coverage added for existing pure CORE score logic and existing EventBus behavior; no production database schema/RLS/auth changes were introduced by P55.
-- Vercel production deployment for the same HEAD `072c2a04d9a0b4aa99e3bce9529add10cd66b373`: READY.
-- Vercel deployment URL: `core-system-v2-0-hny34f4zi-core-sys.vercel.app`.
+- Vercel production deployment for the tested HEAD `072c2a04d9a0b4aa99e3bce9529add10cd66b373`: READY.
 
 ## P56 Evidence Discovery — Retention / Follow-up Automation
 - Classification: INSUFFICIENT EVIDENCE for implementation.
 - Production `retention_followups` exists with the Blueprint-aligned scheduling, type, channel, delivery-status, response-tracking, and audit fields.
-- Production constraints explicitly allow follow-up types including `post_visit_24h`, `post_visit_7d`, `reactivation_30d`, `reactivation_60d`, `reactivation_90d`, `appointment_reminder_24h`, `appointment_reminder_2h`, `birthday`, and `custom`.
-- Production has the expected pending index `idx_followups_scheduled` on `(tenant_id, scheduled_for)` filtered by `delivery_status = 'pending'`.
+- Production constraints allow `post_visit_24h`, `post_visit_7d`, `reactivation_30d`, `reactivation_60d`, `reactivation_90d`, `appointment_reminder_24h`, `appointment_reminder_2h`, `birthday`, and `custom`.
+- Production has the pending index `idx_followups_scheduled` on `(tenant_id, scheduled_for)` filtered by `delivery_status = 'pending'`.
 - Targeted production trigger inspection found no user-defined triggers on `retention_followups` and no user-defined triggers on `notification_queue`.
-- Targeted production function inspection found no dedicated retention/follow-up automation function; only the general `process_pending_notifications(p_batch_size integer)` function matched the searched follow-up/notification naming pattern.
+- Targeted production function inspection found no dedicated retention/follow-up automation function; only the general `process_pending_notifications(p_batch_size integer)` matched the searched follow-up/notification naming pattern.
 - Production `retention_followups` is currently empty; discovery queries did not mutate follow-up records.
 - Active repository search did not establish an active Retention UI/service/automation implementation. The Blueprint names the retention contract and notification architecture, but does not provide enough concrete scheduling/ownership/message-generation rules to implement safely without business-rule invention.
 - Result: no production or application change made for P56. The item remains open and evidence-blocked.
+
+## P57 Evidence Discovery — Survey → CORE Score Numeric Mapping
+- Classification: INSUFFICIENT EVIDENCE for implementation.
+- Active `Page3BehavioralProfile` captures `readiness_level` 1–5, `decision_factor`, `referral_source`, and `followup_importance` 1–4.
+- Active `Page4Expectations` captures up to two priorities, free-text `main_concern`, and `openness_to_proceed` 1–3.
+- Migration `043_fix_patient_intake_page_order_null_guard.sql` validates the survey ranges and stores the raw answers, but does not convert them to APS/DRI/RVS/URI/TSI/PQS numeric indicators.
+- Production `core_rules_config` contains only the CORE indicator weights and PQS penalty thresholds; it contains no survey-answer mapping table or numeric conversion coefficients.
+- Targeted active-source searches for the survey field names and indicator terms found only the survey UI, persistence validation, type definitions, Blueprint directional mappings, and roadmap evidence; no authoritative numeric conversion implementation was found.
+- Result: no scoring formula or lookup table was invented or changed. The mapping remains open pending an authoritative business rule.
 
 ## Current Confirmed Evidence
 1. `patient_intake_responses` is the 5-page survey pipeline and is intended to feed the scoring engine.
@@ -69,7 +77,7 @@
 5. `DecisionCard` currently calls `CoreScoreEngine.calculate(...)`; it does not pre-write indicator values before backend calculation.
 6. Production `score-calculator` is ACTIVE and validates JWT, clinic-user role, tenant, session ownership, and uses database-backed LTV inputs.
 7. Blueprint Section 12 defines `retention_followups` as the automated + manual follow-up pipeline and specifies `scheduled_for`, `followup_type`, channel, message fields, delivery status, response tracking, and audit timestamps.
-8. Production `retention_followups` exists and its core columns match the Blueprint contract (`scheduled_for`, `followup_type`, channel, message fields, delivery status, response tracking, audit timestamps), with an additional `deleted_at` column.
+8. Production `retention_followups` exists and its core columns match the Blueprint contract, with an additional `deleted_at` column.
 9. Production `retention_followups` has tenant-scoped RLS via `rls_followups_isolation` and the Blueprint-aligned pending scheduling index `idx_followups_scheduled`.
 10. Production `retention_followups` is currently empty; no follow-up records were mutated during verification.
 11. Active source contains a typed `EventBus` implementation at `src/core/events/EventBus.ts` with subscribe/emit/once/clear behavior. The Blueprint-specified handler files (`onAppointmentCreated`, `onSessionStatusChanged`, `onPaymentCollected`, `onBreach`) were not found in active source during targeted search.
@@ -80,7 +88,7 @@
 16. The previous processor implementation contained `const sent = true`, which could falsely mark an undelivered notification as sent. This was removed.
 17. Current processor behavior refuses to claim external delivery when no active adapter exists; it requeues until retry exhaustion and then marks the notification `failed` with an explicit adapter-unavailable message.
 18. Blueprint Section 18 defines the analytics warehouse snapshot contract and includes `total_visits`, `total_new_patients`, `total_returning_patients`, `total_no_shows`, `total_cancellations`, `avg_wait_time_minutes`, `avg_session_duration_minutes`, `avg_core_score`, `total_revenue_subunits`, `total_discounts_subunits`, `sla_breaches_count`, `hot_leads_count`, and `conversion_rate`.
-19. Production `compute_daily_snapshot` previously returned only legacy keys (`total_visits`, `total_revenue`, `avg_wait_time`, `sla_breaches`), while the active `analytics-snapshot` Edge Function expected the Blueprint-aligned full key set.
+19. Production `compute_daily_snapshot` previously returned only legacy keys while the active `analytics-snapshot` Edge Function expected the Blueprint-aligned full key set.
 20. P54 replaced `compute_daily_snapshot` in production without schema changes. The RPC now returns the complete key set consumed by `analytics-snapshot`, using tenant/date-scoped session, invoice, patient, and inquiry data.
 21. P54 verification against production returned the complete contract successfully; no application rows were modified by the verification query.
 22. The four production cron jobs remain active: analytics nightly at 02:00, auto-lock every minute, leakage hourly, notification processor every 5 minutes.
@@ -89,8 +97,8 @@
 ## Open Work
 ### Survey → CORE Score Numeric Mapping
 - Classification: INSUFFICIENT EVIDENCE
-- Reason: available Constitution, Blueprint, active source, migrations, and production `core_rules_config` do not define authoritative numeric conversion from survey answers to APS/DRI/RVS/URI/TSI/PQS.
-- Prohibited action: do not invent numeric coefficients, lookup tables, or answer score ranges.
+- No authoritative numeric conversion from survey answers to APS/DRI/RVS/URI/TSI/PQS has been found in the Constitution, Blueprint, active source, migrations, or production `core_rules_config`.
+- Do not invent numeric coefficients, lookup tables, or answer score ranges.
 
 ### Notification Delivery Adapters
 - Classification: INSUFFICIENT EVIDENCE for external provider implementation
@@ -120,7 +128,7 @@
 - No blanket remediation without evidence and scope.
 
 ## Next Stage
-**P57 — Survey → CORE Score Evidence Discovery:** perform a final targeted evidence pass for authoritative numeric conversion of survey answers into APS/DRI/RVS/URI/TSI/PQS. If no authoritative mapping is found, preserve the item as evidence-blocked and move to the next actionable repair path rather than inventing scoring logic.
+**P58 — Actionable Verification / Browser E2E Foundation:** determine the repository-native and environment-supported path for browser-level E2E verification without changing application behavior or inventing missing business rules. Any unavailable authenticated/browser capability will be explicitly recorded rather than simulated or falsely claimed.
 
 ## Closure Rule
 An open stage becomes CLOSED only after implementation (when supported by evidence), verification against the real runtime/production contracts, and an update to this roadmap.
