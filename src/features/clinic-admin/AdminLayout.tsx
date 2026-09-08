@@ -8,9 +8,9 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/core/auth/useAuth';
 import { useAuthStore, selectUserRole } from '@/shared/store/authStore';
 import { useEffect } from 'react';
-import { LayoutDashboard, TrendingUp, Users, History, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Users, History, AlertTriangle, CreditCard } from 'lucide-react';
 
-type TabId = 'overview' | 'revenue' | 'staff' | 'audit' | 'breaches';
+type TabId = 'overview' | 'revenue' | 'staff' | 'audit' | 'breaches' | 'billing';
 
 const tabs: { id: TabId; label: string; icon: typeof LayoutDashboard; path: string }[] = [
   { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard, path: '/admin' },
@@ -18,6 +18,7 @@ const tabs: { id: TabId; label: string; icon: typeof LayoutDashboard; path: stri
   { id: 'staff', label: 'الطاقم', icon: Users, path: '/admin/staff' },
   { id: 'audit', label: 'التدقيق', icon: History, path: '/admin/audit' },
   { id: 'breaches', label: 'التجاوزات', icon: AlertTriangle, path: '/admin/breaches' },
+  { id: 'billing', label: 'الاشتراك', icon: CreditCard, path: '/admin/billing' },
 ];
 
 export default function AdminLayout() {
