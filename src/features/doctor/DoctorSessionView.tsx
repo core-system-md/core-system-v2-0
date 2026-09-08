@@ -1,4 +1,4 @@
-﻿// DoctorSessionView.tsx — P42-C-D + P42-D + P42-E
+﻿// DoctorSessionView.tsx — P42-C-D + P42-D + P42-E + P62
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import DecisionCard from '@/components/doctor/DecisionCard';
+import CoreScoreWidget from '@/components/CoreScoreWidget';
 import { ClinicalNotes } from './ClinicalNotes';
 import { CloseSession } from './CloseSession';
 import AllergyGate from './AllergyGate';
@@ -101,6 +102,17 @@ export default function DoctorSessionView() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
             <div className="space-y-5">
+              <section aria-label="Core Score Visualization">
+                {session.core_score_display !== null ? (
+                  <CoreScoreWidget score={session.core_score_display} label="التقييم السلوكي CORE" size="md" />
+                ) : (
+                  <Card className="border-slate-200 shadow-sm">
+                    <CardContent className="p-6 text-center text-slate-500" dir="rtl">
+                      لا توجد نتيجة CORE مسجلة لهذه الجلسة.
+                    </CardContent>
+                  </Card>
+                )}
+              </section>
               <section aria-label="Decision Card"><DecisionCard sessionId={session.id} /></section>
               <section aria-label="Clinical Notes"><PermissionGuard required="edit_sessions"><ClinicalNotes notes={notes} onAddNote={handleAddNote} onUpdateNote={handleUpdateNote} patientName={session.patient_name} /></PermissionGuard></section>
               <section aria-label="Close Session"><CloseSession sessionId={session.id} onClose={handleSessionClosed} /></section>
