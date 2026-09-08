@@ -25,7 +25,7 @@ export default function SuperAdminLayout() {
     <div className="min-h-screen bg-slate-50" dir="rtl">
       <header className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-bold text-[#1B2A4A]">لوحة المشرف العام</h1>
+          <h1 className="text-xl font-bold text-primary">لوحة المشرف العام</h1>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-500">مشرف عام</span>
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold">
@@ -43,7 +43,7 @@ export default function SuperAdminLayout() {
               onClick={() => navigate(tab.path)}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? 'border-[#1B2A4A] text-[#1B2A4A]'
+                  ? 'border-primary text-primary'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
