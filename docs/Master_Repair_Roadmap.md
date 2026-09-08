@@ -8,7 +8,7 @@
 
 ## Current Baseline
 - Branch: `main`
-- Current HEAD: `b6d79fd28b133f75768dc90daee7799593f716cd`
+- Current HEAD: `072c2a04d9a0b4aa99e3bce9529add10cd66b373`
 - Supabase production ref: `gobdznqbdaklkkqbkynx`
 - Vercel production target: `core-system-v2-0`
 
@@ -28,6 +28,18 @@
 - `score-calculator` production function: ACTIVE, JWT verification enabled
 - Notification processor false-success repair: CLOSED
 - P54 Analytics Snapshot RPC contract alignment: CLOSED
+- P55 Automated Test Foundation: CLOSED
+
+## P55 Closure Evidence
+- GitHub Actions Build Test run `34201341263` for `072c2a04d9a0b4aa99e3bce9529add10cd66b373`: SUCCESS.
+- CI `npm install`: SUCCESS.
+- CI `npm run build`: SUCCESS, 1959 modules transformed.
+- CI `npx tsc --noEmit`: SUCCESS.
+- CI `npm run test`: SUCCESS.
+- Automated test suite: 2 files passed, 11 tests passed.
+- Test coverage added for existing pure CORE score logic and existing EventBus behavior; no production database schema/RLS/auth changes were introduced by P55.
+- Vercel production deployment for the same HEAD `072c2a04d9a0b4aa99e3bce9529add10cd66b373`: READY.
+- Vercel deployment URL: `core-system-v2-0-hny34f4zi-core-sys.vercel.app`.
 
 ## Current Confirmed Evidence
 1. `patient_intake_responses` is the 5-page survey pipeline and is intended to feed the scoring engine.
@@ -61,6 +73,7 @@
 20. P54 replaced `compute_daily_snapshot` in production without schema changes. The RPC now returns the complete key set consumed by `analytics-snapshot`, using tenant/date-scoped session, invoice, patient, and inquiry data.
 21. P54 verification against production returned the complete contract successfully; no application rows were modified by the verification query.
 22. The four production cron jobs remain active: analytics nightly at 02:00, auto-lock every minute, leakage hourly, notification processor every 5 minutes.
+23. Repository CI now verifies build + TypeScript + automated unit/contract tests on each push through the current Build Test workflow.
 
 ## Open Work
 ### Survey → CORE Score Numeric Mapping
@@ -85,11 +98,11 @@
 - Active `EventBus.ts` exists, but the Blueprint-specific handler set and its concrete side effects are not sufficiently specified/present in active source to implement safely without architectural invention.
 - No changes made to the EventBus during discovery.
 
-### Automated Test Coverage
-- Classification: CONFIRMED gap in repository tooling
-- Current repository scripts do not expose Vitest/Playwright/Cypress commands.
-- CI currently verifies `npm run build` and `npx tsc --noEmit`, but does not run unit or browser E2E suites.
-- Browser-based E2E cannot be truthfully claimed from the current toolset; owner-run browser testing must be labeled OWNER-CONFIRMED.
+### Automated Browser E2E Coverage
+- Classification: INSUFFICIENT EVIDENCE / tooling not established
+- Repository now has automated unit/contract coverage through Vitest.
+- Browser-based E2E has not been executed in this environment and cannot be claimed as verified from the current toolset.
+- Owner-run browser testing remains separately classifiable as OWNER-CONFIRMED.
 
 ### Supabase Advisor Follow-up
 - Classification: CONFIRMED advisory findings remain
@@ -97,7 +110,7 @@
 - No blanket remediation without evidence and scope.
 
 ## Next Stage
-**Evidence Discovery / Verification Foundation — close the highest-confidence execution path next: establish repository-native automated tests for existing pure logic and contracts, while continuing evidence discovery for the Survey mapping, Notification providers, Retention automation, and Event handlers.**
+**P56 — Evidence Discovery / Retention & Follow-up Automation:** inspect the existing production `retention_followups` contract, related triggers/functions, active source types/services, and prior documented retention evidence to determine the smallest evidence-backed implementation or formally close the item as not implementable without an approved workflow. In parallel, continue only targeted evidence discovery for Survey numeric mapping, Notification provider contracts, and Event handlers.
 
 ## Closure Rule
 An open stage becomes CLOSED only after implementation (when supported by evidence), verification against the real runtime/production contracts, and an update to this roadmap.
