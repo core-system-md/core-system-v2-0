@@ -28,6 +28,7 @@ const AdminRevenuePage = lazy(() => import('@/features/clinic-admin/AdminRevenue
 const AdminStaffPage = lazy(() => import('@/features/clinic-admin/AdminStaffPage'));
 const AuditTrailViewerPage = lazy(() => import('@/features/clinic-admin/AuditTrailViewerPage'));
 const BreachLogPage = lazy(() => import('@/features/clinic-admin/BreachLogPage'));
+const BillingStatusPage = lazy(() => import('@/features/clinic-admin/BillingStatusPage'));
 const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
 const FeatureFlagManager = lazy(() => import('@/features/super-admin/FeatureFlagManager'));
 const SurveyRouter = lazy(() => import('@/features/survey/SurveyRouter'));
@@ -76,6 +77,7 @@ const router = createBrowserRouter([
         { path: 'staff', element: <Suspense fallback={<LoadingScreen />}><AdminStaffPage /></Suspense> },
         { path: 'audit', element: <Suspense fallback={<LoadingScreen />}><AuditTrailViewerPage /></Suspense> },
         { path: 'breaches', element: <Suspense fallback={<LoadingScreen />}><BreachLogPage /></Suspense> },
+        { path: 'billing', element: <Suspense fallback={<LoadingScreen />}><BillingStatusPage /></Suspense> },
       ],
     }],
   },
