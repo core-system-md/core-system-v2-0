@@ -34,10 +34,10 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, { hasErr
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
           <div className="max-w-md rounded-lg border border-red-200 bg-white p-6 text-center shadow-sm">
-            <h1 className="text-xl font-bold text-[#1B2A4A]">حدث خطأ أثناء عرض التطبيق</h1>
+            <h1 className="text-xl font-bold text-primary">حدث خطأ أثناء عرض التطبيق</h1>
             <p className="mt-2 text-sm text-gray-600">تم تعطيل العرض المتقدم مؤقتًا حتى يتم إصلاح المشكلة.</p>
             <button
-              className="mt-4 rounded bg-[#1B2A4A] px-4 py-2 text-sm text-white"
+              className="mt-4 rounded bg-primary px-4 py-2 text-sm text-primary-foreground"
               onClick={() => window.location.reload()}
             >
               إعادة التحميل
@@ -73,8 +73,8 @@ export function App() {
         <TenantProvider>
           <RealtimeProvider>
             <AppErrorBoundary>
-              {/* FIX: Root dark background for all feature screens */}
-              <div className="min-h-screen bg-[#1B2A4A]" dir="rtl">
+              {/* Root application shell */}
+              <div className="min-h-screen bg-primary" dir="rtl">
                 <OfflineBanner />
                 <Router />
                 <Toaster position="top-right" richColors />
