@@ -41,6 +41,17 @@
 - Vercel production deployment for the same HEAD `072c2a04d9a0b4aa99e3bce9529add10cd66b373`: READY.
 - Vercel deployment URL: `core-system-v2-0-hny34f4zi-core-sys.vercel.app`.
 
+## P56 Evidence Discovery — Retention / Follow-up Automation
+- Classification: INSUFFICIENT EVIDENCE for implementation.
+- Production `retention_followups` exists with the Blueprint-aligned scheduling, type, channel, delivery-status, response-tracking, and audit fields.
+- Production constraints explicitly allow follow-up types including `post_visit_24h`, `post_visit_7d`, `reactivation_30d`, `reactivation_60d`, `reactivation_90d`, `appointment_reminder_24h`, `appointment_reminder_2h`, `birthday`, and `custom`.
+- Production has the expected pending index `idx_followups_scheduled` on `(tenant_id, scheduled_for)` filtered by `delivery_status = 'pending'`.
+- Targeted production trigger inspection found no user-defined triggers on `retention_followups` and no user-defined triggers on `notification_queue`.
+- Targeted production function inspection found no dedicated retention/follow-up automation function; only the general `process_pending_notifications(p_batch_size integer)` function matched the searched follow-up/notification naming pattern.
+- Production `retention_followups` is currently empty; discovery queries did not mutate follow-up records.
+- Active repository search did not establish an active Retention UI/service/automation implementation. The Blueprint names the retention contract and notification architecture, but does not provide enough concrete scheduling/ownership/message-generation rules to implement safely without business-rule invention.
+- Result: no production or application change made for P56. The item remains open and evidence-blocked.
+
 ## Current Confirmed Evidence
 1. `patient_intake_responses` is the 5-page survey pipeline and is intended to feed the scoring engine.
 2. Blueprint explicitly maps survey fields directionally:
@@ -58,11 +69,11 @@
 5. `DecisionCard` currently calls `CoreScoreEngine.calculate(...)`; it does not pre-write indicator values before backend calculation.
 6. Production `score-calculator` is ACTIVE and validates JWT, clinic-user role, tenant, session ownership, and uses database-backed LTV inputs.
 7. Blueprint Section 12 defines `retention_followups` as the automated + manual follow-up pipeline and specifies `scheduled_for`, `followup_type`, channel, message fields, delivery status, response tracking, and audit timestamps.
-8. Production `retention_followups` exists and its core columns match the Blueprint contract (`scheduled_for`, `followup_type`, `channel`, `message_template_id`, `message_body`, `delivery_status`, `sent_at`, `delivered_at`, `response_received`, `response_text`, `sent_by`, `created_at`, `updated_at`), with an additional `deleted_at` column.
+8. Production `retention_followups` exists and its core columns match the Blueprint contract (`scheduled_for`, `followup_type`, channel, message fields, delivery status, response tracking, audit timestamps), with an additional `deleted_at` column.
 9. Production `retention_followups` has tenant-scoped RLS via `rls_followups_isolation` and the Blueprint-aligned pending scheduling index `idx_followups_scheduled`.
 10. Production `retention_followups` is currently empty; no follow-up records were mutated during verification.
 11. Active source contains a typed `EventBus` implementation at `src/core/events/EventBus.ts` with subscribe/emit/once/clear behavior. The Blueprint-specified handler files (`onAppointmentCreated`, `onSessionStatusChanged`, `onPaymentCollected`, `onBreach`) were not found in active source during targeted search.
-12. Active source contains follow-up type/status aliases, but no active retention UI/service/automation implementation was found outside the database/type definitions searched so far.
+12. Active source contains follow-up type/status aliases, but no active retention UI/service/automation implementation was established by targeted search.
 13. Production `notification_queue` schema uses the later canonical shape with `recipient_type`, `recipient_id`, `recipient_phone`, `recipient_email`, `template_key`, `message_body`, `retry_count`, `max_retries`, and status `queued|processing|sent|...`.
 14. Production `notification_queue` is currently empty, so no queued notification was mutated during verification.
 15. `notification-processor` is scheduled every 5 minutes and its cron runs are succeeding.
@@ -89,9 +100,8 @@
 
 ### Retention / Follow-up Automation
 - Classification: INSUFFICIENT EVIDENCE for implementation
-- Database contract is present and aligned with Blueprint Section 12, but active source currently does not provide the retention service/UI/automation behavior needed to implement the full automated + manual pipeline without inventing business rules.
-- Safe finding: no production follow-up records were changed during discovery.
-- Next implementation evidence needed: exact scheduling/creation triggers, ownership/workflow rules, and approved message/template behavior.
+- P56 confirmed the production table contract and pending index but found no user-defined triggers on `retention_followups` or `notification_queue`, no dedicated retention automation function, and no active retention service/UI implementation established in targeted source search.
+- No implementation is safe until the scheduling/creation triggers, ownership/workflow rules, and approved message/template behavior are explicitly evidenced.
 
 ### Event Handler Layer
 - Classification: INSUFFICIENT EVIDENCE for implementation
@@ -110,7 +120,7 @@
 - No blanket remediation without evidence and scope.
 
 ## Next Stage
-**P56 — Evidence Discovery / Retention & Follow-up Automation:** inspect the existing production `retention_followups` contract, related triggers/functions, active source types/services, and prior documented retention evidence to determine the smallest evidence-backed implementation or formally close the item as not implementable without an approved workflow. In parallel, continue only targeted evidence discovery for Survey numeric mapping, Notification provider contracts, and Event handlers.
+**P57 — Survey → CORE Score Evidence Discovery:** perform a final targeted evidence pass for authoritative numeric conversion of survey answers into APS/DRI/RVS/URI/TSI/PQS. If no authoritative mapping is found, preserve the item as evidence-blocked and move to the next actionable repair path rather than inventing scoring logic.
 
 ## Closure Rule
 An open stage becomes CLOSED only after implementation (when supported by evidence), verification against the real runtime/production contracts, and an update to this roadmap.
