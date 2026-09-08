@@ -47,7 +47,7 @@ export default function AdminLayout() {
       {/* Admin UI Shell */}
       <div className="max-w-7xl mx-auto p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-[#1B2A4A]">لوحة تحكم العيادة</h1>
+          <h1 className="text-2xl font-bold text-primary">لوحة تحكم العيادة</h1>
           <p className="text-gray-500">مرحباً {user?.full_name || "مدير العيادة"}</p>
         </div>
 
@@ -60,7 +60,7 @@ export default function AdminLayout() {
                 onClick={() => navigate(tab.path)}
                 className={`flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                   activeTab === tab.id
-                    ? 'bg-white text-[#1B2A4A] shadow-sm'
+                    ? 'bg-white text-primary shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
