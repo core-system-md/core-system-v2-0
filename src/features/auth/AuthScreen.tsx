@@ -119,7 +119,7 @@ export default function AuthScreen() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-[#1B2A4A]">CORE SYSTEM v2.1</CardTitle>
+          <CardTitle className="text-2xl font-bold text-primary">CORE SYSTEM v2.1</CardTitle>
           <p className="text-sm text-gray-500 mt-1">
             {step === 1 ? 'تسجيل الدخول — الخطوة ١: الترخيص' : 'تسجيل الدخول — الخطوة ٢: PIN + الدور'}
           </p>
@@ -158,7 +158,7 @@ export default function AuthScreen() {
               </div>
               <Button
                 type="submit"
-                className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                 disabled={isChecking || !licenseKey.trim()}
               >
                 {isChecking ? 'جاري التحقق...' : 'التحقق من الترخيص'}
@@ -214,7 +214,7 @@ export default function AuthScreen() {
 
                   <Button
                     type="submit"
-                    className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                     disabled={isChecking || pinCode.length !== 4 || isPinLocked}
                   >
                     {isChecking ? 'جاري التحقق...' : 'تسجيل الدخول'}
@@ -262,7 +262,7 @@ export default function AuthScreen() {
 
                   <Button
                     type="submit"
-                    className="w-full bg-[#1B2A4A] hover:bg-[#2a3d6b]"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                     disabled={isChecking || !email || !password}
                   >
                     {isChecking ? 'جاري التحقق...' : 'تسجيل الدخول'}
