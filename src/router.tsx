@@ -7,7 +7,7 @@ function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
       <div className="flex flex-col items-center gap-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#1B2A4A] border-t-transparent" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         <p className="text-sm text-gray-600">جاري التحميل...</p>
       </div>
     </div>
