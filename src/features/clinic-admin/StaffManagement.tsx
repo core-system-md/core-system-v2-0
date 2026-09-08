@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pencil, Save, UserCog, X } from 'lucide-react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuthStore } from '@/shared/store/authStore';
@@ -32,6 +32,7 @@ const roles: Array<{ value: StaffRole; label: string }> = [
 export default function StaffManagement() {
   const tenantId = useAuthStore((state) => state.tenant_id);
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
+  const currentUserRole = useAuthStore((state) => state.user?.role ?? null);
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<StaffDraft | null>(null);
@@ -39,6 +40,11 @@ export default function StaffManagement() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const editableRoles = useMemo(
+    () => currentUserRole === 'super_admin' ? roles : roles.filter((role) => role.value !== 'super_admin'),
+    [currentUserRole]
+  );
 
   async function loadStaff() {
     if (!tenantId) return;
@@ -139,11 +145,14 @@ export default function StaffManagement() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {staff.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">لا يوجد موظفون نشطون ضمن هذا tenant.</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">لا يوجد موظفون ضمن هذا tenant.</td></tr>
                 ) : staff.map((member) => {
                   const isEditing = editingId === member.id && draft !== null;
                   const displayName = member.full_name_ar || member.full_name || member.email || '—';
                   const roleLabel = roles.find((role) => role.value === member.role)?.label ?? member.role;
+                  const availableRoles = member.role === 'super_admin' && currentUserRole !== 'super_admin'
+                    ? [roles.find((role) => role.value === 'super_admin')!, ...editableRoles]
+                    : editableRoles;
 
                   return (
                     <tr key={member.id} className="align-top">
@@ -162,7 +171,7 @@ export default function StaffManagement() {
                           </td>
                           <td className="px-4 py-3">
                             <select value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value as StaffRole })} className="rounded border border-slate-200 px-3 py-2">
-                              {roles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+                              {availableRoles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
                             </select>
                           </td>
                           <td className="px-4 py-3">
@@ -201,7 +210,7 @@ export default function StaffManagement() {
           </div>
         )}
 
-        {currentUserId && <p className="text-xs text-slate-400">تغييرات الدور على حساب مدير العيادة نفسه مرفوضة من قاعدة البيانات كطبقة أمان إضافية.</p>}
+        {currentUserId && <p className="text-xs text-slate-400">تغييرات الدور على حساب مدير العيادة نفسه مرفوضة من قاعدة البيانات. ترقية أو تعديل دور مدير النظام محصور بمدير النظام.</p>}
       </section>
     </PermissionGuard>
   );
