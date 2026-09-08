@@ -45,7 +45,7 @@ export default function TenantRegistry() {
       const { data, error: dbError } = await supabase
         .from('master_tenants')
         .select(
-          'id, clinic_name, clinic_name_ar, license_key, subscription_tier, is_active, subscription_end, max_devices, max_users, max_patients, created_at'
+          'id, name, slug, clinic_name, clinic_name_ar, license_key, subscription_tier, subscription_start, subscription_end, trial_started_at, is_active, max_devices, max_users, max_patients, max_procedures_per_month, primary_phone, whatsapp_number, address, country_code, timezone, currency, currency_subunit, logo_url, primary_color, settings, created_at, updated_at'
         )
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
@@ -172,8 +172,7 @@ export default function TenantRegistry() {
 
                     <td className="text-center py-3 px-4">
                       <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${TIER_COLORS[tenant.subscription_tier] || TIER_COLORS.trial
-                          }`}
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${TIER_COLORS[tenant.subscription_tier] || TIER_COLORS.trial}`}
                       >
                         {TIER_LABELS[tenant.subscription_tier] || tenant.subscription_tier}
                       </span>
@@ -181,10 +180,7 @@ export default function TenantRegistry() {
 
                     <td className="text-center py-3 px-4">
                       <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${tenant.is_active
-                            ? 'bg-green-100 text-green-800 border-green-300'
-                            : 'bg-red-100 text-red-800 border-red-300'
-                          }`}
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${tenant.is_active ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'}`}
                       >
                         {tenant.is_active ? 'نشط' : 'غير نشط'}
                       </span>
@@ -244,7 +240,6 @@ export default function TenantRegistry() {
         </div>
       </div>
 
-      {/* Tenant Detail Modal */}
       <TenantDetailPanel
         tenant={selectedTenant!}
         isOpen={isPanelOpen}
