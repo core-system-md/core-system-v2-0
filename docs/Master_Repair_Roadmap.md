@@ -23,13 +23,14 @@ Allowed classifications:
 ## 3. Current Verified Baseline
 - Repository: `core-system-md/core-system-v2-0`
 - Branch: `main`
-- Latest code/test commit verified: `30f268f6d1e38f57cf7b00df4b87f071daf992d7`
-- Latest roadmap commit before this normalization: `df88753a85106c29dc53c4b6c2786351de83a1fa`
+- P62 implementation commit: `f9369e1c0bfc1f478f8279ac1b1971ea53a3b606`
+- P63 implementation commit: `cded709b722435bdf6d5d70c6e0160fd92b8fa8a`
+- Roadmap normalization/update commit: this file's latest commit.
 - Supabase Production ref: `gobdznqbdaklkkqbkynx`
 - Vercel project: `core-system-v2-0`
-- Latest verified Production deployment at normalization: commit `df88753a85106c29dc53c4b6c2786351de83a1fa`, state `READY`
-- Latest Vercel runtime-error check at normalization: no runtime errors found in the selected recent window.
-- Supabase read-only verification at normalization: PostgreSQL `17.6`; verification timestamp `2026-09-08 09:20:26+00`.
+- Last previously verified Production deployment at roadmap normalization: commit `df88753a85106c29dc53c4b6c2786351de83a1fa`, state `READY`
+- Last previously verified Vercel runtime-error check: no runtime errors found in the selected recent window.
+- Last previously verified Supabase read-only state: PostgreSQL `17.6`; verification timestamp `2026-09-08 09:20:26+00`.
 
 ## 4. Constitutional Guardrails
 - React + Vite + TypeScript + Tailwind + Zustand + Supabase + React Router + Vercel remain the active stack.
@@ -81,12 +82,13 @@ Current closed work:
 - P59 EventBus score-event contract repair — CLOSED
 - P60 PQS penalty rounding contract repair — CLOSED
 - P61 Daily snapshot RPC wrapper contract repair — CLOSED
+- P62 CoreScoreWidget Integration — CLOSED
 
 ## 6. Important Current-State Corrections
 Older planning material described the survey as broken after Page 2. That is no longer current evidence.
-The active survey now contains Page 1–5 and uses the `save_patient_intake_page` persistence path with page-order/range validation.
+The active survey contains Page 1–5 and uses the `save_patient_intake_page` persistence path with page-order/range validation.
 
-Older planning material treated `core_rules_config` and `feature_flags` tenant scoping as unresolved design choices. The current Blueprint already specifies `tenant_id NULL` as the global/default case and supports tenant-specific rows.
+Older planning material treated `core_rules_config` and `feature_flags` tenant scoping as unresolved design choices. The current Blueprint specifies `tenant_id NULL` as the global/default case and supports tenant-specific rows.
 
 Older planning material treated Page 5 signature/WhatsApp behavior as an unresolved product choice. The current Blueprint specifies `Page5ConsentSign` as `SVG signature + WhatsApp redirect`.
 
@@ -155,59 +157,52 @@ Evidence:
 - Production read-only execution returned all expected keys.
 - CI passed for install, build, TypeScript, and tests.
 
-## 13. Current Execution Queue
-### P62 — CoreScoreWidget Integration
-Status: `READY`
-Classification: `CONFIRMED / WIRE`
-Scope:
-- Inspect `src/features/doctor/DoctorSessionView.tsx` and current score data source.
-- Inspect active `CoreScoreWidget.tsx` and its current prop contract.
-- Wire the existing score data into the widget with the minimum required change.
-Protected:
-- Do not modify `CoreScoreEngine`, scoring weights, DoctorLayout, AllergyGate, ClinicalNotes, or CloseSession unless a new evidence-backed scope is created.
-Verification:
-- TypeScript
-- Build
-- Tests
-- Runtime verification on a real/authorized session where available
-Closure:
-- Widget renders correct existing score data without regression.
+## 13. P62 — CoreScoreWidget Integration
+Status: `CLOSED`
+Classification: `CONFIRMED`
+Evidence:
+- Active `DoctorSessionView.tsx` already reads `session.core_score_display` from the tenant/doctor-scoped session query.
+- Active `src/components/CoreScoreWidget.tsx` accepts a display score on the required 0–100 scale.
+- P62 wired the existing `core_score_display` value into the widget without changing scoring logic, weights, RPCs, RLS, or protected Doctor components.
+- GitHub Actions Build Test run `34209799855` passed install, build, TypeScript, and tests.
+Runtime note:
+- Interactive Production browser verification remains environment-blocked under P58; closure relies on source evidence plus CI.
 
+## 14. Current Execution Queue
 ### P63 — OfflineBanner Integration
-Status: `READY`
+Status: `IN PROGRESS`
 Classification: `CONFIRMED / WIRE`
 Scope:
-- Inspect `src/App.tsx`, `OfflineBanner.tsx`, and `NetworkMonitor.ts`.
-- Wire the existing network state into the banner at the correct application level.
-Protected:
-- Do not rewrite NetworkMonitor without evidence.
+- Inspect `src/App.tsx`, `OfflineBanner.tsx`, and `useNetworkStatus.ts`.
+- Wire the existing network state into the banner at the application root.
+- Do not rewrite network detection behavior.
 Verification:
 - TypeScript
 - Build
 - Tests
-- Online/offline transition verification where available
+- Online/offline transition verification where technically available
 
 ### P64 — Theme Token Cleanup
 Status: `READY`
 Classification: `CONFIRMED / LOW RISK`
 Scope:
-- Reconcile confirmed `#1B2A4A` duplicates with the existing primary token.
-- Only replace occurrences whose semantic/color meaning matches the token.
-Protected:
-- `globals.css`
-- Tailwind token definitions
-- distinct color values such as `#2a3d66`
+- Reconcile confirmed `#1B2A4A` duplicates with the existing primary token only where semantic meaning matches.
+- Preserve distinct values such as `#2a3d66` and protected token-definition files.
 Verification:
 - TypeScript
 - Build
+- Tests
 - visual regression where available
 
 ### P65 — README Accuracy
 Status: `READY`
 Classification: `CONFIRMED / LOW RISK`
 Scope:
-- Update `README.md` only where its statements are stale relative to verified current reality.
+- Update `README.md` only where statements are stale relative to verified current reality.
 - Do not add unsupported claims.
+Verification:
+- Documentation readback
+- Build/test regression after any source-adjacent change
 
 ### P66 — Console Cleanup
 Status: `READY`
@@ -217,216 +212,213 @@ Scope:
 - Remove debug-only logs where safe.
 - Preserve meaningful runtime/error logs.
 - Avoid behavior changes.
+Verification:
+- TypeScript
+- Build
+- Tests
 
-### P67 — HotSwapSuggestion
+### P67 — HotSwapSuggestion Integration
 Status: `READY`
-Classification: `CONFIRMED GAP`
+Classification: `CONFIRMED / UI WIRE`
 Scope:
-- First establish the active room/occupancy/vacancy data source from current code and `clinic_rooms` usage.
-- Adapt and integrate the existing feature only after the data contract is confirmed.
-Protected:
-- Existing SLA/lock logic in `LiveQueueBoard.tsx` remains intact unless a narrowly scoped integration hook is proven necessary.
+- Inspect the active HotSwap/Sandler/Doctor flow and existing `HotSwapSuggestion` component or implementation evidence.
+- Wire only an already-defined suggestion surface into the correct doctor session context.
+- Do not invent recommendation rules or scoring logic.
 Verification:
 - TypeScript
 - Build
 - Tests
-- Reception runtime verification
+- local/allowed browser check where possible
 
-### P68 — QuickInvoice
+### P68 — QuickInvoice Integration
 Status: `READY`
-Classification: `CONFIRMED GAP`
+Classification: `CONFIRMED / UI WIRE`
 Scope:
-- Reuse the existing `SimpleInvoice.tsx` pattern and existing invoice types/table/RLS/financial conventions.
-- No new financial rule.
-Verification:
-- TypeScript
-- Build
-- Tests
-- Controlled invoice insertion and permission verification where safe
-
-### P69 — Orphan SurveyRouter Cleanup
-Status: `READY AFTER P69 PRECHECK`
-Classification: `CONFIRMED DEAD CODE`
-Scope:
-- Re-run an import search immediately before deletion.
-- Delete only `src/components/SurveyRouter.tsx` if zero active references remain.
-Protected:
-- `src/features/survey/SurveyRouter.tsx`
+- Inspect the active QuickInvoice/financial flow and existing contract.
+- Wire existing billing data only where authoritative evidence exists.
+- Preserve integer/bigint financial subunits and existing payment contracts.
+- No Stripe webhook or financial schema changes in this stage.
 Verification:
 - TypeScript
 - Build
 - Tests
 
-## 14. Product Feature Queue
+### P69 — SurveyRouter Orphan/Flow Reconciliation
+Status: `READY`
+Classification: `CONFIRMED / CLEANUP`
+Scope:
+- Verify active `SurveyRouter` and all Page1–5 imports/usages.
+- Remove only demonstrably orphaned references or stale dead paths.
+- Do not change survey persistence contract or page rules.
+Verification:
+- TypeScript
+- Build
+- Tests
+- route-level source verification
+
 ### P70 — AuditTrailViewer
-Classification: `CONFIRMED GAP`
-- Read-only viewer for `audit_trail`.
-- Verify current RLS before UI wiring.
-- Role boundaries must remain consistent with the established policy.
+Status: `READY`
+Classification: `CONFIRMED / BLUEPRINT UI`
+Scope:
+- Reconcile active clinic-admin audit viewer against the Blueprint contract.
+- Use existing audit data sources only.
+- Do not invent audit event schema or bypass RLS.
+Verification:
+- TypeScript
+- Build
+- Tests
+- allowed runtime verification where available
 
 ### P71 — BreachLog
-Classification: `CONFIRMED GAP`
-- Read-only viewer for `system_delivery_breaches`.
-- No invented remediation workflow.
+Status: `READY`
+Classification: `CONFIRMED / BLUEPRINT UI`
+Scope:
+- Reconcile the clinic-admin breach viewer against the Blueprint contract.
+- Use existing breach/audit evidence only.
+- No new security semantics or RLS weakening.
+Verification:
+- TypeScript
+- Build
+- Tests
 
 ### P72 — GlobalHealthScores
-Classification: `CONFIRMED GAP`
-- Read existing `tenant_health_scores`.
-- Do not rewrite health-score computation.
+Status: `READY`
+Classification: `CONFIRMED / BLUEPRINT UI`
+Scope:
+- Verify whether an active Global Health Scores surface exists and whether the data contract is already established.
+- Implement only the evidenced portion.
+- Stop on missing authoritative data contract.
+Verification:
+- TypeScript
+- Build
+- Tests
 
-### P73 — Billing UI
-Classification: `CONFIRMED GAP`
+### P73 — Billing UI Program
+Status: `READY`
+Classification: `CONFIRMED / SPLIT EXECUTION`
 Substages:
-- P73-A Billing shell
-- P73-B Subscription/trial state
-- P73-C Manual activation UI
-- P73-D Stripe UI surface
-Protected:
-- Existing `stripe-webhook` implementation is not rewritten as part of UI work.
-No external provider behavior may be invented.
+- P73-A Billing shell and navigation surface.
+- P73-B Subscription/trial display using existing tenant fields.
+- P73-C Manual activation surface only where existing authorization/data contracts are evidenced.
+- P73-D Stripe UI surface only around the already-protected backend/webhook contract.
+Rules:
+- No financial schema redesign.
+- No new billing rules.
+- No webhook authentication change.
+Verification:
+- TypeScript
+- Build
+- Tests
+- production-safe read-only verification of relevant configuration where available
 
-## 15. Database Governance Queue
 ### P74 — `deleted_at` Schema Compliance
-Classification: `CONFIRMED REQUIREMENT, CURRENT GAP TO REVERIFY`
-Before writing migration:
-- Inspect current Production schema.
-- Compare every current table against Constitution and official global-reference exceptions.
-- Do not rely on old table counts.
-If gaps remain:
-- Add a new migration only.
-- Do not rewrite historical migrations.
-- Review RLS and triggers before Production application.
-- Use a non-Production environment if one actually exists and is available.
+Status: `READY`
+Classification: `CONFIRMED / DB CONTRACT`
+Scope:
+- Target only tables confirmed by Constitution/Blueprint to require `deleted_at` and not covered by an explicit Global Reference Table exception.
+- Reconcile schema gaps with minimal migrations only after targeted Production evidence.
+Protected:
+- No RLS redesign.
+- No physical deletes.
 
-### P75 — Soft Delete Query Enforcement
-Classification: `CONFIRMED REQUIREMENT`
-- After P74 only.
-- Identify active queries that violate the established soft-delete read/write contract.
-- Correct only evidence-backed paths.
-- Do not perform a blind repository-wide rewrite.
+### P75 — Soft-Delete Enforcement
+Status: `READY`
+Classification: `CONFIRMED / DB BEHAVIOR`
+Scope:
+- Enforce `deleted_at = NOW()` in active delete-like paths where evidence shows physical deletion or missing soft-delete semantics.
+- Update reads to exclude deleted rows only where required and evidenced.
+- No broad speculative query rewrite.
 
 ### P76 — Timestamp Compliance
-Classification: `CONFIRMED REQUIREMENT, CURRENT GAP TO REVERIFY`
-- Reconcile `created_at`/`updated_at` type/default coverage against current Production and Constitution.
-- Prefer combining proven schema changes with P74 when scope remains safe.
+Status: `READY`
+Classification: `CONFIRMED / DB CONTRACT`
+Scope:
+- Reconcile missing `created_at` / `updated_at` only where Constitution/Blueprint requires them and targeted schema evidence confirms a gap.
+- Preserve existing timestamp trigger/default semantics where correct.
 
 ### P77 — `core_rules_config` Reconciliation
-Classification: `BLUEPRINT CONTRACT RESOLVED`
-Expected contract:
-- `tenant_id NULL` = global default.
-- tenant-specific row = override.
-Action:
-- Verify current Production schema, RLS, and active source.
-- Change only if a current deviation is confirmed.
+Status: `READY`
+Classification: `CONFIRMED / CONFIG CONTRACT`
+Scope:
+- Verify global default (`tenant_id IS NULL`) and tenant override semantics against Blueprint.
+- Reconcile only confirmed data/config drift.
+- Preserve existing locked scoring weights unless a direct authoritative contradiction is found.
 
 ### P78 — `feature_flags` Reconciliation
-Classification: `BLUEPRINT CONTRACT RESOLVED`
-Expected contract:
-- `tenant_id NULL` = global flag.
-- tenant-specific row = tenant override.
-Action:
-- Verify current Production schema, RLS, and active source.
-- Change only if a current deviation is confirmed.
+Status: `READY`
+Classification: `CONFIRMED / CONFIG CONTRACT`
+Scope:
+- Verify global default and tenant-specific override semantics.
+- Reconcile only confirmed schema/policy/data drift.
+- Do not invent flags or access rules.
 
-### P79 — Empty Migration Cleanup
-Classification: `CONFIRMED LOCALLY / REMOTE STATE MUST BE VERIFIED`
-- Read-only verify the target migration files and remote migration state.
-- Delete only after safety is established.
+### P79 — Empty/Redundant Migration Cleanup
+Status: `READY`
+Classification: `INSUFFICIENT EVIDENCE UNTIL REMOTE HISTORY CHECK`
+Scope:
+- Compare repository migration files against remote migration history metadata.
+- Remove/rename only files confirmed as safe duplicates or inert artifacts.
+- No destructive migration-history manipulation.
 
-## 16. Architecture / Optional Queue
 ### P80 — `domain_backup` Disposition
-Classification: `INSUFFICIENT EVIDENCE`
-Default handling:
-- Keep as archive/reference.
-- Do not revive the architecture merely because the Blueprint defines a domain layer.
-- Do not delete without a deliberate decision.
+Status: `READY`
+Classification: `INSUFFICIENT EVIDENCE / ARCHITECTURAL DECISION`
+Scope:
+- Determine whether `archive/domain_backup` is referenced by active code/build and whether it has operational value.
+- Do not delete or relocate archive content without evidence-backed decision.
 
-### P81 — Legacy Doctor View Verification
-Classification: `LIKELY SUPERSEDED`
-Inspect:
-- `MyQueueView`
-- `ParDecisionPanel`
-- `PatientSessionView`
-Only delete after current zero-reference evidence and a dedicated scope.
+### P81 — Legacy Doctor Screen Verification
+Status: `READY`
+Classification: `CONFIRMED / VERIFY FIRST`
+Scope:
+- Verify whether legacy Doctor screens remain referenced by active routes/imports.
+- Protected active Doctor files remain untouched unless directly in scope.
+- No archive edits merely for cleanup.
 
 ### P82 — Bundle Optimization
-Classification: `CONFIRMED BUILD OPTIMIZATION`
-- Analyze current Vite output.
-- Prefer code-splitting/dynamic import and existing dependency optimization.
-- No new npm library without explicit approval.
+Status: `READY`
+Classification: `CONFIRMED / LOW RISK`
+Scope:
+- Use build output/evidence to identify safe bundle-size wins.
+- Prefer existing lazy-loading/chunking patterns.
+- No dependency additions, framework changes, or broad refactors.
+Verification:
+- Build
+- TypeScript
+- Tests
+- compare module/chunk evidence before/after
 
-## 17. Evidence-Gated Open Areas — Do Not Invent
-### Survey Numeric Mapping
-Still open due to absent authoritative numeric coefficients.
+## 15. Evidence-Gated Work — Do Not Invent
+The following remain blocked until authoritative evidence exists:
+- P56 retention automation rules and ownership/workflow semantics.
+- P57 Survey → CORE Score numeric mapping coefficients/lookup rules.
+- Full production interactive browser E2E while the environment remains blocked.
+- Concrete event-handler implementations named by Blueprint unless their active contracts are evidenced.
+- Real WhatsApp/SMS/email provider adapter behavior unless the existing provider contract/config is verified.
+- Supabase Advisor remediations that alter RLS/Auth/permissions without intent-level evidence.
 
-### Retention Automation
-Still open due to absent scheduling/ownership/message contracts.
+## 16. Global Stop Conditions
+Stop the active stage and report the evidence if any change would require:
+- unexpected schema change outside the current stage;
+- RLS, Auth, permission, or tenant-isolation changes;
+- scoring formula/weights changes;
+- new business rules not present in Constitution/Blueprint;
+- new npm dependency;
+- protected-file rewrite;
+- archive mutation without explicit stage evidence;
+- provider integration that is not already contractually established;
+- destructive migration history changes;
+- false or unavailable runtime verification.
 
-### Notification Adapters
-Still open due to absent provider contract, configured provider/secrets, and approved delivery behavior.
-
-### Event Handlers
-Still open due to absent concrete side-effect contracts for Blueprint-named handlers.
-
-### Production Browser E2E
-Still environment-blocked from this execution environment.
-
-### Supabase Advisor Findings
-Remain open until each advisory item receives an explicit contract/intent decision. No blanket RLS/grant/extension remediation.
-
-## 18. Stop Conditions
-Stop the current stage and re-scope if any of the following becomes necessary:
-- unexpected DB schema change outside the current stage
-- RLS modification
-- Auth/role/permission redesign
-- scoring formula change
-- business rule invention
-- new package
-- protected file rewrite
-- architecture migration
-- external provider contract invention
-- direct contradiction with Constitution or Blueprint
-
-Record the result as `STOP — OWNER REVIEW REQUIRED` and preserve all verified evidence.
-
-## 19. Verification Standard
-For every code stage, use as applicable:
-- `npm install`
-- `npm run build`
-- `npx tsc --noEmit`
-- `npm run test`
-- targeted runtime verification
-
-For DB stages:
-- Production read-only inspection before change
-- migration verification
-- post-change schema/RLS/trigger verification
-
-For Vercel-sensitive stages:
-- deployment status verification
-- runtime error verification
-
-For browser stages:
-- only claim E2E when the browser actually executed the flow.
-
-## 20. Git / Commit Rules
-- Never use `git add .` or `git add -A`.
-- Target files only.
-- Each closed stage gets a focused commit.
-- Roadmap changes must be part of the documented stage closure or a dedicated docs closure commit.
-- Do not rewrite unrelated history.
-
-## 21. Stage Closure Rule
-A stage can be marked `CLOSED` only when:
-1. The intended implementation or verification is complete.
-2. Required tests pass.
-3. Runtime/Production verification is complete where applicable.
-4. No scope violation occurred.
-5. This roadmap is updated with evidence and next stage.
-
-## 22. Immediate Next Stage
-`P62 — CoreScoreWidget Integration`
-
-First action:
-Read and reconcile the active `DoctorSessionView` score data source and the current `CoreScoreWidget` contract.
-Then execute the minimum safe wiring, verify it, and close P62 only after evidence is complete.
+## 17. Definition of Done
+The repair program is complete only when:
+- active code aligns with Blueprint architecture;
+- database contract aligns with Constitution + Blueprint, subject to explicit evidence-gated exceptions;
+- RLS/Auth/tenant isolation remain verified;
+- scoring contract remains unchanged except for explicitly closed evidence-backed fixes;
+- CI passes install + build + TypeScript + tests for final repair commits;
+- runtime verification is performed wherever the environment permits it;
+- Vercel Production is READY for the final verified commit;
+- Supabase Production is verified for every DB-affecting stage;
+- this roadmap is updated after every closed stage;
+- all evidence-gated items are explicitly documented rather than implemented speculatively.
