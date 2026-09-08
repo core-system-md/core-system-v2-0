@@ -53,7 +53,7 @@ export const EVENTS = {
   PAYMENT_COLLECTED: 'payment:collected',
   BREACH_DETECTED: 'breach:detected',
   QUEUE_UPDATED: 'queue:updated',
-  SCORE_COMPUTED: 'score:computed',
+  SCORE_COMPUTED: 'score:calculated',
   PATIENT_ARRIVED: 'patient:arrived',
   INVOICE_PAID: 'invoice:paid',
 } as const;
