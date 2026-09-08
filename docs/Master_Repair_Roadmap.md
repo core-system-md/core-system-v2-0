@@ -62,6 +62,10 @@ The active `PinPad` was found to use a mock doctor identity and a fake delayed s
 `CLOSED — CONFIRMED`.
 An active permission-gated `StaffManagement` surface was added under Clinic Admin Staff and exposed through `AdminStaffPage`. It supports editing existing `clinic_users` records for name, Arabic name, phone, specialization, role, and active state. Access requires `edit_staff`; existing RLS/trigger boundaries remain authoritative. No PIN/password values are exposed and no unsupported Auth-account creation flow was invented. Vercel Production deployment for the implementation was READY.
 
+### P92 — Clinic Admin Analytics Data Integrity
+`CLOSED — CONFIRMED`.
+Active `AnalyticsOverview` previously used the count of currently active sessions as a fallback for the KPI `الزيارات اليوم`, which conflated two different measures. The fallback was removed; the KPI now uses the existing daily snapshot contract only. The snapshot query now excludes soft-deleted snapshots and reports query failures explicitly. Active `RevenueCards` now excludes soft-deleted analytics snapshots and invoices and surfaces data-query failures instead of silently rendering partial financial data. Production schema verification confirmed `deleted_at` exists on both `analytics_daily_snapshots` and `clinic_invoices`. No schema, RPC, RLS, Auth, or financial-subunit contract was changed. Latest source commits are `2fbdff76e99637d80553233aefcf47df26371302` and `f16666727a92cf44f02553b441285609335c4732`; the latter is the current `main` HEAD. Vercel Production deployment `dpl_ETpMmtGodBro2fjLqYEUzSE5TU94` is `READY`, and its Production runtime error/fatal count is zero. GitHub Actions did not expose an independent workflow run for this direct `main` commit, so closure is based on source inspection, Production schema read-back, successful Vercel build/deployment, and Production runtime-error verification.
+
 ## Current repair status
 ### P62 — CoreScoreWidget Integration
 `CLOSED — CONFIRMED`.
