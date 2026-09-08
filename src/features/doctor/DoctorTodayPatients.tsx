@@ -28,14 +28,14 @@ export default function DoctorTodayPatients() {
 
   useEffect(() => {
     async function fetchPatients() {
-      if (!tenantId || !user?.id) return;
+      if (!tenantId || !user?.id || !user.role) return;
 
       setLoading(true);
       setError(null);
 
       const today = new Date().toISOString().split('T')[0];
 
-      const { data, error: dbError } = await supabase
+      let query = supabase
         .from('clinic_visit_sessions')
         .select(`
           id,
@@ -50,11 +50,16 @@ export default function DoctorTodayPatients() {
           )
         `)
         .eq('tenant_id', tenantId)
-        .eq('doctor_id', user.id)
         .eq('session_status', 'waiting')
         .gte('created_at', `${today}T00:00:00`)
         .lte('created_at', `${today}T23:59:59`)
         .order('created_at', { ascending: true });
+
+      if (user.role === 'doctor') {
+        query = query.eq('doctor_id', user.id);
+      }
+
+      const { data, error: dbError } = await query;
 
       if (dbError) {
         setError(dbError.message);
@@ -63,8 +68,8 @@ export default function DoctorTodayPatients() {
       }
 
       const formatted = (data || []).map((row: any) => ({
-        id: row.id,                          // ← FIXED: session ID (was: row.clinic_patients.id)
-        patient_id: row.clinic_patients.id,  // ← NEW: patient ID (for future use)
+        id: row.id,
+        patient_id: row.clinic_patients.id,
         first_name: row.clinic_patients.first_name,
         last_name: row.clinic_patients.last_name,
         phone_primary: row.clinic_patients.phone_primary,
@@ -77,8 +82,8 @@ export default function DoctorTodayPatients() {
       setLoading(false);
     }
 
-    fetchPatients();
-  }, [tenantId, user?.id]);
+    void fetchPatients();
+  }, [tenantId, user?.id, user?.role]);
 
   if (loading) {
     return (
@@ -114,7 +119,7 @@ export default function DoctorTodayPatients() {
   }
 
   const handlePatientClick = (patient: Patient) => {
-    navigate(`/doctor/session/${patient.id}`);  // ← patient.id = session ID (FIXED)
+    navigate(`/doctor/session/${patient.id}`);
   };
 
   return (
