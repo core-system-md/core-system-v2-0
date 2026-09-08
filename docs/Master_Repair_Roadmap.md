@@ -8,7 +8,7 @@
 
 ## Current Baseline
 - Branch: `main`
-- Current HEAD: `b17785d24e9d1c4ef12bcaa83e17a278e5a33738`
+- Current HEAD: `8926b1670d9ef78c16d3d13c206e2e8dc1e60bbc`
 - Supabase production ref: `gobdznqbdaklkkqbkynx`
 - Vercel production target: `core-system-v2-0`
 
@@ -29,6 +29,7 @@
 - Notification processor false-success repair: CLOSED
 - P54 Analytics Snapshot RPC contract alignment: CLOSED
 - P55 Automated Test Foundation: CLOSED
+- P59 EventBus score-event contract repair: CLOSED
 
 ## P55 Closure Evidence
 - GitHub Actions Build Test run `34201341263` for `072c2a04d9a0b4aa99e3bce9529add10cd66b373`: SUCCESS.
@@ -68,6 +69,21 @@
 - Vercel's protected URL fetch can confirm the redirect, but that is not equivalent to interactive browser E2E.
 - Result: no browser E2E result is claimed. No application behavior was modified for P58.
 
+## P59 Closure Evidence — EventBus Score Event Contract
+- Classification: CONFIRMED.
+- Active `src/core/rules/scoring/CoreScoreEngine.ts` emits the score event using the literal event name `score:calculated`.
+- The shared `EVENTS.SCORE_COMPUTED` constant previously exposed the conflicting value `score:computed`.
+- The active EventBus test suite already subscribes to `score:calculated`, establishing the implemented event contract used by the scoring path.
+- Repair applied: `EVENTS.SCORE_COMPUTED` now equals `score:calculated`, aligning the exported constant with the actual emitted event.
+- Regression coverage added to assert the public score-event constant and emitted score event use the same contract.
+- No Supabase schema, RLS, Auth, RPC contract, scoring formula, or business rule was changed.
+- GitHub Actions Build Test run `34205054753` for commit `8926b1670d9ef78c16d3d13c206e2e8dc1e60bbc`: SUCCESS.
+- CI `npm install`: SUCCESS.
+- CI `npm run build`: SUCCESS.
+- CI `npx tsc --noEmit`: SUCCESS.
+- CI `npm run test`: SUCCESS.
+- Result: P59 CLOSED after real repository CI verification.
+
 ## Current Confirmed Evidence
 1. `patient_intake_responses` is the 5-page survey pipeline and is intended to feed the scoring engine.
 2. Blueprint explicitly maps survey fields directionally:
@@ -88,15 +104,15 @@
 8. Production `retention_followups` exists and its core columns match the Blueprint contract, with an additional `deleted_at` column.
 9. Production `retention_followups` has tenant-scoped RLS via `rls_followups_isolation` and the Blueprint-aligned pending scheduling index `idx_followups_scheduled`.
 10. Production `retention_followups` is currently empty; no follow-up records were mutated during verification.
-11. Active source contains a typed `EventBus` implementation at `src/core/events/EventBus.ts` with subscribe/emit/once/clear behavior. The Blueprint-specified handler files (`onAppointmentCreated`, `onSessionStatusChanged`, `onPaymentCollected`, `onBreach`) were not found in active source during targeted search.
-12. Active source contains follow-up type/status aliases, but no active retention UI/service/automation implementation was established by targeted search.
-13. Production `notification_queue` schema uses the later canonical shape with `recipient_type`, `recipient_id`, `recipient_phone`, `recipient_email`, `template_key`, `message_body`, `retry_count`, `max_retries`, and status `queued|processing|sent|...`.
-14. Production `notification_queue` is currently empty, so no queued notification was mutated during verification.
-15. `notification-processor` is scheduled every 5 minutes and its cron runs are succeeding.
-16. The previous processor implementation contained `const sent = true`, which could falsely mark an undelivered notification as sent. This was removed.
-17. Current processor behavior refuses to claim external delivery when no active adapter exists; it requeues until retry exhaustion and then marks the notification `failed` with an explicit adapter-unavailable message.
-18. Blueprint Section 18 defines the analytics warehouse snapshot contract and includes `total_visits`, `total_new_patients`, `total_returning_patients`, `total_no_shows`, `total_cancellations`, `avg_wait_time_minutes`, `avg_session_duration_minutes`, `avg_core_score`, `total_revenue_subunits`, `total_discounts_subunits`, `sla_breaches_count`, `hot_leads_count`, and `conversion_rate`.
-19. Production `compute_daily_snapshot` previously returned only legacy keys while the active `analytics-snapshot` Edge Function expected the Blueprint-aligned full key set.
+11. Active source contains a typed `EventBus` implementation at `src/core/events/EventBus.ts` with subscribe/emit/once/clear behavior.
+12. Active `CoreScoreEngine` emits `score:calculated`; the shared `EVENTS.SCORE_COMPUTED` constant is now aligned to the same value and protected by automated regression coverage.
+13. The Blueprint-specified handler files (`onAppointmentCreated`, `onSessionStatusChanged`, `onPaymentCollected`, `onBreach`) were not found in active source during targeted search.
+14. Active source contains follow-up type/status aliases, but no active retention UI/service/automation implementation was established by targeted search.
+15. Production `notification_queue` schema uses the later canonical shape with `recipient_type`, `recipient_id`, `recipient_phone`, `recipient_email`, `template_key`, `message_body`, `retry_count`, `max_retries`, and status `queued|processing|sent|...`.
+16. Production `notification_queue` is currently empty, so no queued notification was mutated during verification.
+17. `notification-processor` is scheduled every 5 minutes and its cron runs are succeeding.
+18. Current processor behavior refuses to claim external delivery when no active adapter exists; it requeues until retry exhaustion and then marks the notification `failed` with an explicit adapter-unavailable message.
+19. Blueprint Section 18 defines the analytics warehouse snapshot contract and includes `total_visits`, `total_new_patients`, `total_returning_patients`, `total_no_shows`, `total_cancellations`, `avg_wait_time_minutes`, `avg_session_duration_minutes`, `avg_core_score`, `total_revenue_subunits`, `total_discounts_subunits`, `sla_breaches_count`, `hot_leads_count`, and `conversion_rate`.
 20. P54 replaced `compute_daily_snapshot` in production without schema changes. The RPC now returns the complete key set consumed by `analytics-snapshot`, using tenant/date-scoped session, invoice, patient, and inquiry data.
 21. P54 verification against production returned the complete contract successfully; no application rows were modified by the verification query.
 22. The four production cron jobs remain active: analytics nightly at 02:00, auto-lock every minute, leakage hourly, notification processor every 5 minutes.
@@ -121,8 +137,8 @@
 
 ### Event Handler Layer
 - Classification: INSUFFICIENT EVIDENCE for implementation
-- Active `EventBus.ts` exists, but the Blueprint-specific handler set and its concrete side effects are not sufficiently specified/present in active source to implement safely without architectural invention.
-- No changes made to the EventBus during discovery.
+- Active `EventBus.ts` exists and the score-event contract is now aligned, but the Blueprint-specific handler set and its concrete side effects are not sufficiently specified/present in active source to implement safely without architectural invention.
+- No handler implementation has been invented.
 
 ### Automated Browser E2E Coverage
 - Classification: INSUFFICIENT EVIDENCE / environment-blocked
@@ -136,7 +152,7 @@
 - No blanket remediation without evidence and scope.
 
 ## Next Stage
-**P59 — Actionable repair selection:** continue with the first remaining item that has an authoritative implementation contract or a safely isolated verification path. Priority remains: authenticated/browser E2E when an executable browser path is available; otherwise verified provider contract, retention workflow contract, event-handler contract, or approved Survey scoring mapping.
+**P60 — Contract recovery / next evidence-backed repair:** continue with the first remaining item that has an authoritative implementation contract or a safely isolated verification path. Priority remains: authenticated/browser E2E when an executable browser path is available; otherwise verified provider contract, retention workflow contract, event-handler contract, or approved Survey scoring mapping.
 
 ## Closure Rule
 An open stage becomes CLOSED only after implementation (when supported by evidence), verification against the real runtime/production contracts, and an update to this roadmap.
