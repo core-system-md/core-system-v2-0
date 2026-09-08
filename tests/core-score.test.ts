@@ -1,4 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../src/infrastructure/supabase/client', () => ({
+  supabase: {
+    functions: {
+      invoke: vi.fn(),
+    },
+  },
+}));
+
 import {
   calculateCoreScore,
   classifyPatient,
