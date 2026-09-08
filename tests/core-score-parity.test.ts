@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { calculateCoreScore } from '../src/core/rules/scoring/CoreScoreEngine';
+import { calculatePqsPenalty } from '../src/core/rules/scoring/PqsPenaltyCalculator';
 
 describe('CoreScore local formula contract', () => {
   it('applies the PQS percentage before the final backend ROUND', () => {
@@ -18,5 +19,10 @@ describe('CoreScore local formula contract', () => {
     expect(result.backend).toBe(460);
     expect(result.display).toBe(46);
     expect(result.pqsTier).toBe('low');
+  });
+
+  it('uses the same unrounded PQS penalty in the shared calculator', () => {
+    expect(calculatePqsPenalty(401).penalty).toBeCloseTo(40.1, 10);
+    expect(calculatePqsPenalty(700).penalty).toBeCloseTo(140, 10);
   });
 });
