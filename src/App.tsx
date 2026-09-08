@@ -13,6 +13,7 @@ import { TenantProvider } from '@/core/providers/TenantProvider';
 import { RealtimeProvider } from '@/core/providers/RealtimeProvider';
 import { Router } from '@/router';
 import { Toaster } from 'sonner';
+import OfflineBanner from '@/components/OfflineBanner';
 
 class AppErrorBoundary extends React.Component<React.PropsWithChildren, { hasError: boolean }> {
   constructor(props: React.PropsWithChildren) {
@@ -74,6 +75,7 @@ export function App() {
             <AppErrorBoundary>
               {/* FIX: Root dark background for all feature screens */}
               <div className="min-h-screen bg-[#1B2A4A]" dir="rtl">
+                <OfflineBanner />
                 <Router />
                 <Toaster position="top-right" richColors />
               </div>
