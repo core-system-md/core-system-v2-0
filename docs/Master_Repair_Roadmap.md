@@ -80,20 +80,19 @@ Evidence: Blueprint defines QuickInvoice, but repository implementation found is
 
 ### P69 — SurveyRouter Orphan/Flow Reconciliation
 Status: `CLOSED` — `CONFIRMED`.
-Evidence: active route imports `src/features/survey/SurveyRouter.tsx`; no active import of `src/components/SurveyRouter.tsx` was found. The stale placeholder `src/components/SurveyRouter.tsx` was deleted. Survey persistence/page rules were unchanged.
-CI/runtime verification: production interactive browser remains blocked under P58; source/CI verification is used.
+Evidence: active route imports `src/features/survey/SurveyRouter.tsx`; no active import of `src/components/SurveyRouter.tsx` was found. The stale placeholder was deleted. Survey persistence/page rules were unchanged.
 
 ### P70 — AuditTrailViewer
 Status: `BLOCKED` — `INSUFFICIENT EVIDENCE`.
-Evidence: Blueprint defines the surface, but current implementation found is only `archive/features_backup/clinic-admin/AuditTrailViewer.tsx`. No active UI/data contract sufficient for a safe promotion was found.
+Evidence: Blueprint defines the surface, but current implementation found is only `archive/features_backup/clinic-admin/AuditTrailViewer.tsx`. No active UI/data contract sufficient for safe promotion was found.
 
 ### P71 — BreachLog
 Status: `BLOCKED` — `INSUFFICIENT EVIDENCE`.
-Evidence: Blueprint defines the surface, but current implementation found is only `archive/features_backup/clinic-admin/BreachLog.tsx`. No active UI/data contract sufficient for a safe promotion was found.
+Evidence: Blueprint defines the surface, but current implementation found is only `archive/features_backup/clinic-admin/BreachLog.tsx`. No active UI/data contract sufficient for safe promotion was found.
 
 ### P72 — GlobalHealthScores
 Status: `BLOCKED` — `INSUFFICIENT EVIDENCE`.
-Evidence: Blueprint defines the leaderboard, but current implementation found is only `archive/features_backup/super-admin/GlobalHealthScores.tsx`. No active data contract sufficient for a safe promotion was found.
+Evidence: Blueprint defines the leaderboard, but current implementation found is only `archive/features_backup/super-admin/GlobalHealthScores.tsx`. No active data contract sufficient for safe promotion was found.
 
 ### P73 — Billing UI Program
 Status: `BLOCKED` — `INSUFFICIENT EVIDENCE`.
@@ -101,8 +100,7 @@ Evidence: active billing types and tenant subscription tier data exist, and Stri
 
 ### P74 — `deleted_at` Schema Compliance
 Status: `CLOSED` — `CONFIRMED`.
-Production evidence: eight tenant-owned tables lacked `deleted_at`: `analytics_daily_snapshots`, `analytics_events`, `analytics_patient_metrics`, `audit_trail`, `billing_events`, `notification_queue`, `pin_attempt_log`, `pin_sessions`. Global reference tables `currency_reference` and `medical_procedure_taxonomy` were excluded per their global-reference contract. Production migration applied: `p74_governance_deleted_at_columns`. Repository migration: `supabase/migrations/044_p74_governance_deleted_at_columns.sql`.
-Verification query confirmed all eight columns exist as nullable `timestamptz`.
+Production evidence: eight tenant-owned tables lacked `deleted_at`: `analytics_daily_snapshots`, `analytics_events`, `analytics_patient_metrics`, `audit_trail`, `billing_events`, `notification_queue`, `pin_attempt_log`, `pin_sessions`. Global reference tables `currency_reference` and `medical_procedure_taxonomy` were excluded by their global-reference contract. Production migration applied: `p74_governance_deleted_at_columns`. Repository migration: `supabase/migrations/044_p74_governance_deleted_at_columns.sql`. Verification confirmed all eight columns exist as nullable `timestamptz`.
 
 ### P75 — Soft-Delete Enforcement
 Status: `BLOCKED` — `INSUFFICIENT EVIDENCE`.
@@ -113,28 +111,28 @@ Status: `CLOSED` — `CONFIRMED`.
 Production gaps fixed for `analytics_events` (`created_at`, `updated_at`), `analytics_patient_metrics` (`updated_at`), `audit_trail` (`updated_at`), `billing_events` (`updated_at`), `inventory_ledger` (`updated_at`), `notification_queue` (`updated_at`), `pin_attempt_log` (`updated_at`), `pin_sessions` (`updated_at`), `system_delivery_breaches` (`updated_at`), and `tenant_devices` (`created_at`, `updated_at`). Historical backfill reused `occurred_at` or `registered_at` where available, otherwise existing `created_at`. Production verification confirmed `NOT NULL DEFAULT now()` on all added timestamps. Repository migration: `supabase/migrations/045_p76_governance_timestamp_columns.sql`.
 
 ### P77 — `core_rules_config`
-Status: `READY`.
-Verify global defaults (`tenant_id IS NULL`) and tenant overrides against Blueprint; preserve locked score weights.
+Status: `CLOSED` — `CONFIRMED`.
+Evidence: Production schema contains `tenant_id` nullable with the expected `rule_value`/`is_overridable` contract. Current active rows are global defaults (`tenant_id IS NULL`); the CORE weight row is exactly APS 0.28, DRI 0.24, RVS 0.20, URI 0.15, TSI 0.13. No tenant override rows currently exist. No corrective write was required.
 
 ### P78 — `feature_flags`
-Status: `READY`.
-Verify global defaults and tenant overrides against Blueprint; reconcile only confirmed drift.
+Status: `CLOSED` — `CONFIRMED`.
+Evidence: Production schema supports `tenant_id NULL` global defaults plus tenant overrides and already contains `uq_feature_flag (tenant_id, flag_key)`. Eight global keys had duplicate active rows caused by PostgreSQL NULL uniqueness semantics. The oldest identical row for each duplicated key was preserved; duplicate rows were soft-deleted. A partial unique index `uq_feature_flags_global_active` now enforces one active global row per `flag_key`. Final CI run `34210803299` passed install/build/tsc/tests. Repository migration: `supabase/migrations/046_p78_feature_flag_global_deduplication.sql`.
 
 ### P79 — Migration History Cleanup
-Status: `IN PROGRESS / EVIDENCE ONLY`.
-Production `supabase_migrations.schema_migrations` was inspected. Its active history is timestamp-based and does not numerically mirror the repository’s `001..` filenames. No remote migration-history mutation has been performed.
+Status: `BLOCKED` — `INSUFFICIENT EVIDENCE`.
+Evidence: Production `supabase_migrations.schema_migrations` is timestamp-based and does not numerically mirror the repository's `001..045` migration filenames. No destructive history rewrite, rename, or deletion was performed. The divergence is documented and requires a dedicated reconciliation procedure before any cleanup.
 
 ### P80 — `domain_backup` Disposition
-Status: `READY`.
-Read-only reference/build usage analysis first; no archive mutation without evidence.
+Status: `CLOSED` — `CONFIRMED`.
+Evidence: no active source reference to `archive/domain_backup` was found. The archive remains preserved as reference material. No archive mutation was performed.
 
 ### P81 — Legacy Doctor Screen Verification
-Status: `READY`.
-Verify active route/import reachability; protected active Doctor files remain untouched.
+Status: `CLOSED` — `CONFIRMED`.
+Evidence: Blueprint names `MyQueueView` and `PatientSessionView`, but current repository implementations are archive-only; active Doctor routing uses `DoctorTodayPatients` and `DoctorSessionView`. No active route/import evidence requires restoration of the legacy screens. No archive deletion was performed.
 
 ### P82 — Bundle Optimization
 Status: `READY`.
-Use build/module/chunk evidence for safe lazy-loading or chunking wins; no dependency or framework changes.
+Scope: use build/module/chunk evidence for safe lazy-loading or chunking wins; no dependency or framework changes.
 
 ## Evidence-gated work that remains blocked
 - P56 retention/follow-up automation semantics and provider workflow.
@@ -143,6 +141,8 @@ Use build/module/chunk evidence for safe lazy-loading or chunking wins; no depen
 - P68 QuickInvoice active contract.
 - P70/P71/P72 archived-only admin/super-admin UI promotion contracts.
 - P73 active billing UI/workflow contract.
+- P75 active soft-delete behavioral contract for the generic offline delete path.
+- P79 migration-history reconciliation procedure.
 - Full Production interactive browser E2E while environment/SSO blocks navigation.
 - Concrete event-handler implementations where active contracts are not evidenced.
 - Real WhatsApp/SMS/email adapters without verified provider contract/config.
