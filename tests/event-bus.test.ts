@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { eventBus } from '../src/core/events/EventBus';
+import { eventBus, EVENTS } from '../src/core/events/EventBus';
 
 describe('EventBus', () => {
   beforeEach(() => {
@@ -65,5 +65,16 @@ describe('EventBus', () => {
     eventBus.clear();
     eventBus.emit('test:second', null);
     expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the public SCORE_COMPUTED constant aligned with the emitted score event', () => {
+    const callback = vi.fn();
+    eventBus.subscribe(EVENTS.SCORE_COMPUTED, callback);
+
+    eventBus.emit('score:calculated', { backend: 850 });
+
+    expect(EVENTS.SCORE_COMPUTED).toBe('score:calculated');
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith({ backend: 850 });
   });
 });
