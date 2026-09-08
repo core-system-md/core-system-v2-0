@@ -15,6 +15,7 @@ function LoadingScreen() {
 }
 
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
+const AmbientKioskView = lazy(() => import('@/components/AmbientKioskView'));
 const AdminLayout = lazy(() => import('@/features/clinic-admin/AdminLayout'));
 const DoctorLayout = lazy(() => import('@/features/doctor/DoctorLayout'));
 const ReceptionLayout = lazy(() => import('@/features/reception/ReceptionLayout'));
@@ -61,6 +62,7 @@ function RootRedirect() {
 
 const router = createBrowserRouter([
   { path: '/', element: <RootRedirect /> },
+  { path: '/kiosk', element: <Suspense fallback={<LoadingScreen />}><AmbientKioskView /></Suspense> },
   {
     path: '/login',
     element: <AuthWrapper />,
