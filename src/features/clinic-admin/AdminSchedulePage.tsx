@@ -17,14 +17,14 @@ type AgendaRow = {
   booking_notes: string | null;
 };
 
-type LookupRow = { id: string; name: string };
+type NamedRow = { id: string; label: string };
 
 export default function AdminSchedulePage() {
   const tenantId = useAuthStore((state) => state.tenant_id);
   const [events, setEvents] = useState<AgendaRow[]>([]);
-  const [doctors, setDoctors] = useState<LookupRow[]>([]);
-  const [rooms, setRooms] = useState<LookupRow[]>([]);
-  const [patients, setPatients] = useState<LookupRow[]>([]);
+  const [doctors, setDoctors] = useState<NamedRow[]>([]);
+  const [rooms, setRooms] = useState<NamedRow[]>([]);
+  const [patients, setPatients] = useState<NamedRow[]>([]);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,9 +56,9 @@ export default function AdminSchedulePage() {
         setEvents([]);
       } else {
         setEvents((eventResult.data ?? []) as AgendaRow[]);
-        setDoctors((doctorResult.data ?? []) as LookupRow[]);
-        setRooms((roomResult.data ?? []) as LookupRow[]);
-        setPatients((patientResult.data ?? []) as LookupRow[]);
+        setDoctors((doctorResult.data ?? []).map((row) => ({ id: row.id, label: row.full_name })));
+        setRooms((roomResult.data ?? []).map((row) => ({ id: row.id, label: row.room_name })));
+        setPatients((patientResult.data ?? []).map((row) => ({ id: row.id, label: row.full_name })));
       }
       setLoading(false);
     }
@@ -66,9 +66,9 @@ export default function AdminSchedulePage() {
     void load();
   }, [tenantId, date]);
 
-  const doctorMap = useMemo(() => new Map(doctors.map((row) => [row.id, row.name])), [doctors]);
-  const roomMap = useMemo(() => new Map(rooms.map((row) => [row.id, row.name])), [rooms]);
-  const patientMap = useMemo(() => new Map(patients.map((row) => [row.id, row.name])), [patients]);
+  const doctorMap = useMemo(() => new Map(doctors.map((row) => [row.id, row.label])), [doctors]);
+  const roomMap = useMemo(() => new Map(rooms.map((row) => [row.id, row.label])), [rooms]);
+  const patientMap = useMemo(() => new Map(patients.map((row) => [row.id, row.label])), [patients]);
 
   const content = loading ? (
     <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500" dir="rtl">جاري تحميل الجدول...</div>
