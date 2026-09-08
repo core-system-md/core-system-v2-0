@@ -18,7 +18,9 @@ type StaffRow = {
   is_active: boolean;
 };
 
-type StaffDraft = Pick<StaffRow, 'full_name' | 'full_name_ar' | 'phone' | 'specialization' | 'role' | 'is_active'>;
+type StaffDraft = Pick<StaffRow, 'full_name_ar' | 'phone' | 'specialization' | 'role' | 'is_active'> & {
+  full_name: string;
+};
 
 const roles: Array<{ value: StaffRole; label: string }> = [
   { value: 'clinic_admin', label: 'مدير العيادة' },
@@ -66,7 +68,7 @@ export default function StaffManagement() {
   function startEdit(member: StaffRow) {
     setEditingId(member.id);
     setDraft({
-      full_name: member.full_name,
+      full_name: member.full_name ?? '',
       full_name_ar: member.full_name_ar,
       phone: member.phone,
       specialization: member.specialization,
@@ -148,7 +150,7 @@ export default function StaffManagement() {
                       {isEditing ? (
                         <>
                           <td className="space-y-2 px-4 py-3">
-                            <input value={draft.full_name ?? ''} onChange={(event) => setDraft({ ...draft, full_name: event.target.value || null })} placeholder="الاسم" className="w-full rounded border border-slate-200 px-3 py-2" />
+                            <input value={draft.full_name} onChange={(event) => setDraft({ ...draft, full_name: event.target.value })} placeholder="الاسم" className="w-full rounded border border-slate-200 px-3 py-2" />
                             <input value={draft.full_name_ar ?? ''} onChange={(event) => setDraft({ ...draft, full_name_ar: event.target.value || null })} placeholder="الاسم بالعربية" className="w-full rounded border border-slate-200 px-3 py-2" />
                           </td>
                           <td className="px-4 py-3 text-slate-600">{member.employee_code || '—'}</td>
