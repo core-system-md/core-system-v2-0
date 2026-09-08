@@ -70,7 +70,7 @@ export const rpc = {
       p_date: date,
     });
     if (error) throw error;
-    return data as DailySnapshot;
+    return data as unknown as DailySnapshot;
   },
 
   async processNotifications(batchSize: number = 50) {
