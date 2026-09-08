@@ -65,20 +65,22 @@ Blueprint defines QuickInvoice, but repository implementation found is only `arc
 Active route uses `src/features/survey/SurveyRouter.tsx`; no active import of `src/components/SurveyRouter.tsx` was found. The stale placeholder was deleted. Survey persistence/page rules were unchanged.
 
 ### P70 — AuditTrailViewer
-`BLOCKED — INSUFFICIENT EVIDENCE`.
-Blueprint defines the surface, but implementation found is archive-only at `archive/features_backup/clinic-admin/AuditTrailViewer.tsx`; no active UI/data contract sufficient for safe promotion.
+`CLOSED — CONFIRMED`.
+Production `audit_trail` has the authoritative existing audit contract and its existing RLS policy permits `clinic_admin` and `super_admin` reads for the current tenant. Active paginated viewer was added at `/admin/audit` using only existing columns, tenant/RLS enforcement, and `view_audit`. GitHub Actions Build Test run `34211206918` passed install/build/tsc/tests. Vercel Production deployment for the resulting active changes is `READY`.
 
 ### P71 — BreachLog
-`BLOCKED — INSUFFICIENT EVIDENCE`.
-Blueprint defines the surface, but implementation found is archive-only at `archive/features_backup/clinic-admin/BreachLog.tsx`; no active UI/data contract sufficient for safe promotion.
+`CLOSED — CONFIRMED`.
+Production `system_delivery_breaches` has the authoritative breach contract and existing RLS isolation. Active filtered viewer was added at `/admin/breaches` using existing breach fields and `view_audit`; no new security semantics or RLS changes were introduced. GitHub Actions Build Test run `34211206918` passed install/build/tsc/tests. Vercel Production deployment for the resulting active changes is `READY`.
 
 ### P72 — GlobalHealthScores
 `BLOCKED — INSUFFICIENT EVIDENCE`.
-Blueprint defines the leaderboard, but implementation found is archive-only at `archive/features_backup/super-admin/GlobalHealthScores.tsx`; no active data contract sufficient for safe promotion.
+Production `tenant_health_scores` exists and matches the expected score fields, but its current RLS policy only permits `tenant_id = get_current_tenant_id()`. Blueprint calls for a cross-tenant super-admin leaderboard. Implementing that view safely would require a new access contract/RLS decision, which is outside the agreed scope and stop conditions.
 
 ### P73 — Billing UI Program
-`BLOCKED — INSUFFICIENT EVIDENCE`.
-Active billing types and tenant subscription tier data exist, and Stripe webhook backend exists, but Blueprint billing screens are archived and no active billing module/route contract was found. No billing navigation or activation workflow was invented.
+P73-A/B: `CLOSED — CONFIRMED`.
+An active read-only subscription status page was added at `/admin/billing` using existing `master_tenants` fields (`subscription_tier`, `subscription_start`, `subscription_end`, `trial_started_at`, `max_devices`). Production `core_rules_config` confirms the standard trial duration is 14 days. No pricing, manual activation, or payment operation was invented. Vercel Production deployment for the P73-A/B changes is `READY`; Production runtime error/fatal count for the selected last-hour check was zero.
+P73-C/D: `BLOCKED — INSUFFICIENT EVIDENCE`.
+Manual activation semantics and additional Stripe-facing UI workflow are not sufficiently established in active code/data contracts to implement without inventing authorization or billing behavior. Existing protected Stripe webhook remains unchanged.
 
 ### P74 — `deleted_at` Schema Compliance
 `CLOSED — CONFIRMED`.
@@ -121,8 +123,9 @@ Active routing already uses React lazy-loading for feature pages, and `vite.conf
 - P57 Survey → CORE numeric mapping coefficients/lookup rules.
 - P67 HotSwapSuggestion generator/behavior contract.
 - P68 QuickInvoice active contract.
-- P70/P71/P72 archived-only UI promotion contracts.
-- P73 active billing UI/workflow contract.
+- P72 cross-tenant GlobalHealthScores access contract; current RLS does not establish it.
+- P73-C manual activation semantics.
+- P73-D additional Stripe UI workflow contract.
 - P75 active soft-delete behavioral contract for the generic offline delete path.
 - P79 migration-history reconciliation procedure.
 - P82 measured bundle/chunk evidence for safe optimization.
@@ -132,7 +135,7 @@ Active routing already uses React lazy-loading for feature pages, and `vite.conf
 - Supabase Advisor remediation that would alter RLS/Auth/permissions without intent-level evidence.
 
 ## Verification policy
-A stage is not closed until its required implementation/inspection, verification, and roadmap update are complete. DB-changing stages require Production read-back. Browser-blocked stages never receive a false interactive E2E claim.
+A stage is not closed until its required implementation/inspection, verification, and roadmap update are complete. DB-changing stages require Production read-back. Browser-blocked stages never receive a false interactive E2E claim. Vercel deployment state is checked for active source changes before closure.
 
 ## Definition of Done
 The repair program is complete when active code and DB contracts align with Constitution + Blueprint, RLS/Auth/tenant isolation remain intact, scoring contract remains intact, final CI passes install/build/tsc/tests, runtime verification is performed wherever technically available, Vercel Production is READY for the final verified commit, Supabase Production is verified for every DB-changing stage, and all evidence-gated items are explicitly documented rather than implemented speculatively.
