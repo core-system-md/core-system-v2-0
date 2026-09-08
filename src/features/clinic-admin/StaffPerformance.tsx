@@ -12,29 +12,50 @@ interface StaffMetric {
   avg_session_duration: number;
   total_revenue_subunits: number;
   avg_core_score: number;
-  patient_satisfaction: number;
+  completion_rate: number;
+}
+
+interface SessionRecord {
+  id: string;
+  session_status: string;
+  session_duration_minutes: number | null;
+  core_score_backend: number | null;
+}
+
+interface InvoiceRecord {
+  session_id: string | null;
+  total_subunits: number | null;
 }
 
 export default function StaffPerformance() {
   const { tenantId } = useTenantStore();
   const [staffMetrics, setStaffMetrics] = useState<StaffMetric[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
-    fetchStaffMetrics();
+    void fetchStaffMetrics();
   }, [tenantId]);
 
   async function fetchStaffMetrics() {
     setLoading(true);
+    setError(null);
 
-    const { data: doctors } = await supabase
+    const { data: doctors, error: doctorError } = await supabase
       .from('clinic_users')
       .select('id, full_name, full_name_ar')
       .eq('tenant_id', tenantId!)
       .eq('role', 'doctor')
       .eq('is_active', true)
       .is('deleted_at', null);
+
+    if (doctorError) {
+      setError(doctorError.message);
+      setStaffMetrics([]);
+      setLoading(false);
+      return;
+    }
 
     if (!doctors || doctors.length === 0) {
       setStaffMetrics([]);
@@ -45,38 +66,50 @@ export default function StaffPerformance() {
     const metrics: StaffMetric[] = [];
 
     for (const doctor of doctors) {
-      interface SessionRecord {
-        session_status: string;
-        session_duration_minutes: number | null;
-        core_score_backend: number | null;
-      }
-
-      interface InvoiceRecord {
-        total_subunits: number | null;
-      }
-
-      const { data: sessions } = await supabase
+      const { data: sessions, error: sessionError } = await supabase
         .from('clinic_visit_sessions')
-        .select('session_status, session_duration_minutes, core_score_backend')
+        .select('id, session_status, session_duration_minutes, core_score_backend')
         .eq('tenant_id', tenantId!)
         .eq('doctor_id', doctor.id)
         .is('deleted_at', null);
 
-      const { data: invoices } = await supabase
-        .from('clinic_invoices')
-        .select('total_subunits')
-        .eq('tenant_id', tenantId!)
-        .in('invoice_status', ['paid', 'partial']);
+      if (sessionError) {
+        setError(sessionError.message);
+        setLoading(false);
+        return;
+      }
 
-      const totalSessions = sessions?.length || 0;
-      const completedSessions = sessions?.filter((s: SessionRecord) => s.session_status === 'completed').length || 0;
+      const sessionRecords = (sessions ?? []) as SessionRecord[];
+      const sessionIds = sessionRecords.map((session) => session.id);
+
+      let invoices: InvoiceRecord[] = [];
+      if (sessionIds.length > 0) {
+        const { data: invoiceData, error: invoiceError } = await supabase
+          .from('clinic_invoices')
+          .select('session_id, total_subunits')
+          .eq('tenant_id', tenantId!)
+          .in('session_id', sessionIds)
+          .in('invoice_status', ['paid', 'partial'])
+          .is('deleted_at', null);
+
+        if (invoiceError) {
+          setError(invoiceError.message);
+          setLoading(false);
+          return;
+        }
+        invoices = (invoiceData ?? []) as InvoiceRecord[];
+      }
+
+      const totalSessions = sessionRecords.length;
+      const completedSessions = sessionRecords.filter((s) => s.session_status === 'completed').length;
       const avgDuration = totalSessions > 0
-        ? (sessions?.reduce((sum: number, s: SessionRecord) => sum + (s.session_duration_minutes || 0), 0) || 0) / totalSessions
+        ? sessionRecords.reduce((sum, session) => sum + (session.session_duration_minutes || 0), 0) / totalSessions
         : 0;
-      const totalRevenue = invoices?.reduce((sum: number, inv: InvoiceRecord) => sum + (inv.total_subunits || 0), 0) || 0;
+      const totalRevenue = invoices.reduce((sum, invoice) => sum + (invoice.total_subunits || 0), 0);
       const avgScore = totalSessions > 0
-        ? (sessions?.reduce((sum: number, s: SessionRecord) => sum + (s.core_score_backend || 0), 0) || 0) / totalSessions
+        ? sessionRecords.reduce((sum, session) => sum + (session.core_score_backend || 0), 0) / totalSessions
         : 0;
+      const completionRate = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
 
       metrics.push({
         doctor_id: doctor.id,
@@ -86,7 +119,7 @@ export default function StaffPerformance() {
         avg_session_duration: Math.round(avgDuration),
         total_revenue_subunits: totalRevenue,
         avg_core_score: Math.round(avgScore / 10) / 10,
-        patient_satisfaction: completedSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0,
+        completion_rate: completionRate,
       });
     }
 
@@ -98,6 +131,14 @@ export default function StaffPerformance() {
     return (
       <div className="p-4" dir="rtl">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse h-64" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4" dir="rtl">
+        <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6 text-sm text-red-700">تعذر تحميل أداء الطاقم: {error}</div>
       </div>
     );
   }
@@ -121,9 +162,9 @@ export default function StaffPerformance() {
                   <th className="text-center py-3 px-4 font-medium text-gray-600">الجلسات</th>
                   <th className="text-center py-3 px-4 font-medium text-gray-600">مكتملة</th>
                   <th className="text-center py-3 px-4 font-medium text-gray-600">متوسط المدة</th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-600">الإيرادات</th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-600">إيرادات الجلسات</th>
                   <th className="text-center py-3 px-4 font-medium text-gray-600">Core Score</th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-600">الرضا</th>
+                  <th className="text-center py-3 px-4 font-medium text-gray-600">معدل الإكمال</th>
                 </tr>
               </thead>
               <tbody>
@@ -169,14 +210,8 @@ export default function StaffPerformance() {
                       </span>
                     </td>
                     <td className="text-center py-3 px-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        metric.patient_satisfaction >= 90
-                          ? 'bg-green-100 text-green-800'
-                          : metric.patient_satisfaction >= 70
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {metric.patient_satisfaction}%
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        {metric.completion_rate}%
                       </span>
                     </td>
                   </tr>
