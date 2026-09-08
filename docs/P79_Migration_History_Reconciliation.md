@@ -20,11 +20,11 @@ Establish an evidence-backed reconciliation between the repository migration fil
 
 ## Production registry observed
 
-Production currently exposes 37 migration rows through the Supabase migration registry.
+Production currently exposes **37 migration rows** through the Supabase migration registry.
 
 ### Exact name matches with repository files
 
-The following Production migration names have an identifiable repository file with the same migration name:
+**25** Production migration names have an identifiable repository file with the same migration name:
 
 - `extensions` → `001_extensions.sql`
 - `014_subunits_conversion` → `014_subunits_conversion.sql`
@@ -52,7 +52,7 @@ The following Production migration names have an identifiable repository file wi
 - `p75_soft_delete_pin_sessions` → `053_p75_soft_delete_pin_sessions.sql`
 - `p83_index_pin_sessions_staff_id` → `054_p83_index_pin_sessions_staff_id.sql`
 
-The repository also contains legacy timestamped placeholder files whose embedded migration names correspond to Production registry names for earlier migrations:
+The repository also contains three legacy timestamped placeholder files whose embedded migration names correspond to Production registry names for historical migrations:
 
 - `20260610015013_019_pin_rate_limiting.sql` → `019_pin_rate_limiting`
 - `20260610015618_020_session_status_fix.sql` → `020_session_status_fix`
@@ -60,22 +60,39 @@ The repository also contains legacy timestamped placeholder files whose embedded
 
 These placeholder files are zero-byte compatibility artifacts in the repository and are not treated as proof that the non-placeholder numeric files were the exact files executed in Production.
 
-## Production migration names without a matching repository filename
+### Production migration names without a matching repository filename
 
-The following Production names were observed without a same-name file under `supabase/migrations/` on `main`:
+**12** Production migration names are observed without a same-name file under `supabase/migrations/` on `main`:
 
-- `urgent_restrict_anon_dangerous_functions`
-- `fix_direct_anon_grant_on_dangerous_functions`
-- `fix_remaining_rls_initplan_and_duplicate_indexes_v2`
-- `add_missing_fk_indexes_real_prod`
-- `fix_function_search_path_mutable`
-- `restrict_debug_jwt_probe`
-- `consolidate_permissive_policies`
-- `consolidate_pin_attempt_log_policies`
-- `drop_duplicate_unique_constraint`
-- `add_soft_delete_columns_gobdznqbdaklkkqbkynx`
+1. `urgent_restrict_anon_dangerous_functions`
+2. `fix_direct_anon_grant_on_dangerous_functions`
+3. `fix_remaining_rls_initplan_and_duplicate_indexes_v2`
+4. `add_missing_fk_indexes_real_prod`
+5. `fix_function_search_path_mutable`
+6. `restrict_debug_jwt_probe`
+7. `consolidate_permissive_policies`
+8. `consolidate_pin_attempt_log_policies`
+9. `drop_duplicate_unique_constraint`
+10. `add_soft_delete_columns_gobdznqbdaklkkqbkynx`
+11. `049_pin_session_pin_only_alignment`
+12. `fix_pin_queue_rpc_search_path`
 
-These entries are evidence of Production migration history that is not represented by a same-name repository migration file. The absence of a same-name file does **not** by itself prove that the underlying database change is absent from the repository's current desired state; equivalence would require SQL/effect-level comparison.
+Therefore the observed registry reconciles arithmetically as **25 exact-name matches + 12 unmatched Production names = 37 Production rows**.
+
+These unmatched entries are evidence of Production migration history that is not represented by a same-name repository migration file. The absence of a same-name file does **not** by itself prove that the underlying database change is absent from the repository's current desired state; equivalence requires SQL/effect-level comparison.
+
+## Effect-level evidence checked
+
+A read-only Production schema/function/index check was performed after the name-level reconciliation. Current state confirms:
+
+- All active tenant-owned `public` base tables have `deleted_at`; the two global reference tables are excluded by contract.
+- No `public` foreign key was found without a valid leading-column index.
+- No duplicate active public index definitions were found.
+- All current `SECURITY DEFINER` functions in `public` have an explicit `search_path` configuration.
+- `public.debug_jwt_probe()` exists, is `SECURITY INVOKER`, has `search_path=public`, and is not executable by `anon`; it is executable by `authenticated`.
+- `public.idx_pin_sessions_staff_id` exists with definition `CREATE INDEX idx_pin_sessions_staff_id ON public.pin_sessions USING btree (staff_id)`.
+
+The repository search did not find a same-name `debug_jwt_probe` implementation, so the effect is verified in Production but provenance to a repository migration file is not established.
 
 ## Important finding about version numbers
 
@@ -87,12 +104,12 @@ Example: Production records `20260908093219 / p74_governance_deleted_at_columns`
 
 ### Reconciliation result
 
-`CONFIRMED` — A non-destructive name-level reconciliation is now documented. Production history contains both migrations represented by repository files and migrations with no same-name repository file.
+`CONFIRMED` — A non-destructive name-level reconciliation is now documented, with exact arithmetic: 25 same-name repository matches + 12 unmatched Production names = 37 Production migration rows. Read-only effect checks were also performed without modifying Production.
 
 ### Cleanup result
 
-`BLOCKED — INSUFFICIENT EVIDENCE` — No migration-history row is deleted, renamed, rewritten, or synthesized. A safe cleanup would require an effect-level/provenance comparison for every unmatched Production migration and an agreed rollback/recovery procedure.
+`BLOCKED — INSUFFICIENT EVIDENCE` — No Production migration-history row is deleted, renamed, rewritten, or synthesized. The unmatched Production migrations cannot be safely cleaned solely from name or current-state evidence. A safe cleanup would require migration SQL/provenance comparison for each unmatched entry plus an explicitly reversible recovery procedure.
 
 ## Next safe action
 
-The next P79 step should be an effect-level comparison of the ten unmatched Production migration names against current schema/function/index/RLS state and repository SQL, without changing Production history. Cleanup remains prohibited until that comparison establishes a safe, reversible one-to-one disposition.
+Proceed with targeted effect/provenance comparison for the 12 unmatched Production migrations, prioritizing the security/index/search-path migrations because their current effects are observable in Production. Keep Production migration history unchanged until a one-to-one provenance mapping and rollback-safe procedure are established.
