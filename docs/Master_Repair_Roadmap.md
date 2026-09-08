@@ -8,7 +8,7 @@
 
 ## Current Baseline
 - Branch: `main`
-- Current code/test commit: `f8a4078f1c9ffb64a3a70818d0ddb1ab9fc3f4ac`
+- Current code/test commit: `30f268f6d1e38f57cf7b00df4b87f071daf992d7`
 - Supabase production ref: `gobdznqbdaklkkqbkynx`
 - Vercel production target: `core-system-v2-0`
 
@@ -31,6 +31,7 @@
 - P55 Automated Test Foundation: CLOSED
 - P59 EventBus score-event contract repair: CLOSED
 - P60 PQS penalty rounding contract repair: CLOSED
+- P61 Daily snapshot RPC wrapper contract repair: CLOSED
 
 ## P55 Closure Evidence
 - GitHub Actions Build Test run `34201341263` for `072c2a04d9a0b4aa99e3bce9529add10cd66b373`: SUCCESS.
@@ -102,6 +103,23 @@
 - No Supabase schema, RLS, Auth, RPC contract, indicator weights, or business-rule thresholds were changed.
 - Result: P60 CLOSED after real CI verification.
 
+## P61 Closure Evidence — Daily Snapshot RPC Contract
+- Classification: CONFIRMED.
+- Active `src/infrastructure/supabase/rpc.ts` exposed `generateDailySnapshot(date)` against the legacy `generate_daily_snapshot(date)` RPC, while the production/Blueprint canonical analytics flow uses `compute_daily_snapshot(tenant_id, date)` returning the complete analytics JSON contract.
+- Production inspection confirmed both routines exist, but `compute_daily_snapshot` is the canonical P54 function and accepts `p_tenant_id uuid, p_date date`; it returns the complete 13-field snapshot object consumed by the active `analytics-snapshot` Edge Function.
+- Targeted repository search found no active in-repo caller of `rpc.generateDailySnapshot`, so the repair remained isolated to the wrapper contract and did not require broad caller changes.
+- Repair applied: `generateDailySnapshot(tenantId, date)` now calls `compute_daily_snapshot` with the canonical tenant/date arguments and returns the typed `DailySnapshot` contract.
+- The generated `database.types.ts` contract was verified to expose `compute_daily_snapshot` with `{ p_date: string; p_tenant_id: string }` and `Returns: Json`.
+- Production runtime verification executed `compute_daily_snapshot` for an active tenant and current date; the result contained all 13 expected keys with zero values and no mutation was performed.
+- First CI attempt (`34205952113`) failed at build due to the initial JSON return typing; the wrapper was corrected with an explicit `unknown` bridge rather than changing the generated database contract.
+- Final CI run `34206078762` for commit `30f268f6d1e38f57cf7b00df4b87f071daf992d7`: SUCCESS.
+- CI `npm install`: SUCCESS.
+- CI `npm run build`: SUCCESS.
+- CI `npx tsc --noEmit`: SUCCESS.
+- CI `npm run test`: SUCCESS.
+- No Supabase schema, migration, RLS, Auth, scoring formula, notification behavior, or business rule was changed.
+- Result: P61 CLOSED after real CI verification.
+
 ## Current Confirmed Evidence
 1. `patient_intake_responses` is the 5-page survey pipeline and is intended to feed the scoring engine.
 2. Blueprint explicitly maps survey fields directionally:
@@ -137,6 +155,7 @@
 23. Repository CI verifies build + TypeScript + automated unit/contract tests on each push through the current Build Test workflow.
 24. Active scoring now uses the Constitution/Blueprint order for PQS penalty application and final backend rounding; no schema or authoritative scoring weights were changed.
 25. Production advisor inspection on 2026-09-08 still reports the previously known advisory set, including `pin_sessions` RLS-without-policy, public-schema extensions, SECURITY DEFINER execute grants, anonymous-access policy findings, and leaked-password protection disabled. No blanket remediation was applied because those items require contract/intent review.
+26. The active daily snapshot wrapper now targets the same canonical production RPC used by `analytics-snapshot`, with a typed 13-field return contract and tenant/date arguments.
 
 ## Open Work
 ### Survey → CORE Score Numeric Mapping
@@ -171,7 +190,7 @@
 - Current inspection confirms the previously known advisory set. Remediation remains intentionally unstarted until each finding has an explicit contract/intent decision, especially where changing grants/RLS/extensions could alter existing application behavior.
 
 ## Next Stage
-**P61 — next evidence-backed repair:** prioritize a remaining item only when an authoritative implementation contract or safely isolated verification path exists. Do not implement Survey scoring mappings, Retention automation, notification adapters, or Blueprint event handlers without recovered contracts.
+**P62 — next evidence-backed repair:** continue with the first remaining item that has an authoritative implementation contract or a safely isolated verification path. Do not implement Survey scoring mappings, Retention automation, notification adapters, or Blueprint event handlers without recovered contracts.
 
 ## Closure Rule
 An open stage becomes CLOSED only after implementation (when supported by evidence), verification against the real runtime/production contracts, and an update to this roadmap.
