@@ -114,8 +114,8 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
   return (
     <div className="max-w-lg mx-auto p-6 bg-white rounded-xl shadow-lg" dir="rtl">
       <div className="flex items-center gap-2 mb-6">
-        <FileText className="w-6 h-6 text-[#1B2A4A]" />
-        <h3 className="text-xl font-bold text-[#1B2A4A]">فاتورة جديدة</h3>
+        <FileText className="w-6 h-6 text-primary" />
+        <h3 className="text-xl font-bold text-primary">فاتورة جديدة</h3>
       </div>
 
       {/* Preset Procedures */}
@@ -126,7 +126,7 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
             <button
               key={proc.name}
               onClick={() => addPresetItem(proc.name, proc.priceSubunits)}
-              className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-[#1B2A4A] hover:text-white rounded-lg transition-colors border border-gray-200"
+              className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-primary hover:text-primary-foreground rounded-lg transition-colors border border-gray-200"
             >
               {proc.name}
               <span className="block text-xs opacity-70">{subunitsToDisplay(proc.priceSubunits)}</span>
@@ -144,7 +144,7 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
             placeholder="اسم الإجراء"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <input
             type="number"
@@ -152,11 +152,11 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
             onChange={(e) => setCustomPrice(e.target.value)}
             placeholder="السعر (JOD)"
             step="0.001"
-            className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B2A4A]"
+            className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button
             onClick={addCustomItem}
-            className="px-3 py-2 bg-[#1B2A4A] text-white rounded-lg hover:bg-[#2a3d6b] transition-colors"
+            className="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -170,7 +170,7 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
             <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
               <span className="text-sm font-medium">{item.procedure}</span>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-[#1B2A4A]">{subunitsToDisplay(item.priceSubunits)}</span>
+                <span className="text-sm font-bold text-primary">{subunitsToDisplay(item.priceSubunits)}</span>
                 <button
                   onClick={() => removeItem(index)}
                   className="text-red-500 hover:text-red-700 p-1"
@@ -185,7 +185,7 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
 
       {/* Total */}
       {items.length > 0 && (
-        <div className="flex justify-between items-center p-4 bg-[#1B2A4A] text-white rounded-xl mb-4">
+        <div className="flex justify-between items-center p-4 bg-primary text-primary-foreground rounded-xl mb-4">
           <div className="flex items-center gap-2">
             <Calculator className="w-5 h-5" />
             <span className="font-bold">الإجمالي</span>
@@ -199,7 +199,7 @@ export function SimpleInvoice({ patientId, sessionId, onComplete }: SimpleInvoic
         <button
           onClick={handleSubmit}
           disabled={isSubmitting || items.length === 0}
-          className="w-full py-3 bg-[#1B2A4A] text-white rounded-xl hover:bg-[#2a3d6b] transition-colors disabled:opacity-50 font-semibold text-lg"
+          className="w-full py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 font-semibold text-lg"
         >
           {isSubmitting ? 'جاري الحفظ...' : 'إنشاء الفاتورة'}
         </button>
