@@ -9,8 +9,8 @@ export interface PqsPenaltyResult {
 }
 
 export function calculatePqsPenalty(pqs: number): PqsPenaltyResult {
-  if (pqs >= 700) return { penalty: Math.round(pqs * 0.20), tier: 'high', description: `High: PQS ${pqs}` };
-  if (pqs >= 400) return { penalty: Math.round(pqs * 0.10), tier: 'low', description: `Low: PQS ${pqs}` };
+  if (pqs >= 700) return { penalty: pqs * 0.20, tier: 'high', description: `High: PQS ${pqs}` };
+  if (pqs >= 400) return { penalty: pqs * 0.10, tier: 'low', description: `Low: PQS ${pqs}` };
   return { penalty: 0, tier: 'none', description: `None: PQS ${pqs}` };
 }
 
