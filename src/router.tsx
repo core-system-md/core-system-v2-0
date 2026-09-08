@@ -26,6 +26,8 @@ const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDash
 const AdminOverviewPage = lazy(() => import('@/features/clinic-admin/AdminOverviewPage'));
 const AdminRevenuePage = lazy(() => import('@/features/clinic-admin/AdminRevenuePage'));
 const AdminStaffPage = lazy(() => import('@/features/clinic-admin/AdminStaffPage'));
+const AdminSchedulePage = lazy(() => import('@/features/clinic-admin/AdminSchedulePage'));
+const AdminPatientsPage = lazy(() => import('@/features/clinic-admin/AdminPatientsPage'));
 const AuditTrailViewerPage = lazy(() => import('@/features/clinic-admin/AuditTrailViewerPage'));
 const BreachLogPage = lazy(() => import('@/features/clinic-admin/BreachLogPage'));
 const BillingStatusPage = lazy(() => import('@/features/clinic-admin/BillingStatusPage'));
@@ -76,6 +78,8 @@ const router = createBrowserRouter([
         { index: true, element: <Suspense fallback={<LoadingScreen />}><AdminOverviewPage /></Suspense> },
         { path: 'revenue', element: <Suspense fallback={<LoadingScreen />}><AdminRevenuePage /></Suspense> },
         { path: 'staff', element: <Suspense fallback={<LoadingScreen />}><AdminStaffPage /></Suspense> },
+        { path: 'schedule', element: <Suspense fallback={<LoadingScreen />}><AdminSchedulePage /></Suspense> },
+        { path: 'patients', element: <Suspense fallback={<LoadingScreen />}><AdminPatientsPage /></Suspense> },
         { path: 'audit', element: <Suspense fallback={<LoadingScreen />}><AuditTrailViewerPage /></Suspense> },
         { path: 'breaches', element: <Suspense fallback={<LoadingScreen />}><BreachLogPage /></Suspense> },
         { path: 'billing', element: <Suspense fallback={<LoadingScreen />}><BillingStatusPage /></Suspense> },
