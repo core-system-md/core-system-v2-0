@@ -244,9 +244,11 @@ export default function ReceptionDashboard() {
       </div>
 
       {activeTab === 'queue' && (
-        <LiveQueueBoard
-          onSelectSession={(id) => navigate(`/doctor/session/${id}`)}
-        />
+        <PermissionGuard required="view_queue">
+          <LiveQueueBoard
+            onSelectSession={(id) => navigate(`/doctor/session/${id}`)}
+          />
+        </PermissionGuard>
       )}
 
       {activeTab === 'booking' && (
@@ -261,10 +263,13 @@ export default function ReceptionDashboard() {
               <input type="tel" value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)}
                 className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
                 placeholder="07xxxxxxxx" />
-              <button onClick={searchPatient}
-                className="px-4 py-3 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors">
-                <Search className="w-4 h-4" />
-              </button>
+              <PermissionGuard required="view_patients">
+                <button onClick={searchPatient}
+                  className="px-4 py-3 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
+                  aria-label="البحث عن مريض">
+                  <Search className="w-4 h-4" />
+                </button>
+              </PermissionGuard>
             </div>
             {foundPatient && (
               <p className="mt-2 text-green-400 text-sm">✓ مريض موجود: {foundPatient.first_name || ''} {foundPatient.last_name || ''}</p>
@@ -354,46 +359,48 @@ export default function ReceptionDashboard() {
       )}
 
       {activeTab === 'patients' && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-white">مواعيد اليوم</h2>
-          {agendaEvents.length === 0 ? (
-            <div className="text-center py-12 text-white/50 bg-white/5 rounded-xl border border-white/10">
-              <Calendar className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p>لا توجد مواعيد لهذا اليوم</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {agendaEvents.map(event => (
-                <div key={event.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Clock className="w-5 h-5 text-blue-400" />
-                      <div>
-                        <p className="text-white font-medium">
-                          {new Date(event.scheduled_start).toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                        <p className="text-white/50 text-sm">{event.patient_name}</p>
+        <PermissionGuard required="view_sessions">
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-white">مواعيد اليوم</h2>
+            {agendaEvents.length === 0 ? (
+              <div className="text-center py-12 text-white/50 bg-white/5 rounded-xl border border-white/10">
+                <Calendar className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <p>لا توجد مواعيد لهذا اليوم</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {agendaEvents.map(event => (
+                  <div key={event.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-5 h-5 text-blue-400" />
+                        <div>
+                          <p className="text-white font-medium">
+                            {new Date(event.scheduled_start).toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <p className="text-white/50 text-sm">{event.patient_name}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Stethoscope className="w-4 h-4 text-white/30" />
+                        <span className="text-white/50 text-sm">{event.doctor_name}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded ${event.status === 'scheduled' ? 'bg-blue-500/20 text-blue-400' :
+                            event.status === 'arrived' ? 'bg-yellow-500/20 text-yellow-400' :
+                              event.status === 'in_session' ? 'bg-green-500/20 text-green-400' :
+                                'bg-white/10 text-white/50'
+                          }`}>
+                          {event.status === 'scheduled' ? 'مجدول' :
+                            event.status === 'arrived' ? 'وصل' :
+                              event.status === 'in_session' ? 'جارية' : event.status}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Stethoscope className="w-4 h-4 text-white/30" />
-                      <span className="text-white/50 text-sm">{event.doctor_name}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${event.status === 'scheduled' ? 'bg-blue-500/20 text-blue-400' :
-                          event.status === 'arrived' ? 'bg-yellow-500/20 text-yellow-400' :
-                            event.status === 'in_session' ? 'bg-green-500/20 text-green-400' :
-                              'bg-white/10 text-white/50'
-                        }`}>
-                        {event.status === 'scheduled' ? 'مجدول' :
-                          event.status === 'arrived' ? 'وصل' :
-                            event.status === 'in_session' ? 'جارية' : event.status}
-                      </span>
-                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </PermissionGuard>
       )}
     </div>
   );
