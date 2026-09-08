@@ -25,7 +25,7 @@ Allowed classifications:
 - Branch: `main`
 - P62 implementation commit: `f9369e1c0bfc1f478f8279ac1b1971ea53a3b606`
 - P63 implementation commit: `cded709b722435bdf6d5d70c6e0160fd92b8fa8a`
-- Roadmap normalization/update commit: this file's latest commit.
+- Latest roadmap commit: `43932f835a27c667f1d1ba9237ce1bab978a6005`
 - Supabase Production ref: `gobdznqbdaklkkqbkynx`
 - Vercel project: `core-system-v2-0`
 - Last previously verified Production deployment at roadmap normalization: commit `df88753a85106c29dc53c4b6c2786351de83a1fa`, state `READY`
@@ -83,6 +83,7 @@ Current closed work:
 - P60 PQS penalty rounding contract repair — CLOSED
 - P61 Daily snapshot RPC wrapper contract repair — CLOSED
 - P62 CoreScoreWidget Integration — CLOSED
+- P63 OfflineBanner Integration — CLOSED
 
 ## 6. Important Current-State Corrections
 Older planning material described the survey as broken after Page 2. That is no longer current evidence.
@@ -170,17 +171,14 @@ Runtime note:
 
 ## 14. Current Execution Queue
 ### P63 — OfflineBanner Integration
-Status: `IN PROGRESS`
-Classification: `CONFIRMED / WIRE`
-Scope:
-- Inspect `src/App.tsx`, `OfflineBanner.tsx`, and `useNetworkStatus.ts`.
-- Wire the existing network state into the banner at the application root.
-- Do not rewrite network detection behavior.
-Verification:
-- TypeScript
-- Build
-- Tests
-- Online/offline transition verification where technically available
+Status: `CLOSED`
+Classification: `CONFIRMED`
+Evidence:
+- `src/App.tsx` now imports and renders the existing `OfflineBanner` at the application root.
+- `OfflineBanner` already consumed `useNetworkStatus`; the network hook was not rewritten.
+- GitHub Actions Build Test run `34209854721` passed install, build, TypeScript, and tests.
+Runtime note:
+- Live online/offline browser transition remains unavailable in the current Production browser environment under P58.
 
 ### P64 — Theme Token Cleanup
 Status: `READY`
