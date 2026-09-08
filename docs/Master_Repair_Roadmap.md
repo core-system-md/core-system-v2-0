@@ -90,7 +90,7 @@ Production gaps were confirmed on eight tenant-owned tables: `analytics_daily_sn
 
 ### P75 — Soft-Delete Enforcement
 `CLOSED — CONFIRMED`.
-Production evidence found two active `create_pin_session` overloads physically deleting prior `pin_sessions`, while active PIN-session readers and the Realtime broadcast function selected sessions by token/expiry. Production migration `p75_soft_delete_pin_sessions` replaced those PIN-session physical deletes with `deleted_at = now()` and added `deleted_at IS NULL` to all active PIN-session lookup paths, preserving all RPC signatures and return contracts. Production migration history now records `20260908134459 / p75_soft_delete_pin_sessions`; read-back verified no physical `DELETE FROM public.pin_sessions` remains in the targeted functions. Repository migration: `supabase/migrations/053_p75_soft_delete_pin_sessions.sql`. The generic offline `SyncEngine.applyMutation()` delete branch remains unchanged because no active caller enqueuing `operation: 'delete'` was evidenced; this residual infrastructure path is intentionally not broadened beyond the proven PIN-session scope.
+Production evidence found two active `create_pin_session` overloads physically deleting prior `pin_sessions`, while active PIN-session readers and the Realtime broadcast function selected sessions by token/expiry. Production migration `p75_soft_delete_pin_sessions` replaced those PIN-session physical deletes with `deleted_at = now()` and added `deleted_at IS NULL` to all active PIN-session lookup paths, preserving all RPC signatures and return contracts. Production migration history records `20260908134459 / p75_soft_delete_pin_sessions`; read-back verified no physical `DELETE FROM public.pin_sessions` remains in the targeted functions. Repository migration: `supabase/migrations/053_p75_soft_delete_pin_sessions.sql`. The generic offline `SyncEngine.applyMutation()` delete branch remains unchanged because no active caller enqueuing `operation: 'delete'` was evidenced; this residual infrastructure path is intentionally not broadened beyond the proven PIN-session scope.
 
 ### P76 — Timestamp Compliance
 `CLOSED — CONFIRMED`.
@@ -120,6 +120,10 @@ Blueprint names `MyQueueView` and `PatientSessionView`, but current implementati
 `CLOSED — CONFIRMED`.
 CI build evidence established a concrete entry-chunk bottleneck: before the targeted change, `index-C3PaUPIe.js` was 547.73 kB (gzip 160.86 kB). The active router already lazy-loaded feature pages, but `CoreRulesConfigManager` was still statically imported; it was converted to the same lazy/Suspense pattern used by the rest of the feature routes. Verified CI run `34233714542` passed install/build/tsc/tests and measured `index-dZ9c9ZMy.js` at 539.68 kB (gzip 158.55 kB), with a separate `CoreRulesConfigManager-XT2mn8J_.js` chunk at 6.42 kB (gzip 2.53 kB). The Vercel Production deployment for commit `12bd7ef4d50b55d4f7cd66f6507c6cf209af2865` is `READY`. The entry chunk remains above Vite's 500 kB warning threshold, so no speculative manual chunking or dependency changes were introduced; the residual warning is explicitly recorded rather than hidden.
 
+### P83 — `pin_sessions.staff_id` FK Index
+`CLOSED — CONFIRMED`.
+Supabase Performance Advisor reported the foreign key `pin_sessions.staff_id` without a covering index. A dedicated `idx_pin_sessions_staff_id` index was added in Production and read-back confirmed the exact btree index definition. No data, RLS, Auth, or RPC contract changed. Repository migration: `supabase/migrations/054_p83_index_pin_sessions_staff_id.sql`.
+
 ## Evidence-gated work that remains blocked
 - P56 retention/follow-up automation semantics and provider workflow.
 - P57 Survey → CORE numeric mapping coefficients/lookup rules.
@@ -133,6 +137,8 @@ CI build evidence established a concrete entry-chunk bottleneck: before the targ
 - Real WhatsApp/SMS/email adapters without verified provider contract/config.
 - Supabase Advisor remediation that would alter RLS/Auth/permissions without intent-level evidence.
 - Generic offline soft-delete behavior beyond the proven PIN-session lifecycle until an active enqueue contract is evidenced.
+- Remaining unused-index advisories require workload evidence before any removal and are not treated as defects solely from advisor counters.
+- `pin_sessions` RLS has no direct policies because the active PIN-session browser workflow is mediated by SECURITY DEFINER RPCs; changing that contract would require explicit RLS/access evidence.
 
 ## Verification policy
 A stage is not closed until its required implementation/inspection, verification, and roadmap update are complete. DB-changing stages require Production read-back. Browser-blocked stages never receive a false interactive E2E claim. Vercel deployment state is checked for active source changes before closure.
