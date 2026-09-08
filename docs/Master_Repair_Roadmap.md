@@ -66,11 +66,11 @@ Active route uses `src/features/survey/SurveyRouter.tsx`; no active import of `s
 
 ### P70 — AuditTrailViewer
 `CLOSED — CONFIRMED`.
-Production `audit_trail` has the authoritative existing audit contract and its existing RLS policy permits `clinic_admin` and `super_admin` reads for the current tenant. Active paginated viewer was added at `/admin/audit` using only existing columns, tenant/RLS enforcement, and `view_audit`. GitHub Actions Build Test run `34211206918` passed install/build/tsc/tests. Vercel Production deployment for the resulting active changes is `READY`.
+Production `audit_trail` has the authoritative existing audit contract and its existing RLS policy permits `clinic_admin` and `super_admin` reads for the current tenant. Active paginated viewer was added at `/admin/audit` using only existing columns, tenant/RLS enforcement, and `view_audit`. GitHub Actions Build Test run `34211206918` passed install/build/tsc/tests. Vercel Production deployment for the active changes is `READY`.
 
 ### P71 — BreachLog
 `CLOSED — CONFIRMED`.
-Production `system_delivery_breaches` has the authoritative breach contract and existing RLS isolation. Active filtered viewer was added at `/admin/breaches` using existing breach fields and `view_audit`; no new security semantics or RLS changes were introduced. GitHub Actions Build Test run `34211206918` passed install/build/tsc/tests. Vercel Production deployment for the resulting active changes is `READY`.
+Production `system_delivery_breaches` has the authoritative breach contract and existing RLS isolation. Active filtered viewer was added at `/admin/breaches` using existing breach fields and `view_audit`; no new security semantics or RLS changes were introduced. GitHub Actions Build Test run `34211206918` passed install/build/tsc/tests. Vercel Production deployment for the active changes is `READY`.
 
 ### P72 — GlobalHealthScores
 `BLOCKED — INSUFFICIENT EVIDENCE`.
@@ -78,9 +78,11 @@ Production `tenant_health_scores` exists and matches the expected score fields, 
 
 ### P73 — Billing UI Program
 P73-A/B: `CLOSED — CONFIRMED`.
-An active read-only subscription status page was added at `/admin/billing` using existing `master_tenants` fields (`subscription_tier`, `subscription_start`, `subscription_end`, `trial_started_at`, `max_devices`). Production `core_rules_config` confirms the standard trial duration is 14 days. No pricing, manual activation, or payment operation was invented. Vercel Production deployment for the P73-A/B changes is `READY`; Production runtime error/fatal count for the selected last-hour check was zero.
-P73-C/D: `BLOCKED — INSUFFICIENT EVIDENCE`.
-Manual activation semantics and additional Stripe-facing UI workflow are not sufficiently established in active code/data contracts to implement without inventing authorization or billing behavior. Existing protected Stripe webhook remains unchanged.
+An active read-only subscription status page was added at `/admin/billing` using existing `master_tenants` fields (`subscription_tier`, `subscription_start`, `subscription_end`, `trial_started_at`, `max_devices`). Production `core_rules_config` confirms the standard trial duration is 14 days. No pricing, manual activation, or payment operation was invented. Vercel Production deployment for the P73-A/B changes is `READY`; the selected Production runtime error/fatal check returned zero entries.
+P73-C: `CLOSED — CONFIRMED`.
+The active super-admin subscription control surface was added at `/super-admin/billing`. It is protected by the existing `super_admin_access` permission and uses only the Blueprint-defined `updateTier` and `activateTenant` operations against `master_tenants`. Production RLS already permits `super_admin` access to `master_tenants`; no RLS/Auth/schema changes were made. GitHub Actions Build Test run `34211509858` passed install/build/tsc/tests, and Vercel Production deployment for commit `e8cf1b7217cd2ab0fe9643ef934f853563cf1669` is `READY`.
+P73-D: `BLOCKED — INSUFFICIENT EVIDENCE`.
+No additional Stripe-facing UI workflow was added because the active repository does not establish a sufficient contract for payment initiation/status beyond the already-protected backend webhook. Existing Stripe webhook authentication remains unchanged.
 
 ### P74 — `deleted_at` Schema Compliance
 `CLOSED — CONFIRMED`.
@@ -124,7 +126,6 @@ Active routing already uses React lazy-loading for feature pages, and `vite.conf
 - P67 HotSwapSuggestion generator/behavior contract.
 - P68 QuickInvoice active contract.
 - P72 cross-tenant GlobalHealthScores access contract; current RLS does not establish it.
-- P73-C manual activation semantics.
 - P73-D additional Stripe UI workflow contract.
 - P75 active soft-delete behavioral contract for the generic offline delete path.
 - P79 migration-history reconciliation procedure.
