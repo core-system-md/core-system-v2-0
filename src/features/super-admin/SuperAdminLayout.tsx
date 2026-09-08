@@ -7,7 +7,7 @@
 // ============================================================
 
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Building2, Shield, Settings } from 'lucide-react';
+import { Building2, Shield, Settings, CreditCard } from 'lucide-react';
 
 export default function SuperAdminLayout() {
   const navigate = useNavigate();
@@ -17,6 +17,7 @@ export default function SuperAdminLayout() {
     { id: 'registry', label: 'سجل العيادات', path: '/super-admin', icon: Building2 },
     { id: 'flags', label: 'إدارة الميزات', path: '/super-admin/feature-flags', icon: Shield },
     { id: 'rules', label: 'قواعد CORE', path: '/super-admin/core-rules', icon: Settings },
+    { id: 'billing', label: 'الاشتراكات', path: '/super-admin/billing', icon: CreditCard },
   ];
 
   const activeTab = tabs.find((t) => location.pathname === t.path)?.id || 'registry';
@@ -35,8 +36,8 @@ export default function SuperAdminLayout() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4">
-        <div className="flex gap-2 border-b border-slate-200">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4 overflow-x-auto">
+        <div className="flex min-w-max gap-2 border-b border-slate-200">
           {tabs.map((tab) => (
             <button
               key={tab.id}
