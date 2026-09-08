@@ -104,9 +104,9 @@ Production schema matches the global-default/tenant-override model. Current acti
 `CLOSED — CONFIRMED`.
 Production supports global (`tenant_id IS NULL`) and tenant-specific rows and has `uq_feature_flag`. Eight global keys had duplicate active rows due PostgreSQL NULL uniqueness semantics. The oldest identical row per key was preserved, duplicates were soft-deleted, and partial unique index `uq_feature_flags_global_active` now enforces one active global row per key. CI `34210803299` passed install/build/tsc/tests. Repository migration: `supabase/migrations/046_p78_feature_flag_global_deduplication.sql`.
 
-### P79 — Migration History Cleanup
-`BLOCKED — INSUFFICIENT EVIDENCE`.
-Production `supabase_migrations.schema_migrations` is timestamp-based and does not numerically mirror the repository's `001..046` filenames. No destructive history rewrite, rename, or deletion was performed. A dedicated reconciliation procedure is required before cleanup.
+### P79 — Migration History Reconciliation
+`RECONCILIATION CLOSED — CONFIRMED; CLEANUP BLOCKED — INSUFFICIENT EVIDENCE`.
+A non-destructive reconciliation was completed against Production `supabase_migrations.schema_migrations` and the GitHub `main` migration inventory. Production currently exposes 37 migration rows. Twenty-five Production migration names have an identifiable same-name repository file, including the recent P74/P75/P76/P78/P83 migrations and the timestamp-prefixed compatibility mappings for historical `019`, `020`, and `022`. Ten Production migration names have no same-name repository filename: `urgent_restrict_anon_dangerous_functions`, `fix_direct_anon_grant_on_dangerous_functions`, `fix_remaining_rls_initplan_and_duplicate_indexes_v2`, `add_missing_fk_indexes_real_prod`, `fix_function_search_path_mutable`, `restrict_debug_jwt_probe`, `consolidate_permissive_policies`, `consolidate_pin_attempt_log_policies`, `drop_duplicate_unique_constraint`, and `add_soft_delete_columns_gobdznqbdaklkkqbkynx`. These unmatched names are documented in `docs/P79_Migration_History_Reconciliation.md`. No Production migration-history row was deleted, renamed, rewritten, or synthesized. Cleanup remains blocked pending effect-level/provenance comparison and a reversible recovery procedure.
 
 ### P80 — `domain_backup` Disposition
 `CLOSED — CONFIRMED`.
@@ -131,7 +131,7 @@ Supabase Performance Advisor reported the foreign key `pin_sessions.staff_id` wi
 - P68 QuickInvoice active contract.
 - P72 cross-tenant GlobalHealthScores access contract; current RLS does not establish it.
 - P73-D additional Stripe UI workflow contract.
-- P79 migration-history reconciliation procedure.
+- P79 migration-history cleanup only: effect-level/provenance comparison of unmatched Production migrations plus a reversible cleanup procedure.
 - Full Production interactive browser E2E while environment/SSO blocks navigation.
 - Concrete event-handler implementations where active contracts are not evidenced.
 - Real WhatsApp/SMS/email adapters without verified provider contract/config.
