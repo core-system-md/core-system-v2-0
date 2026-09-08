@@ -8,7 +8,7 @@
 
 ## Current Baseline
 - Branch: `main`
-- Current HEAD: `b50d1da65a1bf2d066e87dbaa82f20028d27f625`
+- Current code/test commit: `f8a4078f1c9ffb64a3a70818d0ddb1ab9fc3f4ac`
 - Supabase production ref: `gobdznqbdaklkkqbkynx`
 - Vercel production target: `core-system-v2-0`
 
@@ -30,6 +30,7 @@
 - P54 Analytics Snapshot RPC contract alignment: CLOSED
 - P55 Automated Test Foundation: CLOSED
 - P59 EventBus score-event contract repair: CLOSED
+- P60 PQS penalty rounding contract repair: CLOSED
 
 ## P55 Closure Evidence
 - GitHub Actions Build Test run `34201341263` for `072c2a04d9a0b4aa99e3bce9529add10cd66b373`: SUCCESS.
@@ -84,20 +85,22 @@
 - CI `npm run test`: SUCCESS.
 - Result: P59 CLOSED after real repository CI verification.
 
-## P60 Evidence / Repair — PQS Penalty Rounding Contract
-- Classification: CONFIRMED implementation; verification pending CI visibility.
-- Constitution §4.1 defines the PQS penalty as `PQS × 0.20` for `PQS >= 700` and `PQS × 0.10` for `PQS >= 400`, followed by `ROUND(MAX(0, MIN(1000, RAW - penalty)))` for the backend score.
-- Blueprint repeats the same order: tiered percentage penalty first, then backend `ROUND`.
-- Active `CoreScoreEngine.calculateCoreScore()` previously rounded the PQS penalty itself before subtracting it, which could diverge from the authoritative formula on fractional penalty boundaries.
-- Active `PqsPenaltyCalculator.calculatePqsPenalty()` had the same premature penalty rounding.
-- Repair applied: both active implementations now preserve the percentage penalty as a numeric value and round only the final backend score.
-- Regression coverage added in `tests/core-score-parity.test.ts` for `PQS=401`, demonstrating `500.54 - 40.1 = 460.44 → 460`, plus direct shared-calculator assertions.
+## P60 Closure Evidence — PQS Penalty Rounding Contract
+- Classification: CONFIRMED.
+- Constitution §4.1 and Blueprint define percentage penalty first, then final backend rounding. Active scoring code previously rounded the penalty itself before subtraction.
+- `CoreScoreEngine.calculateCoreScore()` was repaired to preserve `PQS × 0.20` / `PQS × 0.10` without intermediary rounding.
+- `PqsPenaltyCalculator.calculatePqsPenalty()` was repaired to preserve the same unrounded percentage contract.
+- Regression test added in `tests/core-score-parity.test.ts` and isolated from Supabase transport so the test validates the pure scoring contract.
+- The first CI attempt exposed a test isolation issue caused by importing `CoreScoreEngine` (which requires runtime Supabase env); the test was corrected to target the pure `PqsPenaltyCalculator` instead.
+- Final code/test commit: `f8a4078f1c9ffb64a3a70818d0ddb1ab9fc3f4ac`.
+- GitHub Actions Build Test run `34205616182`: SUCCESS.
+- CI `npm install`: SUCCESS.
+- CI `npm run build`: SUCCESS, 1959 modules transformed.
+- CI `npx tsc --noEmit`: SUCCESS.
+- CI `npm run test`: SUCCESS.
+- Vercel production deployment for the implementation/test path reached READY during verification.
 - No Supabase schema, RLS, Auth, RPC contract, indicator weights, or business-rule thresholds were changed.
-- Vercel production deployment for the intermediate source repair commit `da86c838ce4fe90ba4d9090c665c8ddfa530fc1e`: READY.
-- Final test commit: `b50d1da65a1bf2d066e87dbaa82f20028d27f625`.
-- Vercel production build for the final test commit reached `READY`; build logs show 1959 modules transformed and successful Vite build completion.
-- GitHub Actions Build Test for the final commit is not currently exposed by the connected GitHub workflow-read interface; no CI pass is claimed until an actual run is observable.
-- Result: P60 remains OPEN pending repository CI verification.
+- Result: P60 CLOSED after real CI verification.
 
 ## Current Confirmed Evidence
 1. `patient_intake_responses` is the 5-page survey pipeline and is intended to feed the scoring engine.
@@ -122,7 +125,7 @@
 11. Active source contains a typed `EventBus` implementation at `src/core/events/EventBus.ts` with subscribe/emit/once/clear behavior.
 12. Active `CoreScoreEngine` emits `score:calculated`; the shared `EVENTS.SCORE_COMPUTED` constant is now aligned to the same value and protected by automated regression coverage.
 13. The Blueprint-specified handler files (`onAppointmentCreated`, `onSessionStatusChanged`, `onPaymentCollected`, `onBreach`) were not found in active source during targeted search.
-14. Active source contains follow-up type/status aliases, but no active retention UI/service/automation implementation was established by targeted search.
+14. Active source contains follow-up type/status aliases, but no active retention service/UI/automation implementation was established by targeted search.
 15. Production `notification_queue` schema uses the later canonical shape with `recipient_type`, `recipient_id`, `recipient_phone`, `recipient_email`, `template_key`, `message_body`, `retry_count`, `max_retries`, and status `queued|processing|sent|...`.
 16. Production `notification_queue` is currently empty, so no queued notification was mutated during verification.
 17. `notification-processor` is scheduled every 5 minutes and its cron runs are succeeding.
@@ -131,17 +134,11 @@
 20. P54 replaced `compute_daily_snapshot` in production without schema changes. The RPC now returns the complete key set consumed by `analytics-snapshot`, using tenant/date-scoped session, invoice, patient, and inquiry data.
 21. P54 verification against production returned the complete contract successfully; no application rows were modified by the verification query.
 22. The four production cron jobs remain active: analytics nightly at 02:00, auto-lock every minute, leakage hourly, notification processor every 5 minutes.
-23. Repository CI now verifies build + TypeScript + automated unit/contract tests on each push through the current Build Test workflow.
+23. Repository CI verifies build + TypeScript + automated unit/contract tests on each push through the current Build Test workflow.
 24. Active scoring now uses the Constitution/Blueprint order for PQS penalty application and final backend rounding; no schema or authoritative scoring weights were changed.
+25. Production advisor inspection on 2026-09-08 still reports the previously known advisory set, including `pin_sessions` RLS-without-policy, public-schema extensions, SECURITY DEFINER execute grants, anonymous-access policy findings, and leaked-password protection disabled. No blanket remediation was applied because those items require contract/intent review.
 
 ## Open Work
-### P60 — PQS Penalty Rounding Verification
-- Classification: CONFIRMED implementation / INSUFFICIENT EVIDENCE for closure
-- Code and regression test are committed on `main`.
-- Vercel production build is READY.
-- GitHub Actions run for the final commit is not visible through the current connected workflow interface.
-- Do not mark P60 CLOSED until the Build Test workflow is observably successful.
-
 ### Survey → CORE Score Numeric Mapping
 - Classification: INSUFFICIENT EVIDENCE
 - No authoritative numeric conversion from survey answers to APS/DRI/RVS/URI/TSI/PQS has been found in the Constitution, Blueprint, active source, migrations, or production `core_rules_config`.
@@ -171,11 +168,10 @@
 
 ### Supabase Advisor Follow-up
 - Classification: CONFIRMED advisory findings remain
-- Includes intentional/architecture-sensitive items such as `pin_sessions` direct-access denial, SECURITY DEFINER execution grants, public-schema extensions, and leaked-password protection.
-- No blanket remediation without evidence and scope.
+- Current inspection confirms the previously known advisory set. Remediation remains intentionally unstarted until each finding has an explicit contract/intent decision, especially where changing grants/RLS/extensions could alter existing application behavior.
 
 ## Next Stage
-**P60 — complete CI verification, then proceed to the next evidence-backed repair.** Do not implement Survey scoring mappings, Retention automation, notification adapters, or Blueprint event handlers until authoritative contracts are recovered.
+**P61 — next evidence-backed repair:** prioritize a remaining item only when an authoritative implementation contract or safely isolated verification path exists. Do not implement Survey scoring mappings, Retention automation, notification adapters, or Blueprint event handlers without recovered contracts.
 
 ## Closure Rule
 An open stage becomes CLOSED only after implementation (when supported by evidence), verification against the real runtime/production contracts, and an update to this roadmap.
