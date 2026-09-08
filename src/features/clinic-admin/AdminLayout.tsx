@@ -1,6 +1,7 @@
 // ============================================================
 // CORE SYSTEM v2.1 — AdminLayout
 // FIXED: 2026-07-06 — Kept UI shell + navigation, extracted page content
+// FIXED: 2026-09-08 — Added Blueprint-backed patient directory and schedule views
 // Constitution §3: Layout = UI shell + Outlet. NO page content.
 // ============================================================
 
@@ -8,14 +9,16 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/core/auth/useAuth';
 import { useAuthStore, selectUserRole } from '@/shared/store/authStore';
 import { useEffect } from 'react';
-import { LayoutDashboard, TrendingUp, Users, History, AlertTriangle, CreditCard } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Users, History, AlertTriangle, CreditCard, CalendarDays } from 'lucide-react';
 
-type TabId = 'overview' | 'revenue' | 'staff' | 'audit' | 'breaches' | 'billing';
+type TabId = 'overview' | 'revenue' | 'staff' | 'schedule' | 'patients' | 'audit' | 'breaches' | 'billing';
 
 const tabs: { id: TabId; label: string; icon: typeof LayoutDashboard; path: string }[] = [
   { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard, path: '/admin' },
   { id: 'revenue', label: 'الإيرادات', icon: TrendingUp, path: '/admin/revenue' },
   { id: 'staff', label: 'الطاقم', icon: Users, path: '/admin/staff' },
+  { id: 'schedule', label: 'الجدول', icon: CalendarDays, path: '/admin/schedule' },
+  { id: 'patients', label: 'المرضى', icon: Users, path: '/admin/patients' },
   { id: 'audit', label: 'التدقيق', icon: History, path: '/admin/audit' },
   { id: 'breaches', label: 'التجاوزات', icon: AlertTriangle, path: '/admin/breaches' },
   { id: 'billing', label: 'الاشتراك', icon: CreditCard, path: '/admin/billing' },
