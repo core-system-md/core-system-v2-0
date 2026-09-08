@@ -26,6 +26,8 @@ const ReceptionDashboard = lazy(() => import('@/features/reception/ReceptionDash
 const AdminOverviewPage = lazy(() => import('@/features/clinic-admin/AdminOverviewPage'));
 const AdminRevenuePage = lazy(() => import('@/features/clinic-admin/AdminRevenuePage'));
 const AdminStaffPage = lazy(() => import('@/features/clinic-admin/AdminStaffPage'));
+const AuditTrailViewerPage = lazy(() => import('@/features/clinic-admin/AuditTrailViewerPage'));
+const BreachLogPage = lazy(() => import('@/features/clinic-admin/BreachLogPage'));
 const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
 const FeatureFlagManager = lazy(() => import('@/features/super-admin/FeatureFlagManager'));
 const SurveyRouter = lazy(() => import('@/features/survey/SurveyRouter'));
@@ -72,6 +74,8 @@ const router = createBrowserRouter([
         { index: true, element: <Suspense fallback={<LoadingScreen />}><AdminOverviewPage /></Suspense> },
         { path: 'revenue', element: <Suspense fallback={<LoadingScreen />}><AdminRevenuePage /></Suspense> },
         { path: 'staff', element: <Suspense fallback={<LoadingScreen />}><AdminStaffPage /></Suspense> },
+        { path: 'audit', element: <Suspense fallback={<LoadingScreen />}><AuditTrailViewerPage /></Suspense> },
+        { path: 'breaches', element: <Suspense fallback={<LoadingScreen />}><BreachLogPage /></Suspense> },
       ],
     }],
   },
