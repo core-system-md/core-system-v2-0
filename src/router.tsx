@@ -31,6 +31,7 @@ const BreachLogPage = lazy(() => import('@/features/clinic-admin/BreachLogPage')
 const BillingStatusPage = lazy(() => import('@/features/clinic-admin/BillingStatusPage'));
 const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
 const FeatureFlagManager = lazy(() => import('@/features/super-admin/FeatureFlagManager'));
+const TenantBillingAdminPage = lazy(() => import('@/features/super-admin/TenantBillingAdminPage'));
 const SurveyRouter = lazy(() => import('@/features/survey/SurveyRouter'));
 import CoreRulesConfigManager from '@/features/super-admin/CoreRulesConfigManager';
 
@@ -111,6 +112,7 @@ const router = createBrowserRouter([
         { index: true, element: <Suspense fallback={<LoadingScreen />}><TenantRegistry /></Suspense> },
         { path: 'feature-flags', element: <Suspense fallback={<LoadingScreen />}><FeatureFlagManager /></Suspense> },
         { path: 'core-rules', element: <Suspense fallback={<LoadingScreen />}><CoreRulesConfigManager /></Suspense> },
+        { path: 'billing', element: <Suspense fallback={<LoadingScreen />}><TenantBillingAdminPage /></Suspense> },
       ],
     }],
   },
