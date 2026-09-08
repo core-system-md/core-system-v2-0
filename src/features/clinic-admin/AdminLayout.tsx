@@ -8,14 +8,16 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/core/auth/useAuth';
 import { useAuthStore, selectUserRole } from '@/shared/store/authStore';
 import { useEffect } from 'react';
-import { LayoutDashboard, TrendingUp, Users } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Users, History, AlertTriangle } from 'lucide-react';
 
-type TabId = 'overview' | 'revenue' | 'staff';
+type TabId = 'overview' | 'revenue' | 'staff' | 'audit' | 'breaches';
 
 const tabs: { id: TabId; label: string; icon: typeof LayoutDashboard; path: string }[] = [
   { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard, path: '/admin' },
   { id: 'revenue', label: 'الإيرادات', icon: TrendingUp, path: '/admin/revenue' },
   { id: 'staff', label: 'الطاقم', icon: Users, path: '/admin/staff' },
+  { id: 'audit', label: 'التدقيق', icon: History, path: '/admin/audit' },
+  { id: 'breaches', label: 'التجاوزات', icon: AlertTriangle, path: '/admin/breaches' },
 ];
 
 export default function AdminLayout() {
@@ -24,7 +26,6 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Auth Guard
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -44,16 +45,14 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
-      {/* Admin UI Shell */}
       <div className="max-w-7xl mx-auto p-4 space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-primary">لوحة تحكم العيادة</h1>
           <p className="text-gray-500">مرحباً {user?.full_name || "مدير العيادة"}</p>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="w-full max-w-md">
-          <div className="grid grid-cols-3 bg-gray-100 rounded-lg p-1">
+        <div className="w-full overflow-x-auto">
+          <div className="flex min-w-max gap-1 bg-gray-100 rounded-lg p-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -71,7 +70,6 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        {/* Page Content via Outlet */}
         <div className="mt-4">
           <Outlet />
         </div>
