@@ -27,8 +27,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'clinic_visit_sessions', filter: `tenant_id=eq.${tenantId}` },
-        (payload) => {
-          console.log('[Realtime] Queue change:', payload);
+        () => {
+          // Queue updates are consumed by subscribed feature stores/hooks.
         }
       )
       .subscribe();
@@ -39,8 +39,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'clinic_visit_sessions', filter: `tenant_id=eq.${tenantId}` },
-        (payload) => {
-          console.log('[Realtime] Session change:', payload);
+        () => {
+          // Session updates are consumed by subscribed feature stores/hooks.
         }
       )
       .subscribe();
@@ -51,8 +51,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notification_queue', filter: `tenant_id=eq.${tenantId}` },
-        (payload) => {
-          console.log('[Realtime] New notification:', payload);
+        () => {
+          // Notification updates are consumed by subscribed feature stores/hooks.
         }
       )
       .subscribe();
