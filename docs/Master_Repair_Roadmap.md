@@ -34,6 +34,10 @@ Additional closed repairs: P0-1, P0-2, P0-3, Reception PIN-session operations, R
 `CLOSED — CONFIRMED`.
 Active screen guards were aligned to the existing Blueprint permission model: clinic analytics uses `view_analytics`, clinic revenue uses `view_invoices`, and clinic staff uses `view_staff`. Doctor session list/detail now apply role scope consistently: doctors are restricted to their own sessions while `clinic_admin` and `super_admin` can access tenant sessions. Session close is guarded by `edit_sessions` and uses doctor ownership only for the doctor role. Production `clinic_visit_sessions` SELECT RLS was repaired to require current-tenant isolation plus either the administrative/reception roles or `doctor_id = auth.uid()`. Production read-back confirmed the resulting policy and the migration `20260908151404 / p84_session_select_role_boundary` is present. The latest Vercel Production deployment for commit `546509459185728b3558a3b3e66366ce2c28c417` is `READY`. Archive remains unchanged.
 
+### P85 — Patient Access Tenant Boundary
+`IMPLEMENTED — AWAITING FINAL CI/DEPLOY VERIFICATION`.
+Production evidence showed `clinic_patients.rls_patients_isolation` previously used `tenant_id IS NOT NULL`, while the Blueprint explicitly requires `tenant_id = get_current_tenant_id()`. Production migration `20260908153034 / p85_patient_rls_tenant_boundary` replaced the policy with the Blueprint tenant boundary, and read-back confirmed the exact resulting policy. Repository migration `supabase/migrations/055_p85_patient_rls_tenant_boundary.sql` was added. Archive was not changed. Final CI and Vercel verification remain required before closure.
+
 ## Current repair status
 ### P62 — CoreScoreWidget Integration
 `CLOSED — CONFIRMED`.
@@ -101,7 +105,7 @@ Production timestamp gaps were repaired on `analytics_events`, `analytics_patien
 
 ### P77 — `core_rules_config`
 `CLOSED — CONFIRMED`.
-Production schema matches the global-default/tenant-override model. Current active rows are global defaults; no tenant overrides exist. The CORE weight row exactly matches APS 0.28, DRI 0.24, RVS 0.20, URI 0.15. No corrective write was required.
+Production schema matches the global-default/tenant-override model. Current active rows are global defaults; no tenant overrides exist. The CORE weight row exactly matches APS 0.28, DRI 0.24, RVS 0.20, URI 0.15, TSI 0.13. No corrective write was required.
 
 ### P78 — `feature_flags`
 `CLOSED — CONFIRMED`.
