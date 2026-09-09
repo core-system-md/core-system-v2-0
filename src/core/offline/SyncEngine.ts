@@ -5,6 +5,35 @@ import { supabase } from '../../infrastructure/supabase/client';
 import { mutationQueue, type PendingMutation } from './MutationQueue';
 import { coreDrive } from './CORE_SYSTEM_DRIVE';
 
+const SOFT_DELETE_TABLES = new Set([
+  'analytics_daily_snapshots',
+  'analytics_events',
+  'analytics_patient_metrics',
+  'audit_trail',
+  'billing_events',
+  'clinic_inquiries',
+  'clinic_invoices',
+  'clinic_patients',
+  'clinic_procedures',
+  'clinic_rooms',
+  'clinic_users',
+  'clinic_visit_sessions',
+  'core_rules_config',
+  'feature_flags',
+  'inventory_ledger',
+  'master_agenda_events',
+  'master_tenants',
+  'notification_queue',
+  'patient_intake_responses',
+  'patient_longitudinal_profiles',
+  'pin_attempt_log',
+  'pin_sessions',
+  'retention_followups',
+  'system_delivery_breaches',
+  'tenant_devices',
+  'tenant_health_scores',
+]);
+
 export const syncEngine = {
   async sync(): Promise<{ synced: number; failed: number }> {
     let synced = 0;
@@ -39,7 +68,21 @@ export const syncEngine = {
       const { error } = await (supabase as any).from(table).update(updates).eq('id', id);
       if (error) throw error;
     } else if (operation === 'delete') {
-      const { error } = await (supabase as any).from(table).delete().eq('id', (payload as Record<string, unknown>).id);
+      if (!SOFT_DELETE_TABLES.has(table)) {
+        throw new Error(`Offline delete is not supported for table without a verified soft-delete contract: ${table}`);
+      }
+
+      const id = (payload as Record<string, unknown>).id;
+      if (typeof id !== 'string' || id.length === 0) {
+        throw new Error('Offline soft-delete requires a valid record id');
+      }
+
+      const { error } = await (supabase as any)
+        .from(table)
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .is('deleted_at', null);
+
       if (error) throw error;
     }
   },
