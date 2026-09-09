@@ -176,6 +176,7 @@ serve(async (req) => {
       .select("historical_core_score_avg, last_visit_date")
       .eq("patient_id", session.patient_id)
       .eq("tenant_id", clinicUser.tenant_id)
+      .is("deleted_at", null)
       .single();
     if (longitudinalError && longitudinalError.code !== "PGRST116") throw longitudinalError;
 
