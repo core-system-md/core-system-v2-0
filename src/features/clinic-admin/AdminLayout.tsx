@@ -24,6 +24,11 @@ const tabs: { id: TabId; label: string; icon: typeof LayoutDashboard; path: stri
   { id: 'billing', label: 'الاشتراك', icon: CreditCard, path: '/admin/billing' },
 ];
 
+const ROLE_LABELS_AR = {
+  clinic_admin: 'مدير العيادة',
+  super_admin: 'مشرف عام',
+} as const;
+
 export default function AdminLayout() {
   const { isAuthenticated, user } = useAuth();
   const role = useAuthStore(selectUserRole);
@@ -46,13 +51,15 @@ export default function AdminLayout() {
   }
 
   const activeTab = tabs.find((t) => location.pathname === t.path)?.id || 'overview';
+  const roleLabel = role ? ROLE_LABELS_AR[role] : 'مدير العيادة';
+  const displayName = user?.full_name_ar || user?.full_name || roleLabel;
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
       <div className="max-w-7xl mx-auto p-4 space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-primary">لوحة تحكم العيادة</h1>
-          <p className="text-gray-500">مرحباً {user?.full_name || "مدير العيادة"}</p>
+          <p className="text-gray-500">مرحباً {displayName}</p>
         </div>
 
         <div className="w-full overflow-x-auto">
