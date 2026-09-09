@@ -117,7 +117,7 @@ export default function TenantBillingAdminPage() {
             <div className="p-6 text-sm text-slate-500">لا توجد عيادات فعالة.</div>
           ) : (
             <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-right text-slate-600">
+              <thead className="bg-muted text-right text-slate-600">
                 <tr>
                   <th className="px-4 py-3 font-semibold">العيادة</th>
                   <th className="px-4 py-3 font-semibold">الخطة</th>
