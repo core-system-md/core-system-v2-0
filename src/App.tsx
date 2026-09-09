@@ -32,7 +32,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, { hasErr
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
+        <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
           <div className="max-w-md rounded-lg border border-red-200 bg-white p-6 text-center shadow-sm">
             <h1 className="text-xl font-bold text-primary">حدث خطأ أثناء عرض التطبيق</h1>
             <p className="mt-2 text-sm text-gray-600">تم تعطيل العرض المتقدم مؤقتًا حتى يتم إصلاح المشكلة.</p>
