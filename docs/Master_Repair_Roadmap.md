@@ -90,6 +90,10 @@ Supabase Performance Advisor identified two active `clinic_visit_sessions` polic
 `CLOSED — CONFIRMED`.
 The active `AmbientKioskView` already consumes the tenant `primaryColor`, while `PinPad` previously rendered a fixed `#1B2A4A → #243656` gradient and therefore ignored the tenant-specific primary color already available in `tenantStore`. `PinPad` now reads the existing `primaryColor` state and applies it to its background, preserving the current fallback `#1B2A4A`. PIN validation, lockout behavior, allowed-role checks, RPC contracts, and navigation behavior were unchanged. Implementation commit: `094c4e3dc469e89fbbae6b9bdae86dbe76c88d0b`. Vercel Production deployment `dpl_CzXxxuWCupdiYhYUER4DHVVD6M4M` is `READY`; the build completed `1971 modules transformed` with no build failure, and the only observed warning was the existing `esbuild@0.25.12` install-script allow-list warning. Production runtime-error verification returned no errors in the selected window.
 
+### P99 — Tenant Store Console Cleanup
+`CLOSED — CONFIRMED`.
+The active `tenantStore` contained three debug-only `console.log` calls and a `DEBUG` trace comment in the tenant fetch/set path. Those diagnostics were removed while existing `console.error`/`console.warn` handling for invalid IDs, Supabase failures, missing tenants, and fetch exceptions was preserved. The existing tenant fallback/default values and data-access behavior remain unchanged; the asynchronous fallback fetch is now explicitly invoked with `void`. Implementation commit: `b4e7eb42be59f87533b6f4ba2a70ca67ef53e441`. Vercel Production deployment `dpl_EiVuqv8UsStpGrCxj38QKoTBRAeh` is `READY`; the Production build transformed `1971 modules`, completed successfully, and retained only the pre-existing `esbuild@0.25.12` install-script warning and standard Vite chunk-size warning. Production runtime-error verification returned no errors in the selected window.
+
 ## Current repair status
 ### P62 — CoreScoreWidget Integration
 `CLOSED — CONFIRMED`.
@@ -220,3 +224,6 @@ P97 was closed after Production policy replacement, direct `pg_policies` read-ba
 
 ## P98 verification record
 P98 was closed after direct active-source verification, tenant-aware `PinPad` implementation, Vercel Production deployment readiness for commit `094c4e3dc469e89fbbae6b9bdae86dbe76c88d0b`, build-log verification with 1971 transformed modules and no build failure, and Production runtime-error verification with no errors in the selected window. No authentication, RPC, RLS, permission, scoring, financial-unit, schema, or navigation contract was changed.
+
+## P99 verification record
+P99 was closed after direct active-source verification of `src/shared/store/tenantStore.ts`, removal of only the debug-only logs/comments, successful Vercel Production build/deployment for commit `b4e7eb42be59f87533b6f4ba2a70ca67ef53e441`, build-log verification showing `1971 modules transformed` and no build failure, and Production runtime-error verification with no errors in the selected window. Existing error/warn diagnostics were preserved and no data, Auth, RLS, RPC, schema, scoring, financial-unit, or tenant-access semantics were changed.
