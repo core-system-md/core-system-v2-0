@@ -105,7 +105,7 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
     try {
       const { error } = await supabase.from('clinic_visit_sessions').update({
         par_result: selectedPar, updated_at: new Date().toISOString()
-      }).eq('id', sessionId).eq('tenant_id', tenant_id);
+      }).eq('id', sessionId).eq('tenant_id', tenant_id).is('deleted_at', null);
       if (error) throw error;
       toast.success('تم الحفظ');
     } catch (err: unknown) { toast.error(getErrorMessage(err, 'فشل في الحفظ')); }
