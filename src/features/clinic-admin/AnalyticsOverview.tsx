@@ -129,7 +129,7 @@ export default function AnalyticsOverview() {
       value: kpi.slaBreaches.toLocaleString('ar-JO'),
       icon: AlertTriangle,
       color: kpi.slaBreaches > 0 ? 'text-red-600' : 'text-gray-600',
-      bg: kpi.slaBreaches > 0 ? 'bg-red-50' : 'bg-gray-50',
+      bg: kpi.slaBreaches > 0 ? 'bg-red-50' : 'bg-muted',
     },
     {
       title: 'Hot Leads',
