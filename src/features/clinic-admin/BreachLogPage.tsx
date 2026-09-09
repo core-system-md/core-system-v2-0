@@ -27,8 +27,8 @@ function severityClass(severity: string) {
   switch (severity) {
     case 'critical': return 'bg-red-50 text-red-700 border-red-200';
     case 'warning': return 'bg-amber-50 text-amber-700 border-amber-200';
-    case 'info': return 'bg-slate-50 text-slate-700 border-slate-200';
-    default: return 'bg-slate-50 text-slate-700 border-slate-200';
+    case 'info': return 'bg-muted text-slate-700 border-slate-200';
+    default: return 'bg-muted text-slate-700 border-slate-200';
   }
 }
 
@@ -80,8 +80,8 @@ export default function BreachLogPage() {
           <div>
             <h2 className="text-xl font-bold text-slate-900">سجل التجاوزات</h2>
             <p className="text-sm text-slate-500">تتبّع خروقات SLA وحالات التقييم المسجلة.</p>
-          </div>
         </div>
+      </div>
 
         <div className="flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-white p-4">
           <label className="text-sm text-slate-600">
@@ -120,7 +120,7 @@ export default function BreachLogPage() {
                     <span className="text-xs text-slate-500">{new Date(breach.created_at).toLocaleString('ar-JO')}</span>
                     <span className="mr-auto rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">{breach.resolved ? 'محلولة' : 'مفتوحة'}</span>
                   </div>
-                  <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-600">{JSON.stringify(breach.breach_details, null, 2)}</pre>
+                  <pre className="mt-3 overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-5 text-slate-600">{JSON.stringify(breach.breach_details, null, 2)}</pre>
                   {breach.related_session_id && <p className="mt-2 text-xs text-slate-500">الجلسة: {breach.related_session_id}</p>}
                   {breach.resolution_notes && <p className="mt-2 text-sm text-slate-600">ملاحظات المعالجة: {breach.resolution_notes}</p>}
                 </article>
