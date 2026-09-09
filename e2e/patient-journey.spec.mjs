@@ -1,0 +1,46 @@
+import { test, expect } from '@playwright/test';
+import { E2E_SESSION_IDS } from './fixtures/patients.mjs';
+
+const unexpectedConsoleErrors = [];
+
+test.beforeEach(async ({ page }) => {
+  unexpectedConsoleErrors.length = 0;
+  page.on('console', (message) => {
+    if (message.type() === 'error') unexpectedConsoleErrors.push(message.text());
+  });
+  page.on('pageerror', (error) => unexpectedConsoleErrors.push(`PAGEERROR: ${error.message}`));
+});
+
+test('survey entry renders for all 20 seeded patient sessions', async ({ page }) => {
+  for (const sessionId of E2E_SESSION_IDS) {
+    await page.goto(`/survey/${sessionId}`);
+    await expect(page.getByText(/الصفحة 1 من 5/)).toBeVisible();
+    await expect(page.getByText(/نوع الزيارة/)).toBeVisible();
+    await expect(page.getByText(/سبب الزيارة/)).toBeVisible();
+  }
+  expect(unexpectedConsoleErrors, 'unexpected browser errors').toEqual([]);
+});
+
+test('page 1 blocks incomplete submission', async ({ page }) => {
+  await page.goto(`/survey/${E2E_SESSION_IDS[0]}`);
+  await page.getByRole('button', { name: /التالي — الصفحة 2/ }).click();
+  await expect(page.getByText('يرجى اختيار نوع الزيارة')).toBeVisible();
+  await expect(page.getByText('يرجى ذكر سبب الزيارة')).toBeVisible();
+  await expect(page.getByText('يرجى اختيار إجراء واحد على الأقل')).toBeVisible();
+  await expect(page.getByText('يجب الموافقة على الشروط للمتابعة')).toBeVisible();
+});
+
+test('page 1 accepts valid data and advances to page 2', async ({ page }) => {
+  await page.goto(`/survey/${E2E_SESSION_IDS[1]}`);
+  await page.getByRole('button', { name: 'زيارة متابعة' }).click();
+  await page.getByPlaceholder('اشرح سبب زيارتك باختصار...').fill('متابعة حالة سابقة');
+  await page.getByRole('button', { name: 'فحص عام' }).click();
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: /التالي — الصفحة 2/ }).click();
+  await expect(page.getByText(/الصفحة 2 من 5/)).toBeVisible();
+});
+
+test('missing session id shows the application validation state', async ({ page }) => {
+  await page.goto('/survey/');
+  await expect(page.getByText('رقم الجلسة مطلوب')).toBeVisible();
+});
