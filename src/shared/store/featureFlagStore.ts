@@ -50,10 +50,11 @@ export const useFeatureFlagStore = create<FeatureFlagState>((set, get) => ({
         return;
       }
 
-      // Fetch tenant-specific + global flags
+      // Only active tenant/global rows are operational feature-flag state.
       const { data, error } = await supabase
         .from('feature_flags')
         .select('id, tenant_id, flag_key, flag_name, description, is_enabled, allowed_tiers, config_json')
+        .is('deleted_at', null)
         .or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
 
       if (error) throw error;
@@ -70,19 +71,19 @@ export const useFeatureFlagStore = create<FeatureFlagState>((set, get) => ({
         config_json: (r.config_json ?? {}) as Record<string, unknown>,
       }));
 
-      set({ 
+      set({
         flags: mapped,
-        isLoading: false, 
+        isLoading: false,
         lastFetched: Date.now(),
-        error: null 
+        error: null
       });
 
     } catch (err: unknown) {
       console.error('[featureFlagStore] Fetch error:', err);
-      set({ 
-        error: err instanceof Error ? err.message : 'Failed to fetch feature flags', 
+      set({
+        error: err instanceof Error ? err.message : 'Failed to fetch feature flags',
         isLoading: false,
-        lastFetched: Date.now() 
+        lastFetched: Date.now()
       });
     }
   },
