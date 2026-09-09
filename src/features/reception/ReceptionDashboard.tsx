@@ -1,6 +1,5 @@
 import { useAuthStore } from "@/shared/store/authStore";
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuth } from '@/core/auth/AuthProvider';
@@ -45,7 +44,6 @@ type ReceptionRpcClient = {
 };
 
 export default function ReceptionDashboard() {
-  const navigate = useNavigate();
   const { fullName } = useAuth();
   const [activeTab, setActiveTab] = useState<'queue' | 'booking' | 'patients'>('queue');
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -245,9 +243,7 @@ export default function ReceptionDashboard() {
 
       {activeTab === 'queue' && (
         <PermissionGuard required="view_queue">
-          <LiveQueueBoard
-            onSelectSession={(id) => navigate(`/doctor/session/${id}`)}
-          />
+          <LiveQueueBoard />
         </PermissionGuard>
       )}
 
