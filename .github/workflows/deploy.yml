@@ -13,4 +13,4 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: npx tsc --noEmit
-      - run: npx --yes --package=vitest@4.1.11 --package=@rolldown/binding-linux-x64-gnu@1.2.4 vitest run
+      - run: corepack enable && corepack pnpm dlx vitest@4.1.11 run
