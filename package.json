@@ -8,6 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "npx --yes --legacy-peer-deps vitest@4.1.11 run",
+    "e2e:seed": "node e2e/seed.mjs",
+    "e2e:test": "playwright test",
+    "e2e:reset": "node e2e/reset.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -34,6 +37,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
+    "@playwright/test": "^1.55.0",
     "@types/node": "^26.1.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
@@ -45,9 +49,8 @@
     "globals": "^15.15.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.19",
-    "tailwindcss-animate": "^1.0.7",
+    "tailwindcss-animate": "^1.0.0",
     "typescript": "~5.7.3",
-    "typescript-eslint": "^8.26.1",
     "vite": "^6.2.0",
     "vite-plugin-pwa": "^0.21.1"
   }
