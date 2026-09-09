@@ -6,6 +6,14 @@ import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 
 const TRIAL_DAYS = 14;
 
+const TIER_LABELS: Record<string, string> = {
+  trial: 'تجريبي',
+  essential: 'أساسي',
+  professional: 'احترافي',
+  enterprise: 'مؤسسي',
+  suspended: 'موقوف',
+};
+
 function formatDate(value: string | null) {
   if (!value) return 'غير محدد';
   return new Date(value).toLocaleDateString('ar-JO', {
@@ -94,7 +102,7 @@ export default function BillingStatusPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-5">
               <div className="flex items-center gap-2 text-sm text-slate-500"><CreditCard className="h-4 w-4" /> الخطة الحالية</div>
-              <p className="mt-2 text-2xl font-bold text-slate-900">{tenant.subscription_tier}</p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{TIER_LABELS[tenant.subscription_tier] || tenant.subscription_tier}</p>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-5">
