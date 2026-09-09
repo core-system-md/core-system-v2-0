@@ -64,7 +64,8 @@ export default function TenantBillingAdminPage() {
     const { error: updateError } = await supabase
       .from('master_tenants')
       .update({ subscription_tier: newTier })
-      .eq('id', tenantId);
+      .eq('id', tenantId)
+      .is('deleted_at', null);
 
     if (updateError) {
       setError(updateError.message);
@@ -80,7 +81,8 @@ export default function TenantBillingAdminPage() {
     const { error: updateError } = await supabase
       .from('master_tenants')
       .update({ is_active: true })
-      .eq('id', tenantId);
+      .eq('id', tenantId)
+      .is('deleted_at', null);
 
     if (updateError) {
       setError(updateError.message);
