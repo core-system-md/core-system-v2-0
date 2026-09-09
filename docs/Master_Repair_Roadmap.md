@@ -72,7 +72,7 @@ The active Super Admin `FeatureFlagManager` now excludes `deleted_at IS NOT NULL
 
 ### P94 — Feature Flag Consumer Soft-Delete Integrity
 `CLOSED — CONFIRMED`.
-The active `useFeatureFlag`/`useFeatureFlags` hooks and `featureFlagStore.fetchFlags` now exclude soft-deleted `feature_flags` rows before applying the existing tenant-specific-over-global precedence and tier validation. Production contains active and soft-deleted rows for the same global keys, so the filter is evidence-backed operational behavior. Implementation commits: `64642af7479def3ddacda386461fcea0a770b638` and `3701ec14473e829dafff8311795e9ae1d6537d54`. Vercel Production deployment for the final store commit is `READY`; build error-only logs show no build failure, only the existing `esbuild@0.25.12` warning, and Production error/fatal runtime logs returned no entries for the deployment. No schema, migration, RPC, RLS, Auth, permission, scoring, or financial-unit contract changed.
+The active `useFeatureFlag`/`useFeatureFlags` hooks and `featureFlagStore.fetchFlags` now exclude soft-deleted `feature_flags` rows before applying the existing tenant-specific-over-global precedence and tier validation. Production contains active and soft-deleted rows for the same global keys, so the filter is evidence-backed operational behavior. Implementation commits: `64642af7479def3ddac386461fcea0a770b638` and `3701ec14473e829dafff8311795e9ae1d6537d54`. Vercel Production deployment for the final store commit is `READY`; build error-only logs show no build failure, only the existing `esbuild@0.25.12` warning, and Production error/fatal runtime logs returned no entries for the deployment. No schema, migration, RPC, RLS, Auth, permission, scoring, or financial-unit contract changed.
 
 ### P95 — Revenue Chart Theme Token Integrity
 `CLOSED — CONFIRMED`.
@@ -150,170 +150,10 @@ The active `AuthWrapper` previously redirected an authenticated user with no res
 `CLOSED — CONFIRMED`.
 The active Reception dashboard passed a queue-card click callback that navigated `receptionist` users to `/doctor/session/:id`, while the established route and `DoctorSessionView` both restrict clinical session-detail access to `doctor`, `clinic_admin`, and `super_admin`. Production RLS permits receptionist session-row access, but that row-level permission does not establish a clinical detail UI contract; the Blueprint establishes `LiveQueueBoard` as a Reception queue surface without establishing Reception access to the Doctor clinical session view. The surgical fix removed only the Reception `onSelectSession` navigation callback, leaving `LiveQueueBoard`'s existing queue selection behavior intact. No router, permission matrix, RLS, Auth, DB schema, RPC, scoring, or clinical-detail access semantics were expanded. Implementation commit: `48325de4c623eb9df954b3131cdff31fbcc31d4c`. Evidence document: `docs/P113_Reception_Queue_Access_Alignment.md`. Vercel Production deployment `dpl_59zw46Eim6pbyTcQmMstpSqjNMd3` reached `READY`; build completed successfully with only the existing chunk-size warning in the checked error-only log, and deployment-scoped Production runtime error/fatal verification returned no entries. Classification: `CONFIRMED`; confidence: `HIGH`.
 
-## Current repair status
-### P62 — CoreScoreWidget Integration
+### P114 — Reception Header Role Identity
 `CLOSED — CONFIRMED`.
-Existing tenant/doctor-scoped `core_score_display` is rendered by the existing CoreScoreWidget in Doctor Session; scoring logic and protected components were not changed. CI `34209799855` passed.
+The active `/reception` route is authorized for `receptionist`, `clinic_admin`, and `super_admin`, while the Reception shell previously hard-coded the identity label `موظف الاستقبال` and avatar initial `س`. The existing `authStore` already provides the authenticated role, so the surgical fix makes the displayed role identity derive from that existing state instead of assuming every viewer is a receptionist. No routing, permission matrix, Auth, RLS, Supabase, schema, RPC, scoring, or business contract changed. Implementation commit `9e8acfe5bd34a5b88cb34f6cf7014e8a84190698`; evidence commit `67af71ff2e7a38c80f6f5045faf6c314791ed335`. GitHub Actions Build Test run `34334823679` completed successfully for build, TypeScript, and tests. Vercel Production deployment `dpl_HkMQ1tEd8quBcGdFgrQwn9fgkjni` reached `READY`; build completed successfully and deployment-scoped Production runtime error/fatal verification returned no entries. Classification: `CONFIRMED`; confidence: `HIGH`.
 
-### P63 — OfflineBanner Integration
+### P115 — Doctor Surface Header Role Identity
 `CLOSED — CONFIRMED`.
-Existing OfflineBanner is rendered at the app root; network detection hook was not rewritten. CI `34209854721` passed.
-
-### P64 — Theme Token Cleanup
-`CLOSED — CONFIRMED`.
-Semantic hard-coded primary styling was converted to the existing `primary` token in active App/Auth/Router/Admin/Reception/SuperAdmin/Invoice surfaces. Archive, protected DoctorLayout, and token definition files were not changed. Final cumulative CI `34210216895` passed.
-
-### P65 — README Accuracy
-`CLOSED — CONFIRMED`.
-Stale migration/function counts and obsolete “Next: UI Layer” wording were replaced with verified current state. Final cumulative CI `34210216895` passed.
-
-### P66 — Console Cleanup
-`CLOSED — CONFIRMED`.
-Debug-only console logs were removed from TenantProvider and RealtimeProvider; meaningful error/warn logs were preserved. Final cumulative CI `34210216895` passed install/build/tsc/tests.
-
-### P67 — HotSwapSuggestion
-`BLOCKED — INSUFFICIENT EVIDENCE`.
-Blueprint defines the UI and active shared type exists, but the component found is only `archive/features_backup/reception/HotSwapSuggestion.tsx`; no active generator/service/handler contract was found. Do not restore archived UI or invent swap rules.
-
-### P68 — QuickInvoice
-`BLOCKED — INSUFFICIENT EVIDENCE`.
-Blueprint defines QuickInvoice, but repository implementation found is only `archive/features_backup/reception/QuickInvoice.tsx`; active code contains a different `SimpleInvoice` contract, which has now been removed from the Doctor feature surface. Do not promote archived QuickInvoice without an active billing contract.
-
-### P69 — SurveyRouter Orphan/Flow Reconciliation
-`CLOSED — CONFIRMED`.
-Active route uses `src/features/survey/SurveyRouter.tsx`; no active import of `src/components/SurveyRouter.tsx` was found. The stale placeholder was deleted. Survey persistence/page rules were unchanged.
-
-### P70 — AuditTrailViewer
-`CLOSED — CONFIRMED`.
-Production `audit_trail` has the authoritative existing audit contract and its existing RLS policy permits `clinic_admin` and `super_admin` reads for the current tenant. Active paginated viewer was added at `/admin/audit` using only existing columns, tenant/RLS enforcement, and `view_audit`. GitHub Actions Build Test run `34211206918` passed install/build/tsc/tests. Vercel Production deployment for the active changes is `READY`.
-
-### P71 — BreachLog
-`CLOSED — CONFIRMED`.
-Production `system_delivery_breaches` has the authoritative breach contract and existing RLS isolation. Active filtered viewer was added at `/admin/breaches` using only existing breach fields and `view_audit`; no new security semantics or RLS changes were introduced. GitHub Actions Build Test run `34211206918` passed install/build/tsc/tests. Vercel Production deployment for the active changes is `READY`.
-
-### P72 — GlobalHealthScores
-`BLOCKED — INSUFFICIENT EVIDENCE`.
-Production `tenant_health_scores` exists and matches the expected score fields, but its current RLS policy only permits `tenant_id = get_current_tenant_id()`. Blueprint calls for a cross-tenant super-admin leaderboard. Implementing that view safely would require a new access contract/RLS decision, which is outside the agreed scope and stop conditions.
-
-### P73 — Billing UI Program
-P73-A/B: `CLOSED — CONFIRMED`.
-An active read-only subscription status page was added at `/admin/billing` using existing `master_tenants` fields (`subscription_tier`, `subscription_start`, `subscription_end`, `trial_started_at`, `max_devices`). Production `core_rules_config` confirms the standard trial duration is 14 days. No pricing, manual activation, or payment operation was invented. Vercel Production deployment for the P73-A/B changes is `READY`; the selected Production runtime error/fatal check returned zero entries.
-P73-C: `CLOSED — CONFIRMED`.
-The active super-admin subscription control surface was added at `/super-admin/billing`. It is protected by the existing `super_admin_access` permission and uses only the Blueprint-defined `updateTier` and `activateTenant` operations against `master_tenants`. Production RLS already permits `super_admin` access to `master_tenants`; no RLS/Auth/schema changes were made. GitHub Actions Build Test run `34211509858` passed install/build/tsc/tests, and Vercel Production deployment for commit `e8cf1b7217cd2ab0fe9643ef934f853563cf1669` is `READY`.
-P73-D: `BLOCKED — INSUFFICIENT EVIDENCE`.
-No additional Stripe-facing UI workflow was added because the active repository does not establish a sufficient contract for payment initiation/status beyond the already-protected backend webhook. Existing Stripe webhook authentication remains unchanged.
-
-### P74 — `deleted_at` Schema Compliance
-`CLOSED — CONFIRMED`.
-Production gaps were confirmed on eight tenant-owned tables: `analytics_daily_snapshots`, `analytics_events`, `analytics_patient_metrics`, `audit_trail`, `billing_events`, `notification_queue`, `pin_attempt_log`, `pin_sessions`. Global reference tables `currency_reference` and `medical_procedure_taxonomy` were excluded. Production migration `p74_governance_deleted_at_columns` succeeded and read-back confirmed nullable `timestamptz` columns. Repository migration: `supabase/migrations/044_p74_governance_deleted_at_columns.sql`.
-
-### P75 — Soft-Delete Enforcement
-`CLOSED — CONFIRMED`.
-Production evidence found two active `create_pin_session` overloads physically deleting prior `pin_sessions`, while active PIN-session readers and the Realtime broadcast function selected sessions by token/expiry. Production migration `p75_soft_delete_pin_sessions` replaced those PIN-session physical deletes with `deleted_at = now()` and added `deleted_at IS NULL` to all active PIN-session lookup paths, preserving all RPC signatures and return contracts. Production migration history records `20260908134459 / p75_soft_delete_pin_sessions`; read-back verified no physical `DELETE FROM public.pin_sessions` remains in the targeted functions. Repository migration: `supabase/migrations/053_p75_soft_delete_pin_sessions.sql`. The generic offline `SyncEngine.applyMutation()` delete branch remains unchanged because no active caller enqueuing `operation: 'delete'` was evidenced; this residual infrastructure path is intentionally not broadened beyond the proven PIN-session scope.
-
-### P76 — Timestamp Compliance
-`CLOSED — CONFIRMED`.
-Production timestamp gaps were repaired on `analytics_events`, `analytics_patient_metrics`, `audit_trail`, `billing_events`, `inventory_ledger`, `notification_queue`, `pin_attempt_log`, `pin_sessions`, `system_delivery_breaches`, and `tenant_devices`. Historical timestamps were reused from `occurred_at`/`registered_at` or existing `created_at` where available. Production verification confirmed `NOT NULL DEFAULT now()` for the added timestamps. Repository migration: `supabase/migrations/045_p76_governance_timestamp_columns.sql`.
-
-### P77 — `core_rules_config`
-`CLOSED — CONFIRMED`.
-Production schema matches the global-default/tenant-override model. Current active rows are global defaults; no tenant overrides exist. The CORE weight row exactly matches APS 0.28, DRI 0.24, RVS 0.20, URI 0.15, TSI 0.13. No corrective write was required.
-
-### P78 — `feature_flags`
-`CLOSED — CONFIRMED`.
-Production supports global (`tenant_id IS NULL`) and tenant-specific rows and has `uq_feature_flag`. Eight global keys had duplicate active rows due PostgreSQL NULL uniqueness semantics. The oldest identical row per key was preserved, duplicates were soft-deleted, and partial unique index `uq_feature_flags_global_active` now enforces one active global row per key. CI `34210803299` passed install/build/tsc/tests. Repository migration: `supabase/migrations/046_p78_global_deduplication.sql`.
-
-### P79 — Migration History Reconciliation
-`RECONCILIATION CLOSED — CONFIRMED; CLEANUP BLOCKED — INSUFFICIENT EVIDENCE`.
-A non-destructive reconciliation was completed against Production `supabase_migrations.schema_migrations` and the GitHub `main` migration inventory. Production currently exposes 37 migration rows. **25 Production migration names have an identifiable same-name repository file and 12 Production migration names have no same-name repository filename, totaling 37.** The 12 unmatched names are: `urgent_restrict_anon_dangerous_functions`, `fix_direct_anon_grant_on_dangerous_functions`, `fix_remaining_rls_initplan_and_duplicate_indexes_v2`, `add_missing_fk_indexes_real_prod`, `fix_function_search_path_mutable`, `restrict_debug_jwt_probe`, `consolidate_permissive_policies`, `consolidate_pin_attempt_log_policies`, `drop_duplicate_unique_constraint`, `add_soft_delete_columns_gobdznxqbdaklkkqbkynx`, `049_pin_session_pin_only_alignment`, and `fix_pin_queue_rpc_search_path`. The timestamp-prefixed compatibility mappings for historical `019`, `020`, and `022` are documented separately. Read-only effect checks confirmed no active tenant-owned table is missing `deleted_at`, no public FK lacks a valid leading-column index, no duplicate active public index definitions were found, all current public SECURITY DEFINER functions have explicit `search_path`, and `debug_jwt_probe()` exists in Production as SECURITY INVOKER with `search_path=public` and is not executable by `anon`. These checks establish current-state effects, not full migration provenance. Detailed evidence is documented in `docs/P79_Migration_History_Reconciliation.md`. No Production migration-history row was deleted, renamed, rewritten, or synthesized. Cleanup remains blocked pending effect-level/provenance comparison and a reversible cleanup procedure.
-
-### P80 — `domain_backup` Disposition
-`CLOSED — CONFIRMED`.
-No active source reference to `archive/domain_backup` was found. Archive remains preserved as reference material; no mutation was performed.
-
-### P81 — Legacy Doctor Screen Verification
-`CLOSED — CONFIRMED`.
-Blueprint names `MyQueueView` and `PatientSessionView`, but current implementations are archive-only; active routing uses `DoctorTodayPatients` and `DoctorSessionView`. No restoration or archive deletion was justified.
-
-### P82 — Bundle Optimization
-`CLOSED — CONFIRMED`.
-CI build evidence established a concrete entry-chunk bottleneck: before the targeted change, `index-C3PaUPIe.js` was 547.73 kB (gzip 160.86 kB). The active router already lazy-loaded feature pages, but `CoreRulesConfigManager` was still statically imported; it was converted to the same lazy/Suspense pattern used by the rest of the feature routes. Verified CI run `34233714542` passed install/build/tsc/tests and measured `index-dZ9c9ZMy.js` at 539.68 kB (gzip 158.55 kB), with a separate `CoreRulesConfigManager-XT2mn8J_.js` chunk at 6.42 kB (gzip 2.53 kB). The Vercel Production deployment for commit `12bd7ef4d50b55d4f7cd66f6507c6cf209af2865` is `READY`. The entry chunk remains above Vite's 500 kB warning threshold, so no speculative manual chunking or dependency changes were introduced; the residual warning is explicitly recorded rather than hidden.
-
-### P83 — `pin_sessions.staff_id` FK Index
-`CLOSED — CONFIRMED`.
-Supabase Performance Advisor reported the foreign key `pin_sessions.staff_id` without a covering index. A dedicated `idx_pin_sessions_staff_id` index was added in Production and read-back confirmed the exact btree index definition. No data, RLS, Auth, or RPC contract changed. Repository migration: `supabase/migrations/054_p83_index_pin_sessions_staff_id.sql`.
-
-## Evidence-gated work that remains blocked
-- P56 retention/follow-up automation semantics and provider workflow.
-- P57 Survey → CORE numeric mapping coefficients/lookup rules.
-- P67 HotSwapSuggestion generator/behavior contract.
-- P68 QuickInvoice active contract.
-- P72 cross-tenant GlobalHealthScores access contract; current RLS does not establish it.
-- P73-D additional Stripe UI workflow contract.
-- Full Production interactive browser E2E where environment/SSO blocks navigation.
-- Concrete event-handler implementations where active contracts are not evidenced.
-- Real WhatsApp/SMS/email adapters without verified provider contract/config.
-- Supabase Advisor remediation that would alter RLS/Auth/permissions without intent-level evidence.
-- Generic offline soft-delete behavior beyond the proven PIN-session lifecycle until an active enqueue contract is evidenced.
-- Remaining unused-index advisories require workload evidence before any removal and are not treated as defects solely from advisor counters.
-- `pin_sessions` RLS has no direct policies because the active PIN-session browser workflow is mediated by SECURITY DEFINER RPCs; changing that contract would require explicit RLS/access evidence.
-- Blueprint-level Kiosk `StaffAvatarRail` remains unimplemented pending an active, verified staff roster/interaction contract.
-- Tenant onboarding, license-entry, and device-registration screens remain evidence-gated; current backend contracts alone do not justify inventing a new first-run Auth flow.
-- Production migration history currently contains two timestamped rows with the same name `p100_restrict_financial_rpc_execute` (`20260909075549`, `20260909075645`). No historical row is to be deleted or rewritten; reconciliation/cleanup remains evidence-gated.
-
-## Accidental verification artifact
-`probe-core-system` is an unintended Supabase Production Edge Function created during a verification attempt. Its presence is confirmed, its body is a static `ok` response, and the currently exposed Supabase tool surface provides no function-delete operation. It is not referenced by the repository and is not part of the application contract. It remains an operational cleanup item requiring removal through a supported Supabase administrative path.
-
-## Verification policy
-A stage is not closed until its required implementation/inspection, verification, and roadmap update are complete. DB-changing stages require Production read-back. Browser-blocked stages never receive a false interactive E2E claim. Vercel deployment state is checked for active source changes before closure.
-
-## Definition of Done
-The repair program is complete when active code and DB contracts align with Constitution + Blueprint, RLS/Auth/tenant isolation remain intact, scoring contract remains intact, final CI passes install/build/tsc/tests, runtime verification is performed wherever technically available, Vercel Production is READY for the final verified commit, Supabase Production is verified for every DB-changing stage, and all evidence-gated items are explicitly documented rather than implemented speculatively.
-
-## P94 verification record
-P94 was closed after source verification, Production feature-flag data read-back, and Vercel Production readiness verification. The final implementation preserves tenant-specific-over-global precedence and tier validation while excluding all soft-deleted rows from operational consumers.
-
-## P96 verification record
-P96 was closed after direct source implementation, sequential Production deployment verification for all three affected Super Admin files, final Vercel deployment readiness for commit `e9c20a3d6e4b23a991b917d560497c15476fc2f5`, successful combined Vercel GitHub status, and build-log inspection showing no build failure. Production runtime error/fatal verification for the checked 24-hour window returned no entries. The remaining `esbuild@0.25.12` install-script warning and standard chunk-size warning are non-blocking and were not concealed.
-
-## P97 verification record
-P97 was closed after Production policy replacement, direct `pg_policies` read-back, Supabase Performance Advisor re-check, repository migration synchronization, Vercel Production readiness for commit `8c93dc5774a03f64481ff9ca5636b9f7379c7a1f`, and a deployment-scoped Production runtime error/fatal check with no entries. The `auth_rls_initplan` advisory finding for `clinic_visit_sessions` was cleared while authorization semantics remained unchanged.
-
-## P98 verification record
-P98 was closed after direct active-source verification, tenant-aware `PinPad` implementation, Vercel Production deployment readiness for commit `094c4e3dc469e89fbbae6b9bdae86dbe76c88d0b`, build-log verification with 1971 transformed modules and no build failure, and Production runtime-error verification with no errors in the selected window. No authentication, RPC, RLS, permission, scoring, financial-unit, schema, or navigation contract was changed.
-
-## P99 verification record
-P99 was closed after direct active-source verification of `src/shared/store/tenantStore.ts`, removal of only the debug-only logs/comments, successful Vercel Production build/deployment for commit `b4e7eb42be59f87533b6f4ba2a70ca67ef53e441`, build-log verification showing `1971 modules transformed` and no build failure, and Production runtime-error verification with no errors in the selected window. Existing error/warn diagnostics were preserved and no data, Auth, RLS, RPC, schema, scoring, financial-unit, or tenant-access semantics were changed.
-
-## P100 verification record
-P100 was closed after direct Production inspection of the exact financial `SECURITY DEFINER` function ACLs/definitions, active-source caller search, Production `REVOKE EXECUTE` application, direct `pg_proc` ACL read-back confirming zero `authenticated` grants on both financial RPCs, Supabase security Advisor re-check showing the authenticated SECURITY DEFINER finding count reduced by two, repository migration synchronization, Vercel Production readiness for commit `e3e8c3ea471e819ecee7b18bdfec5863ffdc0be7`, successful build/deployment logs, and Production runtime-error verification with no entries. Two timestamped Production migration rows with the same migration name resulted from an accidental repeated application and are explicitly tracked as reconciliation-only; no historical migration row was deleted or rewritten.
-
-## P105 verification record
-P105 was closed after direct Production ACL inspection, formal registration of migration `20260909081742 / p105_restrict_dead_validate_email_password_execute`, active-source caller search with no active `validate_email_password` caller, verification that `validate_license` remains accessible to its active caller, Production `pg_proc` privilege read-back, and Supabase Security Advisor re-check. The final ACL for `public.validate_email_password(jsonb)` grants EXECUTE only to `postgres` and `service_role`; anonymous and authenticated client roles no longer have EXECUTE. Repository migration `supabase/migrations/062_p105_restrict_dead_validate_email_password_execute.sql` and evidence document `docs/P105_Dead_Validate_Email_Password_Execution_Hardening.md` are synchronized. No Auth, RLS, tenant, schema, function signature/body, scoring, financial, PIN, or Survey contract changed.
-
-## P106 verification record
-P106 was closed after direct Production ACL inspection, formal registration of migration `20260909082006 / p106_restrict_unused_update_session_status_execute`, active-source search confirming no active RPC caller, direct verification of the active session mutation path, Production `pg_proc` privilege read-back, Supabase Security Advisor re-check showing the authenticated SECURITY DEFINER count reduced from 17 to 16, Vercel Production readiness for commit `5a90972add2dd9a75336d7921d7565e65f4bfa8c`, errors-only build-log inspection with no build failure, and deployment-scoped Production runtime error/fatal verification with no entries. The active session-status behavior was left unchanged.
-
-## P107 verification record
-P107 was closed after active-source caller inspection, Production migration registration `20260909082053 / p107_restrict_unused_queue_rpc_authenticated_execute`, direct `pg_proc` ACL verification for both queue RPCs, Supabase Security Advisor re-check showing the authenticated SECURITY DEFINER finding count reduced from 16 to 14, Vercel Production readiness for source commit `3706540df2d020589d256c4bf25acd556a803df7`, build error-only inspection showing no build failure, only known warnings, and deployment-scoped Production runtime error/fatal verification returned no entries. No active queue behavior, RLS, Auth, tenant, schema, function signature/body, or business contract was changed.
-
-## P108 verification record
-P108 was closed after direct active-source caller inspection, Production migration registration `20260909082349 / p108_restrict_unused_hash_pin_execute`, direct `pg_proc` ACL verification, Supabase Security Advisor re-check confirming anonymous SECURITY DEFINER findings reduced from 16 to 15 and authenticated findings from 14 to 13, Vercel Production readiness for source commit `aa153114986c636a1568a1fad4b6e3bb4ac2c9e9`, build error-only inspection with no build failure, and deployment-scoped Production runtime error/fatal verification with no entries. No active PIN/authentication behavior or database business contract was changed.
-
-## P109 verification record
-P109 was closed after direct active-source caller inspection, confirmation that `check_pin_rate_limit` remains an internal dependency of the existing `validate_pin` database functions, Production migration registration `20260909082532 / p109_restrict_unused_check_pin_rate_limit_execute`, direct `pg_proc` ACL verification, Supabase Security Advisor re-check confirming anonymous findings reduced from 15 to 14 and authenticated findings from 13 to 12, Vercel Production readiness for source commit `38ff66632f37b6cc3e40a834941cf421880b3faf`, errors-only build-log inspection with no build failure, and deployment-scoped Production runtime error/fatal verification with no entries. The internal rate-limiting behavior and all application-level authentication/PIN contracts were left unchanged.
-
-## P110 verification record
-P110 was closed after direct source inspection of `src/App.tsx` and `index.html`, implementation commit `c42dbba49b09cb919881e7bf45b69014f6c6cd72`, Vercel Production deployment `dpl_AEEs3G8Tpu1VbBEyBxL91SZoBeo6` reaching `READY`, build-log inspection showing no build failure (only the pre-existing `esbuild@0.25.12` install-script and chunk-size warnings), deployment-scoped Production runtime error/fatal verification with no entries, and live Production HTML verification returning HTTP 200 with `<html lang="ar" dir="rtl">`. No DB/Auth/RLS/tenant/scoring/financial/business contract was changed.
-
-## P111 verification record
-P111 was closed after direct source verification of `src/features/clinic-admin/AdminRevenuePage.tsx` and `src/core/permissions/permissionMatrix.ts`, confirming the established `view_invoices` contract and the corrected screen guard. The regression test `tests/permission-matrix.test.ts` locks the expected role permissions and analytics/invoice separation. Vercel Production deployment for the verified HEAD reached `READY`; build logs confirmed successful TypeScript/Vite compilation with `1971 modules transformed`, and only the known `esbuild@0.25.12` install-script warning and standard chunk-size warning remained. Deployment-scoped Production runtime verification returned no `error` or `fatal` entries. The current `main` HEAD is the verified P111 test line. No DB/Auth/RLS/tenant/scoring/financial/business contract was changed.
-
-## P112 verification record
-P112 was closed after direct source verification of the pre-fix redirect chain and the surgical `AuthWrapper` change, with no active role-selection contract available to justify a replacement screen. Implementation commit `b6da43581e8c64fff941325276ca59119798eb1a` deployed to Vercel Production as `dpl_CPMTQb8mPBkbXDDtHaZRsTU6EvCA` and reached `READY`; its build completed `tsc -b && vite build` successfully with only the pre-existing `esbuild@0.25.12` allow-list warning and standard chunk-size warning. Evidence commit `1346cf2010561fd7d513373feb32923b218aa511` then deployed as `dpl_G3KUT5w92G7f6gRK4NPGEMr7z6Zm`, reached `READY`, aliased to `core-system-v2-0.vercel.app`, and returned HTTP 200 from the deployment root with `<html lang="ar" dir="rtl">`. No DB/Auth/RLS/permission change was made. The role-less `/login/roles` loop is therefore confirmed repaired within the evidenced scope; full interactive browser E2E remains governed by the existing SSO/browser limitation.
-
-## P113 verification record
-P113 was closed after direct source verification of the Reception queue path, the verified `/doctor/session/:sessionId` role boundary, and Production `clinic_visit_sessions` SELECT RLS evidence. Implementation commit `48325de4c623eb9df954b3131cdff31fbcc31d4c` removed only the unsupported Reception-to-Doctor-session navigation callback and preserved `LiveQueueBoard`'s local selection behavior. Evidence commit `0e2085f5848243b74959c8ee8e561c3cfe8a545a` added the detailed proof. Vercel Production deployment `dpl_59zw46Eim6pbyTcQmMstpSqjNMd3` reached `READY`; build logs showed no build failure and only the existing chunk-size warning, and deployment-scoped Production runtime `error/fatal` verification returned no entries. No router, permission matrix, RLS, Auth, DB schema, RPC, scoring, or clinical-detail access contract was expanded. Classification: `CONFIRMED`; confidence: `HIGH`.
-
-## P114 verification record
-P114 was closed after direct source inspection established that `/reception` is authorized for `receptionist`, `clinic_admin`, and `super_admin`, while the active Reception shell previously hard-coded the identity label `موظف الاستقبال` and avatar initial `س`. The existing `authStore` already provides the authenticated role plus `full_name` and `full_name_ar`, so the surgical fix derives the displayed role/name/initial from the existing authenticated user without introducing new data access or behavior. Implementation commit `9e8acfe5bd34a5b88cb34f6cf7014e8a84190698`; evidence commit `67af71ff2e7a38c80f6f5045faf6c314791ed335`. GitHub Actions Build Test run `34334823679` completed successfully for build, TypeScript, and tests. Vercel Production deployment `dpl_HkMQ1tEd8quBcGdFgrQwn9fgkjni` reached `READY` and is aliased to `core-system-v2-0.vercel.app`; its build completed successfully and errors-only logs contained only the known `esbuild@0.25.12` install-script warning and standard chunk-size warning. Deployment-scoped Production runtime `error/fatal` verification returned no entries. No DB, migration, RLS, Auth, permission, RPC, scoring, or business contract was changed. Classification: `CONFIRMED`; confidence: `HIGH`.
+The active `/doctor` route is authorized for `doctor`, `clinic_admin`, and `super_admin`, while `src/features/doctor/DoctorLayout.tsx` previously hard-coded the identity label `طبيب`. The existing `authStore` already provides the authenticated role, so the surgical fix makes the displayed role label derive from the existing role state through a static Arabic label mapping. No routing, permission matrix, Auth, RLS, Supabase, schema, RPC, scoring, or clinical behavior changed. Implementation commit `2e26b5d99d909122f5eb1a1dec8f33a416ca36d7`; evidence commit `963f40cd61fde0151192d91f0f2a61113c511ac7`. GitHub Actions Build Test run `34335199744` completed successfully for build, TypeScript, and tests. Vercel Production deployment `dpl_5SJvFdy1GE5s2J2q9JMskjJDQawx` reached `READY` and is aliased to `core-system-v2-0.vercel.app`; its build completed successfully with only the existing chunk-size warning in the checked error-only logs, and deployment-scoped Production runtime `error/fatal` verification returned no entries. Classification: `CONFIRMED`; confidence: `HIGH`.
