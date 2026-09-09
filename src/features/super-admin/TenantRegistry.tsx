@@ -129,8 +129,8 @@ export default function TenantRegistry() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-[#1B2A4A]" />
-              <h2 className="text-lg font-semibold text-[#1B2A4A]">سجل العيادات</h2>
+              <Building2 className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold text-primary">سجل العيادات</h2>
             </div>
             <span className="text-sm text-gray-500">{tenants.length} عيادة</span>
           </div>
@@ -226,7 +226,7 @@ export default function TenantRegistry() {
                     <td className="text-center py-3 px-4">
                       <button
                         onClick={() => handleViewDetails(tenant)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#1B2A4A] bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         عرض التفاصيل
