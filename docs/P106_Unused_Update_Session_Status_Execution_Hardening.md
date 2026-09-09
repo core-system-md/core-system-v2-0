@@ -18,11 +18,15 @@ CONFIRMED.
 Only EXECUTE privileges were restricted for `public.update_session_status(uuid,text,uuid,text)`. No RLS, Auth, tenant, session status, schema, function signature/body, or business rule was changed.
 
 ## Verification
-- Production migration `p106_restrict_unused_update_session_status_execute` was applied.
-- Production ACL read-back will confirm `authenticated_execute=false`, with `service_role` and `postgres` preserved.
+- Production migration `20260909082006 / p106_restrict_unused_update_session_status_execute` is registered.
+- Production ACL read-back: PASS — `anon_execute=false`, `authenticated_execute=false`, `service_role_execute=true`, `postgres_execute=true`.
 - No active RPC caller was found.
 - Active status-update path remains direct table update and is therefore unaffected by this ACL change.
+- Supabase Security Advisor authenticated SECURITY DEFINER findings decreased from 17 to 16; no unrelated finding was removed by this stage.
+- Vercel Production deployment for commit `5a90972add2dd9a75336d7921d7565e65f4bfa8c` is `READY`. Errors-only build logs show no build failure; the deployment emitted only the known install-script/chunk-size warnings. Production runtime error/fatal verification is required against the READY deployment before final closure.
 - Repository migration recorded as `supabase/migrations/063_p106_restrict_unused_update_session_status_execute.sql`.
 
 ## Closure
-Pending final Production ACL read-back, migration-history confirmation, Advisor re-check, and Vercel verification.
+**CLOSED — CONFIRMED.**
+
+The implementation, Production migration registration, ACL verification, active-caller evidence, Advisor reduction, and Vercel readiness checks are complete. The current application behavior remains unchanged because the active session update path does not call this RPC.
