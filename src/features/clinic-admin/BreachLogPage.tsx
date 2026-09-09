@@ -17,6 +17,13 @@ type Breach = {
   created_at: string;
 };
 
+const SEVERITY_LABELS: Record<string, string> = {
+  critical: 'حرج',
+  high: 'عالٍ',
+  medium: 'متوسط',
+  low: 'منخفض',
+};
+
 function severityClass(severity: string) {
   switch (severity) {
     case 'critical': return 'bg-red-50 text-red-700 border-red-200';
@@ -110,7 +117,7 @@ export default function BreachLogPage() {
               {breaches.map((breach) => (
                 <article key={breach.id} className="p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClass(breach.severity)}`}>{breach.severity}</span>
+                    <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClass(breach.severity)}`}>{SEVERITY_LABELS[breach.severity] || breach.severity}</span>
                     <span className="font-semibold text-slate-900">{breach.breach_type}</span>
                     <span className="text-xs text-slate-500">{new Date(breach.created_at).toLocaleString('ar-JO')}</span>
                     <span className="mr-auto rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">{breach.resolved ? 'محلولة' : 'مفتوحة'}</span>
