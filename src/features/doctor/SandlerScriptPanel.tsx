@@ -120,7 +120,7 @@ export default function SandlerScriptPanel({
               patientClass === 'hot_lead' ? 'bg-red-50 text-red-700 border-red-200' :
               patientClass === 'qualified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
               patientClass === 'high_priority' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-              'bg-slate-50 text-slate-600 border-slate-200'
+              'bg-muted text-slate-600 border-slate-200'
             }`}>
               {CLASS_LABELS[patientClass] || patientClass}
             </span>
@@ -157,7 +157,7 @@ export default function SandlerScriptPanel({
             <div key={script.id} className="bg-white">
               <button
                 onClick={() => toggleItem(script.id)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors text-right"
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted transition-colors text-right"
                 type="button"
               >
                 <div className="flex items-center gap-2">
@@ -180,7 +180,7 @@ export default function SandlerScriptPanel({
         })}
       </div>
 
-      <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100">
+      <div className="px-4 py-2.5 bg-muted border-t border-slate-100">
         <p className="text-[10px] text-slate-400 leading-relaxed">
           المحتوى ثابت — قواعد اختيار النصوص حسب DISC/الفئة/القرار غير مثبتة في الوثائق الرسمية.
         </p>
