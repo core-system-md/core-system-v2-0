@@ -13,4 +13,5 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: npx tsc --noEmit
-      - run: npm run test
+      - run: npm install --no-save --package-lock=false --include=optional vitest@4.1.11
+      - run: npx --no-install vitest@4.1.11 run
