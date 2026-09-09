@@ -3,31 +3,36 @@
 // P36: Wrapped with IdleWatcher (10min timeout) — 2026-07-31
 // ============================================================
 
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { IdleWatcher } from '@/shared/components/IdleWatcher';
 import { useAuthStore } from '@/shared/store/authStore';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { CalendarDays, FileText, LayoutDashboard, MessageSquareText } from 'lucide-react';
 import { useEffect } from 'react';
 
-const navClass = ({ isActive }: { isActive: boolean }) =>
-  `inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${isActive ? 'bg-[#1B2A4A] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`;
+const navClass = (active: boolean) =>
+  `inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${active ? 'bg-[#1B2A4A] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`;
 
 export default function ReceptionLayout() {
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const navigate = useNavigate();
+  const location = useLocation();
   const role = user?.role ?? 'receptionist';
   const roleLabel = role === 'super_admin' ? 'مشرف عام' : role === 'clinic_admin' ? 'مدير العيادة' : 'موظف الاستقبال';
   const displayName = user?.full_name_ar || user?.full_name || roleLabel;
   const initial = displayName.trim().charAt(0) || 'م';
 
   useEffect(() => {
-    if (!isAuthenticated) navigate('/login');
-    else if (role !== 'receptionist' && role !== 'clinic_admin' && role !== 'super_admin') navigate('/doctor');
+    if (!isAuthenticated) navigate('/login', { replace: true });
+    else if (role !== 'receptionist' && role !== 'clinic_admin' && role !== 'super_admin') navigate('/doctor', { replace: true });
   }, [isAuthenticated, role, navigate]);
 
   if (!isAuthenticated || (role !== 'receptionist' && role !== 'clinic_admin' && role !== 'super_admin')) return null;
+
+  const go = (path: string) => {
+    if (location.pathname !== path) navigate(path);
+  };
 
   return (
     <IdleWatcher timeout={600000} onIdle={() => useAuthStore.getState().lock()}>
@@ -49,10 +54,24 @@ export default function ReceptionLayout() {
             </div>
 
             <nav className="flex flex-wrap gap-2 overflow-x-auto pb-1" aria-label="واجهة الاستقبال">
-              <NavLink to="/reception" end className={navClass}><LayoutDashboard className="h-4 w-4" /> الرئيسية</NavLink>
-              <PermissionGuard required="view_queue"><NavLink to="/reception" end className={navClass}><CalendarDays className="h-4 w-4" /> الانتظار</NavLink></PermissionGuard>
-              <PermissionGuard required="view_inquiries"><NavLink to="/reception/inquiries" className={navClass}><MessageSquareText className="h-4 w-4" /> الاستفسارات</NavLink></PermissionGuard>
-              <PermissionGuard required="view_invoices"><NavLink to="/reception/invoices" className={navClass}><FileText className="h-4 w-4" /> الفواتير</NavLink></PermissionGuard>
+              <button type="button" onClick={() => go('/reception')} className={navClass(location.pathname === '/reception')} aria-current={location.pathname === '/reception' ? 'page' : undefined}>
+                <LayoutDashboard className="h-4 w-4" /> الرئيسية
+              </button>
+              <PermissionGuard required="view_queue">
+                <button type="button" onClick={() => go('/reception')} className={navClass(location.pathname === '/reception')}>
+                  <CalendarDays className="h-4 w-4" /> الانتظار
+                </button>
+              </PermissionGuard>
+              <PermissionGuard required="view_inquiries">
+                <button type="button" onClick={() => go('/reception/inquiries')} className={navClass(location.pathname === '/reception/inquiries')} aria-current={location.pathname === '/reception/inquiries' ? 'page' : undefined}>
+                  <MessageSquareText className="h-4 w-4" /> الاستفسارات
+                </button>
+              </PermissionGuard>
+              <PermissionGuard required="view_invoices">
+                <button type="button" onClick={() => go('/reception/invoices')} className={navClass(location.pathname === '/reception/invoices')} aria-current={location.pathname === '/reception/invoices' ? 'page' : undefined}>
+                  <FileText className="h-4 w-4" /> الفواتير
+                </button>
+              </PermissionGuard>
             </nav>
 
             <div className="hidden items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 lg:flex">
