@@ -18,7 +18,7 @@ import type { Json } from '@/infrastructure/supabase/database.types';
 
 interface Note { id: string; content: string; type: 'subjective' | 'objective' | 'assessment' | 'plan'; created_at: string; created_by: string; }
 interface SessionData { id: string; patient_id: string; patient_name: string; patient_name_ar: string | null; session_status: string; created_at: string; waiting_time_minutes: number | null; session_duration_minutes: number | null; is_insured: boolean; core_score_display: number | null; core_score_backend: number | null; patient_class: string | null; doctor_notes: string | null; par_result: string | null; room_id: string | null; agenda_event_id: string | null; dominant_disc_profile: string | null; allergies: string | null; }
-interface SessionQueryResult { id: string; patient_id: string; session_status: string; created_at: string; waiting_time_minutes: number | null; session_duration_minutes: number | null; is_insured: boolean; core_score_display: number | null; core_score_backend: number | null; patient_class: string | null; doctor_notes: string | null; par_result: string | null; room_id: string | null; agenda_event_id: string | null; clinic_patients: { first_name: string; last_name: string; first_name_ar: string | null; last_name_ar: string | null; phone_primary: string; dominant_disc_profile: string | null; allergies: string | null; } | null; }
+interface SessionQueryResult { id: string; patient_id: string; session_status: string; created_at: string; waiting_time_minutes: number | null; session_duration_minutes: number | null; is_insured: boolean; core_score_display: number | null; core_score_backend: number | null; patient_class: string | null; doctor_notes: string | null; par_result: string | null; room_id: string | null; agenda_event_id: string | null; session_metadata: Json | null; clinic_patients: { first_name: string; last_name: string; first_name_ar: string | null; last_name_ar: string | null; phone_primary: string; dominant_disc_profile: string | null; allergies: string | null; } | null; }
 
 const STATUS_COLORS: Record<string, string> = { waiting: 'bg-amber-100 text-amber-800 border-amber-300', in_consultation: 'bg-sky-100 text-sky-800 border-sky-300', pending_close: 'bg-orange-100 text-orange-800 border-orange-300', completed: 'bg-emerald-100 text-emerald-800 border-emerald-300', cancelled: 'bg-red-100 text-red-800 border-red-300', auto_closed: 'bg-slate-100 text-slate-800 border-slate-300', };
 const STATUS_LABELS_AR: Record<string, string> = { waiting: 'في الانتظار', in_consultation: 'جارية', pending_close: 'بانتظار الإغلاق', completed: 'مكتملة', cancelled: 'ملغاة', auto_closed: 'إغلاق تلقائي', };
@@ -47,7 +47,7 @@ export default function DoctorSessionView() {
     if (!['doctor', 'clinic_admin', 'super_admin'].includes(role)) { setError('Access denied'); setLoading(false); return; }
     setLoading(true); setError(null);
 
-    let query = supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId);
+    let query = supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, session_metadata, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId);
     if (role === 'doctor') {
       query = query.eq('doctor_id', user.id);
     }
@@ -58,7 +58,7 @@ export default function DoctorSessionView() {
     const patient = row.clinic_patients;
     const displayName = patient?.first_name_ar && patient?.last_name_ar ? `${patient.first_name_ar} ${patient.last_name_ar}` : `${patient?.first_name || ''} ${patient?.last_name || ''}`.trim() || 'Unknown';
     setSession({ id: row.id, patient_id: row.patient_id, patient_name: displayName, patient_name_ar: patient?.first_name_ar || null, session_status: row.session_status, created_at: row.created_at, waiting_time_minutes: row.waiting_time_minutes, session_duration_minutes: row.session_duration_minutes, is_insured: row.is_insured, core_score_display: row.core_score_display, core_score_backend: row.core_score_backend, patient_class: row.patient_class, doctor_notes: row.doctor_notes, par_result: row.par_result, room_id: row.room_id, agenda_event_id: row.agenda_event_id, dominant_disc_profile: patient?.dominant_disc_profile || null, allergies: patient?.allergies || null });
-    const meta = (data as Record<string, unknown>).session_metadata as { clinical_notes?: Note[] } | undefined;
+    const meta = row.session_metadata as { clinical_notes?: Note[] } | null;
     sessionMetaRef.current = meta ?? null;
     setNotes(Array.isArray(meta?.clinical_notes) ? meta.clinical_notes : []);
     setLoading(false);
