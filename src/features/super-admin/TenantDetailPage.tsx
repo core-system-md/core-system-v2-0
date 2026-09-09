@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import TenantDetailPanel, { type Tenant } from './TenantDetailPanel';
 import { supabase } from '@/infrastructure/supabase/client';
 
