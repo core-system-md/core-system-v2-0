@@ -25,8 +25,8 @@ type StaffDraft = Pick<StaffRow, 'full_name_ar' | 'phone' | 'specialization' | '
 const roles: Array<{ value: StaffRole; label: string }> = [
   { value: 'clinic_admin', label: 'مدير العيادة' },
   { value: 'doctor', label: 'طبيب' },
-  { value: 'receptionist', label: 'استقبال' },
-  { value: 'super_admin', label: 'مدير النظام' },
+  { value: 'receptionist', label: 'موظف الاستقبال' },
+  { value: 'super_admin', label: 'مشرف عام' },
 ];
 
 export default function StaffManagement() {
