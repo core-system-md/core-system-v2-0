@@ -80,7 +80,7 @@ Semantic chart presentation values use the existing CSS tokens while revenue cal
 
 ### P96 — Super Admin Theme Token Alignment
 `CLOSED — CONFIRMED`.
-`TenantRegistry`, `TenantDetailPanel`, and `CoreRulesConfigManager` use the existing primary semantic tokens without functional changes. Implementation commits `478d7fdb51b919999c8dbf8c1faa57df5f94b4e0`, `280b906519d445a4012adf4f8b0219a1f3d2e91e`, `e9c20a3d6e4b23a991b917d560497c15476fc2f5`; final Production deployment `dpl_6GLtytuXQUfUs4b5ZSyycu7Pc46c` was `READY`.
+`TenantRegistry`, `TenantDetailPanel`, and `CoreRulesConfigManager` use the existing primary semantic tokens without functional changes. Implementation commits `478d7fdb51b919999c8dbf8c1faa57df5f94b4e0`, `280b906519d445a4012adf4f8b0219a1f3d2e91e`, `e9c20a3d6e4b23a991b917d560497c15476fc2f`; final Production deployment `dpl_6GLtytuXQUfUs4b5ZSyycu7Pc46c` was `READY`.
 
 ### P97 — Clinic Session RLS Evaluation Optimization
 `CLOSED — CONFIRMED`.
@@ -218,22 +218,27 @@ GitHub Actions executes transient Vitest through Corepack/pnpm without adding a 
 `IMPLEMENTED — PRODUCTION RLS VERIFIED; VERCEL VERIFICATION PENDING`.
 The active session mutation path now excludes logically deleted `clinic_visit_sessions` with `.is('deleted_at', null)` for status, score, doctor-assignment, and room-assignment writes. Production RLS policy `visit_sessions_update` was recreated so both `USING` and `WITH CHECK` require `deleted_at IS NULL`, while preserving the existing tenant/role/doctor ownership semantics. Production read-back confirmed the resulting policy. Repository migration `supabase/migrations/062_p130_session_soft_delete_write_boundary.sql` and evidence `docs/P130_Session_Soft_Delete_Write_Boundary.md` are present. Implementation commits: `9736ebe8e7d3d8c3f71b89ebbe9c9bee5846ef35` (client guard) and `7725fdb4166e20bc835e2d2fa8b455b4be6a73b3` (migration file), evidence commit `16817f6044bc77dcb7c26e06b85974b8ded4d467`. CI `34344325384` passed build, TypeScript, and Vitest. Vercel Production verification remains pending because the platform may reject exact-commit deployments under the current rate limit.
 
+### P131 — DecisionCard Session Soft-Delete Write Guard
+`IMPLEMENTED — CI VERIFIED; VERCEL VERIFICATION PENDING`.
+The active protected Doctor `DecisionCard.tsx` contained a direct `clinic_visit_sessions` UPDATE in `handleSave()` scoped by session id and tenant id but without `deleted_at IS NULL`. P131 adds the existing soft-delete predicate to that exact write path, aligning it with the Production `visit_sessions_update` boundary already established by P130. No permission, routing, scoring formula, PAR values, Auth, RPC, schema, or unrelated Doctor behavior was changed. Implementation commit `9398650f983317e723b36fa2cf8822fe4a1416b7`; evidence `docs/P131_DecisionCard_Session_Soft_Delete_Write_Guard.md`; CI `34345270756` passed build, TypeScript, and Vitest. Exact-commit Vercel status remains blocked by the current `build-rate-limit`; no matching Production deployment is confirmed.
+
 ## Evidence-blocked / non-speculative findings carried forward
 - `tenant_health_scores` exists in the Blueprint and Production, but Production currently has no active rows and its current policy is tenant-isolated. No Super Admin cross-tenant health-score contract has been evidenced, so no calculation engine or RLS/RPC path was invented.
 - `AnalyticsOverview` `Hot Leads` remains English because no established Arabic mapping was found in the active contract.
 - No timezone/day-boundary reinterpretation was applied to `AdminSchedulePage`; current evidence confirms `TIMESTAMPTZ` storage but does not establish the required tenant-local business rule.
 - Audit `action` and `table_name` values remain raw because no established Arabic mapping was evidenced.
 - `AdminPatientsPage.patient_status` is backed by `active`, `inactive`, `vip`, `blocked`, `transferred`, but no active Arabic mapping was evidenced.
-- `DecisionCard.tsx` contains older direct patient/profile reads without explicit `deleted_at` filters, but it is protected active Doctor code and outside the current repair scope.
+- `DecisionCard.tsx` still contains older direct patient/profile reads without explicit `deleted_at` filters, but the active session write in `handleSave()` is now aligned with the P130 soft-delete boundary. No further Doctor read-path change was made without separate evidence.
 - Reception PIN-only data access remains mediated by the existing SECURITY DEFINER RPC contract; no direct browser table access was introduced.
 - `TenantDetailPanel` exposes `license_key`, but no Blueprint/Constitution requirement for masking was evidenced, so no speculative masking was introduced.
 
 ## Current verification boundary
-- CI-verified source reaches P130: GitHub Actions Build Test `34344325384` is `SUCCESS` for build, TypeScript, and Vitest on the final evidence commit.
+- CI-verified source reaches P131: GitHub Actions Build Test `34345292453` is `SUCCESS` on the evidence commit after the P131 implementation commit `9398650f983317e723b36fa2cf8822fe4a1416b7`.
 - Production database verification reaches P130: Supabase production policy `visit_sessions_update` contains `deleted_at IS NULL` in both `USING` and `WITH CHECK`.
-- Production-verified application deployment remains P126 for the exact application commit lineage; P127–P130 do not yet have exact-commit Vercel Production verification.
+- Production-verified application deployment remains P126 for the exact application commit lineage; P127–P131 do not yet have exact-commit Vercel Production verification.
 - P125 and P126 are fully Production-verified and closed.
-- P127–P129 are implementation-verified with CI success; P130 additionally has Production RLS verification but not Vercel application verification.
+- P127–P129 are implementation-verified with CI success; P130 additionally has Production RLS verification; P131 is CI-verified and aligned to the same Production session boundary, but neither P130 nor P131 has exact-commit Vercel application verification.
 - P130 changes the existing session RLS contract only to exclude logically deleted rows; tenant/role/doctor ownership semantics are preserved.
-- No speculative health-score calculation, timezone business rule, Arabic label, Doctor protected-file change, or archive change was introduced.
+- P131 changes only the active `DecisionCard` session write predicate; the existing `edit_sessions` permission and all other Doctor behavior remain unchanged.
+- No speculative health-score calculation, timezone business rule, new Arabic label, or archive change was introduced.
 - The next repair stage remains evidence-driven review of the next active screen/data contract; speculative changes are not authorized.
