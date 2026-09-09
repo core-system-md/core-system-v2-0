@@ -43,7 +43,8 @@ export function CloseSession({ sessionId, onClose }: CloseSessionProps) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', sessionId)
-        .eq('tenant_id', tenantId);
+        .eq('tenant_id', tenantId)
+        .is('deleted_at', null);
 
       if (user.role === 'doctor') {
         updateQuery = updateQuery.eq('doctor_id', user.id);
