@@ -2,6 +2,7 @@
 // CORE SYSTEM v2.1 — FeatureFlagManager
 // FIXED: 2026-07-22 — P23: UI Theme Alignment (Light Theme)
 // FIXED: 2026-09-09 — P93: Exclude soft-deleted flags and surface seed failures
+// FIXED: 2026-09-09 — P125: Align tenant/tier display with established Arabic labels
 // Constitution §3: Features fetch their own data. NO props drilling.
 // ============================================================
 
@@ -24,10 +25,19 @@ interface FeatureFlag {
 interface Tenant {
   id: string;
   clinic_name: string;
+  clinic_name_ar: string | null;
   subscription_tier: string;
 }
 
 const ALL_TIERS = ['trial', 'essential', 'professional', 'enterprise'];
+
+const TIER_LABELS: Record<string, string> = {
+  trial: 'تجريبي',
+  essential: 'أساسي',
+  professional: 'احترافي',
+  enterprise: 'مؤسسي',
+  suspended: 'موقوف',
+};
 
 const PRESET_FLAGS = [
   { key: 'AI_REPORTS', name: 'AI-Generated Clinical Reports', desc: 'Generate AI clinical reports from session notes' },
@@ -77,13 +87,13 @@ export default function FeatureFlagManager() {
       // Fetch tenants for dropdown
       const { data: tenantsData, error: tenantsError } = await supabase
         .from('master_tenants')
-        .select('id, clinic_name, subscription_tier')
+        .select('id, clinic_name, clinic_name_ar, subscription_tier')
         .is('deleted_at', null)
         .order('clinic_name');
 
       if (tenantsError) throw tenantsError;
       const tenantRows: any[] = (tenantsData || []) as any[];
-      setTenants(tenantRows.map(t => ({ id: t.id, clinic_name: t.clinic_name, subscription_tier: t.subscription_tier })));
+      setTenants(tenantRows.map(t => ({ id: t.id, clinic_name: t.clinic_name, clinic_name_ar: t.clinic_name_ar ?? null, subscription_tier: t.subscription_tier })));
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'فشل في تحميل البيانات');
     } finally {
@@ -214,7 +224,7 @@ export default function FeatureFlagManager() {
           <option value="global">🌍 إعدادات عامة (Global)</option>
           {tenants.map(t => (
             <option key={t.id} value={t.id}>
-              {t.clinic_name} ({t.subscription_tier})
+              {t.clinic_name_ar || t.clinic_name} ({TIER_LABELS[t.subscription_tier] || t.subscription_tier})
             </option>
           ))}
         </select>
@@ -273,7 +283,7 @@ export default function FeatureFlagManager() {
                               ? 'bg-blue-50 text-blue-700 border border-blue-200'
                               : 'bg-gray-100 text-gray-400 border border-gray-200'
                             }`}>
-                          {tier}
+                          {TIER_LABELS[tier] || tier}
                         </button>
                       ))}
                     </div>
