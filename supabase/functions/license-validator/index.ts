@@ -75,7 +75,8 @@ serve(async (req) => {
     await supabase
       .from('tenant_devices')
       .update({ last_seen_at: new Date().toISOString() })
-      .eq('id', existingDevice.id);
+      .eq('id', existingDevice.id)
+      .is('deleted_at', null);
 
     return new Response(JSON.stringify({ valid: true, device_id: existingDevice.id }), { status: 200 });
   }
