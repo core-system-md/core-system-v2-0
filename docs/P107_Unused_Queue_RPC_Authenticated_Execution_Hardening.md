@@ -16,7 +16,7 @@ CONFIRMED.
 EXECUTE was revoked from `PUBLIC`, `anon`, and `authenticated` for both exact queue RPC signatures. `postgres` and `service_role` execution remain available. No RLS, Auth, tenant, schema, queue data, or business rule was changed.
 
 ## Verification
-- Production migration `20260909082006` is not involved; P107 is independently registered as `202609090820??` according to Production migration history at application time.
+- Production migration `20260909082053 / p107_restrict_unused_queue_rpc_authenticated_execute` is registered.
 - Production ACL read-back: PASS — both functions have `anon_execute=false`, `authenticated_execute=false`, `service_role_execute=true`, and `postgres_execute=true`.
 - No active RPC caller was found.
 - Active queue/session source remains on direct query paths and is unaffected by the ACL change.
