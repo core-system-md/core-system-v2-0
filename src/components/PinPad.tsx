@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/core/auth/useAuth";
+import { useTenantStore } from "@/shared/store/tenantStore";
 import { ArrowLeft, Delete, Shield, AlertCircle } from "lucide-react";
 
 interface PinPadProps {
@@ -18,6 +19,7 @@ export default function PinPad({
   subtitle = "أدخل رمز PIN المكوّن من 4 أرقام",
 }: PinPadProps) {
   const { loginWithPin, logout, isChecking, isPinLocked, attemptsRemaining } = useAuth();
+  const primaryColor = useTenantStore((state) => state.primaryColor);
   const [pin, setPin] = useState<string[]>(["", "", "", ""]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [shake, setShake] = useState(false);
@@ -112,7 +114,11 @@ export default function PinPad({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1B2A4A] via-[#243656] to-[#1B2A4A] text-white flex flex-col items-center justify-center p-4" dir="rtl">
+    <div
+      className="min-h-screen text-white flex flex-col items-center justify-center p-4"
+      style={{ backgroundColor: primaryColor || '#1B2A4A' }}
+      dir="rtl"
+    >
       <div className="w-full max-w-md bg-white/5 border border-white/10 backdrop-blur-sm rounded-xl shadow-2xl">
         <div className="p-6 md:p-10">
           <div className="text-center mb-8">
