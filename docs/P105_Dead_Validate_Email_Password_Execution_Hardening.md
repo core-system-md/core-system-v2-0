@@ -19,10 +19,14 @@ CONFIRMED.
 Only the EXECUTE ACL for `public.validate_email_password(jsonb)` was restricted for client roles. No Auth, JWT, PIN, Survey, RLS, tenant, schema, financial, or function-signature contract was changed.
 
 ## Verification
-- Production ACL read-back: PASS.
+- Production migration `p105_restrict_dead_validate_email_password_execute` is now registered in `supabase_migrations.schema_migrations` at version `20260909081742`.
+- Production ACL read-back: PASS — `anon_execute=false`, `authenticated_execute=false`, `service_role_execute=true`, `postgres_execute=true`.
 - Active-source caller search: no active caller found.
 - `validate_license` active contract preserved.
 - Repository migration recorded as `supabase/migrations/062_p105_restrict_dead_validate_email_password_execute.sql`.
+- Supabase Security Advisor now reports 16 anonymous and 17 authenticated SECURITY DEFINER functions executable, with `validate_email_password(jsonb)` removed from both findings.
 
-## Closure note
-Production ACL state is verified. The Production migration-history row for P105 is pending formal registration because the current surfaced Supabase migration action was not available for this turn; P105 therefore remains evidence-complete but roadmap-closure pending until migration history is registered.
+## Closure
+**CLOSED — CONFIRMED.**
+
+P105 is formally closed because the implementation, Production migration registration, ACL verification, active-caller evidence, and post-change Advisor verification are all complete. No broader SECURITY DEFINER remediation is inferred from the remaining Advisor findings; each remaining function requires its own evidenced access-contract review.
