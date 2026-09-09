@@ -92,7 +92,7 @@ export default function AuditTrailViewerPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="bg-slate-50 text-right text-slate-600">
+                <thead className="bg-muted text-right text-slate-600">
                   <tr>
                     <th className="px-4 py-3 font-semibold">التاريخ</th>
                     <th className="px-4 py-3 font-semibold">الإجراء</th>
