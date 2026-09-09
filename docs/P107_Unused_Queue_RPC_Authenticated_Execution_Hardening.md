@@ -16,10 +16,16 @@ CONFIRMED.
 EXECUTE was revoked from `PUBLIC`, `anon`, and `authenticated` for both exact queue RPC signatures. `postgres` and `service_role` execution remain available. No RLS, Auth, tenant, schema, queue data, or business rule was changed.
 
 ## Verification
-- Production migration `p107_restrict_unused_queue_rpc_authenticated_execute` applied.
-- Final ACL read-back is required to confirm client roles have no EXECUTE and internal roles remain intact.
-- Security Advisor re-check is required to confirm the authenticated SECURITY DEFINER findings decrease by two.
-- Vercel deployment/build/runtime verification is required before closure.
+- Production migration `20260909082006` is not involved; P107 is independently registered as `202609090820??` according to Production migration history at application time.
+- Production ACL read-back: PASS — both functions have `anon_execute=false`, `authenticated_execute=false`, `service_role_execute=true`, and `postgres_execute=true`.
+- No active RPC caller was found.
+- Active queue/session source remains on direct query paths and is unaffected by the ACL change.
+- Supabase Security Advisor authenticated SECURITY DEFINER findings decreased from 16 to 14.
+- Vercel Production deployment for source commit `3706540df2d020589d256c4bf25acd556a803df7` is `READY`. Errors-only build logs show no build failure; only the known `esbuild@0.25.12` install-script warning and standard chunk-size warning remain.
+- Deployment-scoped Production runtime error/fatal verification returned no logs.
+- Repository migration recorded as `supabase/migrations/064_p107_restrict_unused_queue_rpc_authenticated_execute.sql`.
 
 ## Closure
-Pending final Production ACL read-back, Advisor verification, and Vercel verification.
+**CLOSED — CONFIRMED.**
+
+P107 is closed because the access-contract evidence, Production ACL change, migration application, Advisor reduction, successful Vercel deployment, and runtime verification are complete. No active queue behavior or database business contract was changed.
