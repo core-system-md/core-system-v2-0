@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test": "npx --yes --legacy-peer-deps vitest@4.1.11 run",
+    "test": "npx --yes --legacy-peer-deps vitest@4.1.11 run tests",
     "e2e:seed": "node e2e/seed.mjs",
     "e2e:test": "playwright test",
     "e2e:reset": "node e2e/reset.mjs",
