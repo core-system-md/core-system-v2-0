@@ -214,6 +214,10 @@ GitHub Actions executes transient Vitest through Corepack/pnpm without adding a 
 `IMPLEMENTED — PRODUCTION VERIFICATION BLOCKED`.
 `TenantBillingAdminPage` already excluded deleted tenants during reads, but `updateTier()` and `activateTenant()` previously updated `master_tenants` by `id` only. P129 adds `.is('deleted_at', null)` to both update predicates. Production confirms `master_tenants.deleted_at` exists. Implementation `4264b21addfeb52a6e5f6cb5dbdc1a70c491454c`; evidence `docs/P129_Super_Admin_Billing_Soft_Delete_Update_Guard.md`; CI `34343447815` passed build, TypeScript, and Vitest. Exact-commit Vercel Production status is `Deployment rate limited — retry in 24 hours`; P129 is not Production-verified.
 
+### P130 — Session Soft-Delete Write Boundary
+`IMPLEMENTED — PRODUCTION RLS VERIFIED; VERCEL VERIFICATION PENDING`.
+The active session mutation path now excludes logically deleted `clinic_visit_sessions` with `.is('deleted_at', null)` for status, score, doctor-assignment, and room-assignment writes. Production RLS policy `visit_sessions_update` was recreated so both `USING` and `WITH CHECK` require `deleted_at IS NULL`, while preserving the existing tenant/role/doctor ownership semantics. Production read-back confirmed the resulting policy. Repository migration `supabase/migrations/062_p130_session_soft_delete_write_boundary.sql` and evidence `docs/P130_Session_Soft_Delete_Write_Boundary.md` are present. Implementation commits: `9736ebe8e7d3d8c3f71b89ebbe9c9bee5846ef35` (client guard) and `7725fdb4166e20bc835e2d2fa8b455b4be6a73b3` (migration file), evidence commit `16817f6044bc77dcb7c26e06b85974b8ded4d467`. CI `34344325384` passed build, TypeScript, and Vitest. Vercel Production verification remains pending because the platform may reject exact-commit deployments under the current rate limit.
+
 ## Evidence-blocked / non-speculative findings carried forward
 - `tenant_health_scores` exists in the Blueprint and Production, but Production currently has no active rows and its current policy is tenant-isolated. No Super Admin cross-tenant health-score contract has been evidenced, so no calculation engine or RLS/RPC path was invented.
 - `AnalyticsOverview` `Hot Leads` remains English because no established Arabic mapping was found in the active contract.
@@ -225,9 +229,11 @@ GitHub Actions executes transient Vitest through Corepack/pnpm without adding a 
 - `TenantDetailPanel` exposes `license_key`, but no Blueprint/Constitution requirement for masking was evidenced, so no speculative masking was introduced.
 
 ## Current verification boundary
-- CI-verified source reaches P129: GitHub Actions Build Test `34343447815` is `SUCCESS` for build, TypeScript, and Vitest.
-- Production-verified cumulative source remains at P126: Vercel `dpl_H57qi3L7c1R1V2mQ4GjVYNPkSCbM` is `READY` and aliased to `core-system-v2-0.vercel.app`.
-- P127, P128, and P129 are implementation-verified but **not Production-verified** because Vercel currently reports deployment-rate limiting for their exact commits.
+- CI-verified source reaches P130: GitHub Actions Build Test `34344325384` is `SUCCESS` for build, TypeScript, and Vitest on the final evidence commit.
+- Production database verification reaches P130: Supabase production policy `visit_sessions_update` contains `deleted_at IS NULL` in both `USING` and `WITH CHECK`.
+- Production-verified application deployment remains P126 for the exact application commit lineage; P127–P130 do not yet have exact-commit Vercel Production verification.
 - P125 and P126 are fully Production-verified and closed.
-- No database migration, RLS policy, RPC signature/body, Auth change, scoring rule, financial contract, or routing contract was introduced by P127–P129.
+- P127–P129 are implementation-verified with CI success; P130 additionally has Production RLS verification but not Vercel application verification.
+- P130 changes the existing session RLS contract only to exclude logically deleted rows; tenant/role/doctor ownership semantics are preserved.
+- No speculative health-score calculation, timezone business rule, Arabic label, Doctor protected-file change, or archive change was introduced.
 - The next repair stage remains evidence-driven review of the next active screen/data contract; speculative changes are not authorized.
