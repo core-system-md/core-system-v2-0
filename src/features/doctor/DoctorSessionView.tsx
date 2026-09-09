@@ -97,7 +97,7 @@ export default function DoctorSessionView() {
                 {session.dominant_disc_profile && (<DiscProfileBadge profile={session.dominant_disc_profile} />)}
               </div>
             </div>
-            <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/50">
+            <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-muted/50">
               <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">وقت الانتظار</div><div className="text-lg font-bold text-slate-700">{session.waiting_time_minutes !== null ? `${session.waiting_time_minutes} د` : '—'}</div></div>
               <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">مدة الجلسة</div><div className="text-lg font-bold text-slate-700">{session.session_duration_minutes !== null ? `${session.session_duration_minutes} د` : '—'}</div></div>
               <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">Core Score</div><div className={`text-lg font-bold ${(session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' : (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{session.core_score_display !== null ? session.core_score_display.toFixed(1) : '—'}</div></div>
