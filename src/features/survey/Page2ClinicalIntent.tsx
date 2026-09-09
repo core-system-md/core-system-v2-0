@@ -118,7 +118,7 @@ export default function Page2ClinicalIntent({ sessionId, initialData, onNext, on
             <Button
               variant="outline"
               onClick={onBack}
-              className="border-slate-300 text-slate-700 hover:bg-slate-50 px-6"
+              className="border-slate-300 text-slate-700 hover:bg-muted px-6"
             >
               العودة
             </Button>
