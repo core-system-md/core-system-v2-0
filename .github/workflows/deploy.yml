@@ -13,4 +13,4 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: npx tsc --noEmit
-      - run: corepack enable && corepack pnpm dlx vitest@4.1.11 run
+      - run: corepack enable && corepack pnpm dlx vitest@4.1.11 run tests

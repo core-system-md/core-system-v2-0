@@ -6,8 +6,7 @@ import { useAuth } from '@/core/auth/AuthProvider';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { PIN_SESSION_STORAGE_KEY } from '@/core/auth/PinAuthProvider';
 import {
-  Users, Plus, Calendar, Clock, Stethoscope,
-  Search, UserPlus, ClipboardList
+  Calendar, ClipboardList, Clock, Plus, Search, Stethoscope, UserPlus,
 } from 'lucide-react';
 import { LiveQueueBoard } from '@/components/LiveQueueBoard';
 
@@ -43,6 +42,16 @@ type ReceptionRpcClient = {
   ) => Promise<{ data: unknown; error: { message: string } | null }>;
 };
 
+const tabClass = (active: boolean) =>
+  `inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
+    active
+      ? 'bg-white text-[#1B2A4A] shadow-sm'
+      : 'text-white/80 hover:bg-white/10 hover:text-white'
+  }`;
+
+const inputClass =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#1B2A4A] focus:ring-2 focus:ring-[#1B2A4A]/10';
+
 export default function ReceptionDashboard() {
   const { fullName } = useAuth();
   const [activeTab, setActiveTab] = useState<'queue' | 'booking' | 'patients'>('queue');
@@ -61,12 +70,11 @@ export default function ReceptionDashboard() {
     scheduledDate: '',
     scheduledTime: '',
     inquiryReason: '',
-    isNewPatient: true
+    isNewPatient: true,
   });
   const [bookingLoading, setBookingLoading] = useState(false);
 
   const tenant_id = useAuthStore((s) => s.tenant_id);
-
   const getReceptionRpcClient = () => supabase as unknown as ReceptionRpcClient;
 
   const getSessionToken = () => {
@@ -90,11 +98,7 @@ export default function ReceptionDashboard() {
 
       if (error) throw new Error(error.message);
 
-      const result = (data ?? {}) as {
-        doctors?: Doctor[];
-        agenda?: AgendaEvent[];
-      };
-
+      const result = (data ?? {}) as { doctors?: Doctor[]; agenda?: AgendaEvent[] };
       setDoctors(Array.isArray(result.doctors) ? result.doctors : []);
       setAgendaEvents(Array.isArray(result.agenda) ? result.agenda : []);
     } catch (err: unknown) {
@@ -140,7 +144,7 @@ export default function ReceptionDashboard() {
           firstName: patient.first_name || '',
           lastName: patient.last_name || '',
           phone: patient.phone_primary || '',
-          isNewPatient: false
+          isNewPatient: false,
         }));
         toast.success('المريض موجود — سيتم إضافة زيارة جديدة');
       } else {
@@ -184,21 +188,12 @@ export default function ReceptionDashboard() {
       if (!result.success) throw new Error('BOOKING_FAILED');
 
       toast.success('تم حجز الموعد بنجاح! سيظهر في قائمة الطبيب');
-
       setBookingForm({
-        firstName: '',
-        lastName: '',
-        phone: '',
-        gender: 'male',
-        doctorId: '',
-        scheduledDate: '',
-        scheduledTime: '',
-        inquiryReason: '',
-        isNewPatient: true
+        firstName: '', lastName: '', phone: '', gender: 'male', doctorId: '',
+        scheduledDate: '', scheduledTime: '', inquiryReason: '', isNewPatient: true,
       });
       setFoundPatient(null);
       setSearchPhone('');
-
       await fetchData(false);
       setActiveTab('queue');
     } catch (err: unknown) {
@@ -211,193 +206,151 @@ export default function ReceptionDashboard() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-4" dir="rtl">
-        <div className="h-8 bg-white/10 rounded w-1/3 animate-pulse" />
-        {[1, 2, 3].map(i => <div key={i} className="h-20 bg-white/10 rounded animate-pulse" />)}
+      <div className="min-h-[60vh] rounded-3xl bg-slate-50 p-6" dir="rtl">
+        <div className="mx-auto max-w-7xl space-y-5">
+          <div className="h-32 animate-pulse rounded-3xl bg-slate-200" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {[1, 2, 3].map(i => <div key={i} className="h-28 animate-pulse rounded-2xl bg-white shadow-sm" />)}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto" dir="rtl">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">لوحة الاستقبال</h1>
-          <p className="text-white/50 text-sm mt-1">مرحباً، {fullName || 'موظف الاستقبال'}</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setActiveTab('queue')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'queue' ? 'bg-white/15 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
-            <ClipboardList className="w-4 h-4 inline-block ml-2" /> قائمة الانتظار
-          </button>
-          <button onClick={() => setActiveTab('booking')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'booking' ? 'bg-white/15 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
-            <UserPlus className="w-4 h-4 inline-block ml-2" /> حجز سريع
-          </button>
-          <button onClick={() => setActiveTab('patients')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'patients' ? 'bg-white/15 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
-            <Users className="w-4 h-4 inline-block ml-2" /> المواعيد
-          </button>
-        </div>
-      </div>
-
-      {activeTab === 'queue' && (
-        <PermissionGuard required="view_queue">
-          <LiveQueueBoard />
-        </PermissionGuard>
-      )}
-
-      {activeTab === 'booking' && (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-green-400" /> حجز موعد سريع
-          </h2>
-
-          <div className="mb-6 p-4 bg-white/5 rounded-lg">
-            <label className="block text-white/70 text-sm mb-2">البحث عن مريض موجود (رقم الهاتف)</label>
-            <div className="flex gap-2">
-              <input type="tel" value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)}
-                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
-                placeholder="07xxxxxxxx" />
-              <PermissionGuard required="view_patients">
-                <button onClick={searchPatient}
-                  className="px-4 py-3 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
-                  aria-label="البحث عن مريض">
-                  <Search className="w-4 h-4" />
-                </button>
-              </PermissionGuard>
-            </div>
-            {foundPatient && (
-              <p className="mt-2 text-green-400 text-sm">✓ مريض موجود: {foundPatient.first_name || ''} {foundPatient.last_name || ''}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
+    <div className="min-h-[calc(100vh-96px)] bg-slate-50 px-3 py-5 sm:px-5 lg:px-8" dir="rtl">
+      <div className="mx-auto max-w-7xl space-y-5">
+        <section className="rounded-3xl bg-gradient-to-l from-[#1B2A4A] via-[#20375F] to-[#29466F] p-6 text-white shadow-lg sm:p-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <label className="block text-white/70 text-sm mb-2">الاسم الأول *</label>
-              <input type="text" value={bookingForm.firstName}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, firstName: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30" />
-            </div>
-            <div>
-              <label className="block text-white/70 text-sm mb-2">اسم العائلة</label>
-              <input type="text" value={bookingForm.lastName}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, lastName: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-white/70 text-sm mb-2">رقم الهاتف *</label>
-              <input type="tel" value={bookingForm.phone}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, phone: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
-                placeholder="07xxxxxxxx" />
-            </div>
-            <div>
-              <label className="block text-white/70 text-sm mb-2">الجنس</label>
-              <select value={bookingForm.gender}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, gender: e.target.value as 'male' | 'female' }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30">
-                <option value="male" className="bg-[#1B2A4A]">ذكر</option>
-                <option value="female" className="bg-[#1B2A4A]">أنثى</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-white/70 text-sm mb-2">الطبيب *</label>
-              <select value={bookingForm.doctorId}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, doctorId: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30">
-                <option value="" className="bg-[#1B2A4A]">اختر طبيباً</option>
-                {doctors.map(doc => (
-                  <option key={doc.id} value={doc.id} className="bg-[#1B2A4A]">
-                    {doc.full_name} {doc.specialization ? `(${doc.specialization})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-white/70 text-sm mb-2">تاريخ الموعد *</label>
-              <input type="date" value={bookingForm.scheduledDate}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-white/70 text-sm mb-2">وقت الموعد *</label>
-              <input type="time" value={bookingForm.scheduledTime}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, scheduledTime: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30" />
-            </div>
-            <div>
-              <label className="block text-white/70 text-sm mb-2">سبب الزيارة</label>
-              <input type="text" value={bookingForm.inquiryReason}
-                onChange={(e) => setBookingForm(prev => ({ ...prev, inquiryReason: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-white/30"
-                placeholder="مثال: استشارة أسنان" />
-            </div>
-          </div>
-
-          <PermissionGuard required="edit_queue">
-            <button onClick={handleQuickBooking} disabled={bookingLoading}
-              className="w-full bg-green-500/20 hover:bg-green-500/30 disabled:bg-white/5 text-green-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4">
-              <Calendar className="w-4 h-4" />
-              {bookingLoading ? 'جاري الحجز...' : 'تأكيد الحجز'}
-            </button>
-          </PermissionGuard>
-        </div>
-      )}
-
-      {activeTab === 'patients' && (
-        <PermissionGuard required="view_sessions">
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-white">مواعيد اليوم</h2>
-            {agendaEvents.length === 0 ? (
-              <div className="text-center py-12 text-white/50 bg-white/5 rounded-xl border border-white/10">
-                <Calendar className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                <p>لا توجد مواعيد لهذا اليوم</p>
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white/70">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                نظام الاستقبال
               </div>
-            ) : (
-              <div className="space-y-3">
-                {agendaEvents.map(event => (
-                  <div key={event.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Clock className="w-5 h-5 text-blue-400" />
-                        <div>
-                          <p className="text-white font-medium">
-                            {new Date(event.scheduled_start).toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          <p className="text-white/50 text-sm">{event.patient_name}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Stethoscope className="w-4 h-4 text-white/30" />
-                        <span className="text-white/50 text-sm">{event.doctor_name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded ${event.status === 'scheduled' ? 'bg-blue-500/20 text-blue-400' :
-                            event.status === 'arrived' ? 'bg-yellow-500/20 text-yellow-400' :
-                              event.status === 'in_session' ? 'bg-green-500/20 text-green-400' :
-                                'bg-white/10 text-white/50'
-                          }`}>
-                          {event.status === 'scheduled' ? 'مجدول' :
-                            event.status === 'arrived' ? 'وصل' :
-                              event.status === 'in_session' ? 'جارية' : event.status}
-                        </span>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">لوحة استقبال العيادة</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
+                أهلاً {fullName || 'موظف الاستقبال'}، من هنا تتابع المرضى، تنظم المواعيد، وتنفذ الحجز السريع.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 rounded-2xl bg-white/10 p-2 backdrop-blur">
+              <button onClick={() => setActiveTab('queue')} className={tabClass(activeTab === 'queue')}>
+                <ClipboardList className="h-4 w-4" /> قائمة الانتظار
+              </button>
+              <button onClick={() => setActiveTab('booking')} className={tabClass(activeTab === 'booking')}>
+                <UserPlus className="h-4 w-4" /> حجز سريع
+              </button>
+              <button onClick={() => setActiveTab('patients')} className={tabClass(activeTab === 'patients')}>
+                <Calendar className="h-4 w-4" /> مواعيد اليوم
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">الانتظار</p>
+                <p className="mt-1 text-2xl font-bold text-[#1B2A4A]">قائمة حية</p>
+              </div>
+              <div className="rounded-xl bg-emerald-50 p-3 text-emerald-600"><ClipboardList className="h-5 w-5" /></div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">الأطباء المتاحون</p>
+                <p className="mt-1 text-3xl font-bold text-[#1B2A4A]">{doctors.length}</p>
+              </div>
+              <div className="rounded-xl bg-blue-50 p-3 text-blue-600"><Stethoscope className="h-5 w-5" /></div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">مواعيد اليوم</p>
+                <p className="mt-1 text-3xl font-bold text-[#1B2A4A]">{agendaEvents.length}</p>
+              </div>
+              <div className="rounded-xl bg-amber-50 p-3 text-amber-600"><Calendar className="h-5 w-5" /></div>
+            </div>
+          </div>
+        </section>
+
+        {activeTab === 'queue' && (
+          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <PermissionGuard required="view_queue">
+              <LiveQueueBoard />
+            </PermissionGuard>
+          </section>
+        )}
+
+        {activeTab === 'booking' && (
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="mb-6 flex items-start gap-3">
+              <div className="rounded-xl bg-emerald-50 p-3 text-emerald-600"><Plus className="h-5 w-5" /></div>
+              <div>
+                <h2 className="text-xl font-bold text-[#1B2A4A]">حجز موعد سريع</h2>
+                <p className="mt-1 text-sm text-slate-500">بيانات واضحة، حقول مريحة، وإجراء حجز واحد.</p>
+              </div>
+            </div>
+
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <label className="mb-2 block text-sm font-semibold text-slate-700">البحث عن مريض موجود</label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input type="tel" value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} className={inputClass} placeholder="07xxxxxxxx" />
+                <PermissionGuard required="view_patients">
+                  <button onClick={searchPatient} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1B2A4A] px-5 py-3 font-semibold text-white transition hover:bg-[#24395F]" aria-label="البحث عن مريض">
+                    <Search className="h-4 w-4" /> بحث
+                  </button>
+                </PermissionGuard>
+              </div>
+              {foundPatient && <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">✓ مريض موجود: {foundPatient.first_name || ''} {foundPatient.last_name || ''}</p>}
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div><label className="mb-2 block text-sm font-semibold text-slate-700">الاسم الأول *</label><input type="text" value={bookingForm.firstName} onChange={(e) => setBookingForm(prev => ({ ...prev, firstName: e.target.value }))} className={inputClass} /></div>
+              <div><label className="mb-2 block text-sm font-semibold text-slate-700">اسم العائلة</label><input type="text" value={bookingForm.lastName} onChange={(e) => setBookingForm(prev => ({ ...prev, lastName: e.target.value }))} className={inputClass} /></div>
+              <div><label className="mb-2 block text-sm font-semibold text-slate-700">رقم الهاتف *</label><input type="tel" value={bookingForm.phone} onChange={(e) => setBookingForm(prev => ({ ...prev, phone: e.target.value }))} className={inputClass} placeholder="07xxxxxxxx" /></div>
+              <div><label className="mb-2 block text-sm font-semibold text-slate-700">الجنس</label><select value={bookingForm.gender} onChange={(e) => setBookingForm(prev => ({ ...prev, gender: e.target.value as 'male' | 'female' }))} className={inputClass}><option value="male">ذكر</option><option value="female">أنثى</option></select></div>
+              <div><label className="mb-2 block text-sm font-semibold text-slate-700">الطبيب *</label><select value={bookingForm.doctorId} onChange={(e) => setBookingForm(prev => ({ ...prev, doctorId: e.target.value }))} className={inputClass}><option value="">اختر طبيباً</option>{doctors.map(doc => <option key={doc.id} value={doc.id}>{doc.full_name}{doc.specialization ? ` — ${doc.specialization}` : ''}</option>)}</select></div>
+              <div><label className="mb-2 block text-sm font-semibold text-slate-700">تاريخ الموعد *</label><input type="date" value={bookingForm.scheduledDate} onChange={(e) => setBookingForm(prev => ({ ...prev, scheduledDate: e.target.value }))} className={inputClass} /></div>
+              <div><label className="mb-2 block text-sm font-semibold text-slate-700">وقت الموعد *</label><input type="time" value={bookingForm.scheduledTime} onChange={(e) => setBookingForm(prev => ({ ...prev, scheduledTime: e.target.value }))} className={inputClass} /></div>
+              <div className="md:col-span-2"><label className="mb-2 block text-sm font-semibold text-slate-700">سبب الزيارة</label><input type="text" value={bookingForm.inquiryReason} onChange={(e) => setBookingForm(prev => ({ ...prev, inquiryReason: e.target.value }))} className={inputClass} placeholder="مثال: استشارة أسنان" /></div>
+            </div>
+
+            <PermissionGuard required="edit_queue">
+              <button onClick={handleQuickBooking} disabled={bookingLoading} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1B2A4A] px-5 py-3.5 font-semibold text-white shadow-sm transition hover:bg-[#24395F] disabled:cursor-not-allowed disabled:bg-slate-300">
+                <Calendar className="h-4 w-4" /> {bookingLoading ? 'جاري الحجز...' : 'تأكيد الحجز'}
+              </button>
+            </PermissionGuard>
+          </section>
+        )}
+
+        {activeTab === 'patients' && (
+          <PermissionGuard required="view_sessions">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              <div className="mb-6 flex items-center justify-between gap-3">
+                <div><h2 className="text-xl font-bold text-[#1B2A4A]">مواعيد اليوم</h2><p className="mt-1 text-sm text-slate-500">جدول مريح للمتابعة السريعة.</p></div>
+                <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600">{agendaEvents.length} مواعيد</div>
+              </div>
+              {agendaEvents.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center text-slate-500"><Calendar className="mx-auto mb-4 h-12 w-12 text-slate-300" /><p className="font-medium">لا توجد مواعيد لهذا اليوم</p></div>
+              ) : (
+                <div className="space-y-3">
+                  {agendaEvents.map(event => (
+                    <div key={event.id} className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 hover:shadow-sm">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3"><div className="rounded-xl bg-blue-50 p-3 text-blue-600"><Clock className="h-5 w-5" /></div><div><p className="font-bold text-[#1B2A4A]">{new Date(event.scheduled_start).toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}</p><p className="mt-1 text-sm text-slate-600">{event.patient_name}</p></div></div>
+                        <div className="flex flex-wrap items-center gap-2 text-sm"><span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-slate-600"><Stethoscope className="h-4 w-4" />{event.doctor_name}</span><span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${event.status === 'scheduled' ? 'bg-blue-50 text-blue-700' : event.status === 'arrived' ? 'bg-amber-50 text-amber-700' : event.status === 'in_session' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{event.status === 'scheduled' ? 'مجدول' : event.status === 'arrived' ? 'وصل' : event.status === 'in_session' ? 'جارية' : event.status}</span></div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </PermissionGuard>
-      )}
+                  ))}
+                </div>
+              )}
+            </section>
+          </PermissionGuard>
+        )}
+      </div>
     </div>
   );
 }

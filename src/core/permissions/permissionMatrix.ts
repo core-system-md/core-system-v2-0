@@ -2,6 +2,7 @@ export type Permission =
   | 'view_patients' | 'edit_patients'
   | 'view_sessions' | 'edit_sessions'
   | 'view_invoices' | 'edit_invoices'
+  | 'view_inquiries' | 'edit_inquiries'
   | 'view_queue' | 'edit_queue'
   | 'view_analytics' | 'edit_analytics'
   | 'view_staff' | 'edit_staff'
@@ -31,7 +32,8 @@ export const permissionMatrix: Record<UserRole, Permission[]> = {
   ],
   receptionist: [
     'view_patients', 'edit_patients', 'view_sessions',
-    'view_invoices', 'edit_invoices', 'view_queue', 'edit_queue',
+    'view_invoices', 'edit_invoices', 'view_inquiries', 'edit_inquiries',
+    'view_queue', 'edit_queue',
   ],
 };
 
