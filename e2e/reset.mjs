@@ -16,6 +16,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 });
 const tenantId = process.env.E2E_TENANT_ID;
 const deletedAt = new Date().toISOString();
+const agendaIds = E2E_PATIENTS.map((p) => `30000000-0000-4000-8000-${String(p.n).padStart(12, '0')}`);
 
 // Constitution/P137 contract: never issue physical DELETE; use verified soft-delete tables.
 const { error: intakeError } = await supabase
@@ -34,6 +35,14 @@ const { error: sessionError } = await supabase
   .is('deleted_at', null);
 if (sessionError) throw new Error(`[E2E] session soft-reset failed: ${sessionError.message}`);
 
+const { error: agendaError } = await supabase
+  .from('master_agenda_events')
+  .update({ deleted_at: deletedAt })
+  .eq('tenant_id', tenantId)
+  .in('id', agendaIds)
+  .is('deleted_at', null);
+if (agendaError) throw new Error(`[E2E] appointment soft-reset failed: ${agendaError.message}`);
+
 const { error: patientError } = await supabase
   .from('clinic_patients')
   .update({ deleted_at: deletedAt, is_active: false })
@@ -42,13 +51,22 @@ const { error: patientError } = await supabase
   .is('deleted_at', null);
 if (patientError) throw new Error(`[E2E] patient soft-reset failed: ${patientError.message}`);
 
-const { data: remaining, error: verifyError } = await supabase
+const { count: remainingPatients, error: verifyPatientError } = await supabase
   .from('clinic_patients')
-  .select('id')
+  .select('id', { count: 'exact', head: true })
   .eq('tenant_id', tenantId)
   .like('mrn', `${E2E_PREFIX}%`)
   .is('deleted_at', null);
-if (verifyError) throw new Error(`[E2E] reset verification failed: ${verifyError.message}`);
-if ((remaining?.length ?? 0) !== 0) throw new Error(`[E2E] reset verification failed: ${remaining?.length ?? 0} active fixtures remain.`);
+if (verifyPatientError) throw new Error(`[E2E] patient reset verification failed: ${verifyPatientError.message}`);
+if ((remainingPatients ?? 0) !== 0) throw new Error(`[E2E] patient reset verification failed: ${remainingPatients ?? 0} active fixtures remain.`);
 
-console.log(`[E2E] Soft-reset complete for ${E2E_PATIENTS.length} patient fixtures.`);
+const { count: remainingAppointments, error: verifyAgendaError } = await supabase
+  .from('master_agenda_events')
+  .select('id', { count: 'exact', head: true })
+  .eq('tenant_id', tenantId)
+  .in('id', agendaIds)
+  .is('deleted_at', null);
+if (verifyAgendaError) throw new Error(`[E2E] appointment reset verification failed: ${verifyAgendaError.message}`);
+if ((remainingAppointments ?? 0) !== 0) throw new Error(`[E2E] appointment reset verification failed: ${remainingAppointments ?? 0} active fixtures remain.`);
+
+console.log(`[E2E] Soft-reset complete for ${E2E_PATIENTS.length} patients, ${agendaIds.length} appointments and ${E2E_SESSION_IDS.length} sessions.`);
