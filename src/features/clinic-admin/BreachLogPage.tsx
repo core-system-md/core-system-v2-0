@@ -19,16 +19,15 @@ type Breach = {
 
 const SEVERITY_LABELS: Record<string, string> = {
   critical: 'حرج',
-  high: 'عالٍ',
-  medium: 'متوسط',
-  low: 'منخفض',
+  warning: 'تحذير',
+  info: 'معلومة',
 };
 
 function severityClass(severity: string) {
   switch (severity) {
     case 'critical': return 'bg-red-50 text-red-700 border-red-200';
-    case 'high': return 'bg-orange-50 text-orange-700 border-orange-200';
-    case 'medium': return 'bg-amber-50 text-amber-700 border-amber-200';
+    case 'warning': return 'bg-amber-50 text-amber-700 border-amber-200';
+    case 'info': return 'bg-slate-50 text-slate-700 border-slate-200';
     default: return 'bg-slate-50 text-slate-700 border-slate-200';
   }
 }
@@ -90,9 +89,8 @@ export default function BreachLogPage() {
             <select value={severity} onChange={(event) => setSeverity(event.target.value)} className="mr-2 rounded-md border border-slate-200 px-3 py-2">
               <option value="all">الكل</option>
               <option value="critical">حرج</option>
-              <option value="high">عالٍ</option>
-              <option value="medium">متوسط</option>
-              <option value="low">منخفض</option>
+              <option value="warning">تحذير</option>
+              <option value="info">معلومة</option>
             </select>
           </label>
           <label className="text-sm text-slate-600">
