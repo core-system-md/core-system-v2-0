@@ -30,6 +30,7 @@ export function useUpdateSessionStatus() {
         .update(updates as any)
         .eq('id', payload.sessionId)
         .eq('tenant_id', tenantId)
+        .is('deleted_at', null)
         .select()
         .single();
       if (error) throw error;
@@ -70,6 +71,7 @@ export function useWriteSessionScore() {
         })
         .eq('id', payload.sessionId)
         .eq('tenant_id', tenantId)
+        .is('deleted_at', null)
         .select()
         .single();
       if (error) throw error;
@@ -97,6 +99,7 @@ export function useAssignDoctor() {
         })
         .eq('id', payload.sessionId)
         .eq('tenant_id', tenantId)
+        .is('deleted_at', null)
         .select()
         .single();
       if (error) throw error;
@@ -125,6 +128,7 @@ export function useAssignRoom() {
         })
         .eq('id', payload.sessionId)
         .eq('tenant_id', tenantId)
+        .is('deleted_at', null)
         .select()
         .single();
       if (error) throw error;
