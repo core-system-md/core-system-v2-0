@@ -6,6 +6,14 @@ import type { SubscriptionTier } from '@/shared/types/billing';
 
 const TIERS: SubscriptionTier[] = ['trial', 'essential', 'professional', 'enterprise', 'suspended'];
 
+const TIER_LABELS: Record<SubscriptionTier, string> = {
+  trial: 'تجريبي',
+  essential: 'أساسي',
+  professional: 'احترافي',
+  enterprise: 'مؤسسي',
+  suspended: 'موقوف',
+};
+
 type TenantRow = {
   id: string;
   clinic_name: string | null;
@@ -130,7 +138,7 @@ export default function TenantBillingAdminPage() {
                           disabled={saving}
                           className="rounded-md border border-slate-200 px-3 py-2 text-sm"
                         >
-                          {TIERS.map((tier) => <option key={tier} value={tier}>{tier}</option>)}
+                          {TIERS.map((tier) => <option key={tier} value={tier}>{TIER_LABELS[tier]}</option>)}
                         </select>
                       </td>
                       <td className="px-4 py-3">
