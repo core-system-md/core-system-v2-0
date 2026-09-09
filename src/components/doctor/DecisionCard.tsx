@@ -68,7 +68,7 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
     setLoading(true);
     try {
       const { data: sessionData, error: sessionError } = await supabase
-        .from('clinic_visit_sessions').select('*').eq('id', sessionId).eq('tenant_id', tenant_id).single();
+        .from('clinic_visit_sessions').select('*').eq('id', sessionId).eq('tenant_id', tenant_id).is('deleted_at', null).single();
       if (sessionError) throw sessionError;
       setSession(sessionData);
       setSelectedPar(sessionData.par_result);
@@ -85,12 +85,13 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
         .select('id, first_name, last_name, phone_primary, date_of_birth, gender')
         .eq('id', sessionData.patient_id!)
         .eq('tenant_id', tenant_id)
+        .is('deleted_at', null)
         .single();
       if (patientError) throw patientError;
       setPatient(patientData);
       const { data: longData, error: longError } = await supabase
         .from('patient_longitudinal_profiles').select('dominant_disc_profile, total_visits, total_revenue_subunits, loyalty_tier, historical_core_score_avg, last_visit_date')
-        .eq('patient_id', sessionData.patient_id!).eq('tenant_id', tenant_id).single();
+        .eq('patient_id', sessionData.patient_id!).eq('tenant_id', tenant_id).is('deleted_at', null).single();
       if (longError && longError.code !== 'PGRST116') throw longError;
       setLongitudinal(longData);
     } catch (err: unknown) {
