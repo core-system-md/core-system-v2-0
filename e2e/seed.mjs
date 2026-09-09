@@ -113,7 +113,7 @@ const { count: patientCount, error: verificationError } = await supabase
   .from('clinic_patients')
   .select('id', { count: 'exact', head: true })
   .eq('tenant_id', tenantId)
-  .like('mrn', 'E2E-PT-%')
+  .in('id', patients.map((p) => p.id))
   .is('deleted_at', null);
 if (verificationError) throw new Error(`[E2E] patient verification failed: ${verificationError.message}`);
 if (patientCount !== patients.length) {
@@ -124,11 +124,9 @@ const { count: appointmentCount, error: appointmentVerificationError } = await s
   .from('master_agenda_events')
   .select('id', { count: 'exact', head: true })
   .eq('tenant_id', tenantId)
-  .like('booking_notes', '[E2E] %')
+  .in('id', agendaEvents.map((event) => event.id))
   .eq('status', 'scheduled')
-  .is('deleted_at', null)
-  .gte('scheduled_start', dayStart.toISOString())
-  .lt('scheduled_start', new Date(dayStart.getTime() + 24 * 60 * 60 * 1000).toISOString());
+  .is('deleted_at', null);
 if (appointmentVerificationError) throw new Error(`[E2E] appointment verification failed: ${appointmentVerificationError.message}`);
 if (appointmentCount !== agendaEvents.length) {
   throw new Error(`[E2E] appointment verification failed: expected ${agendaEvents.length}, found ${appointmentCount ?? 0}.`);
@@ -138,7 +136,7 @@ const { count: sessionCount, error: sessionVerificationError } = await supabase
   .from('clinic_visit_sessions')
   .select('id', { count: 'exact', head: true })
   .eq('tenant_id', tenantId)
-  .like('session_metadata->>e2e', 'true')
+  .in('id', E2E_SESSION_IDS)
   .eq('session_status', 'waiting')
   .is('deleted_at', null);
 if (sessionVerificationError) throw new Error(`[E2E] session verification failed: ${sessionVerificationError.message}`);
