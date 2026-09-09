@@ -50,7 +50,8 @@ export default function AdminPatientsPage() {
         supabase
           .from('patient_longitudinal_profiles')
           .select('patient_id, total_visits, total_completed_visits, total_revenue_subunits, loyalty_tier, last_visit_date')
-          .eq('tenant_id', tenantId),
+          .eq('tenant_id', tenantId)
+          .is('deleted_at', null),
       ]);
 
       if (patientError || profileError) {
