@@ -64,7 +64,7 @@ An active permission-gated `StaffManagement` surface was added under Clinic Admi
 
 ### P92 — Clinic Admin Analytics Data Integrity
 `CLOSED — CONFIRMED`.
-Active `AnalyticsOverview` previously used the count of currently active sessions as a fallback for the KPI `الزيارات اليوم`, which conflated two different measures. The fallback was removed; the KPI now uses the existing daily snapshot contract only. The snapshot query now excludes soft-deleted snapshots and reports query failures explicitly. Active `RevenueCards` now excludes soft-deleted analytics snapshots and invoices and surfaces data-query failures instead of silently rendering partial financial data. Production schema verification confirmed `deleted_at` exists on both `analytics_daily_snapshots` and `clinic_invoices`. No schema, RPC, RLS, Auth, or financial-subunit contract was changed. Latest source commits are `2fbdff76e99637d80553233aefcf47df26371302` and `f16666727a92cf44f02553b441285609335c4732`; the latter was the source HEAD before the subsequent feature-flag repairs. Vercel Production deployment `dpl_ETpMmtGodBro2fjLqYEUzSE5TU94` is `READY`, and its Production runtime error/fatal count is zero.
+Active `AnalyticsOverview` previously used the count of currently active sessions as a fallback for the KPI `الزيارات اليوم`, which conflated two different measures. The fallback was removed; the KPI now uses the existing daily snapshot contract only. The snapshot query now excludes soft-deleted snapshots and reports query failures explicitly. Active `RevenueCards` now excludes soft-deleted analytics snapshots and invoices and surfaces data-query failures instead of silently rendering partial financial data. Production schema verification confirmed `deleted_at` exists on both `analytics_daily_snapshots` and `clinic_invoices`. No schema, RPC, RLS, Auth, or financial-subunit contract was changed. Latest source commits are `2fbdff76e99637d80553233aefcf47df26371302` and `f16666727a92cf44f02553b441285609335c473b`; the latter was the source HEAD before the subsequent feature-flag repairs. Vercel Production deployment `dpl_ETpMmtGodBro2fjLqYEUzSE5TU94` is `READY`, and its Production runtime error/fatal count is zero.
 
 ### P93 — Feature Flag Management Data Integrity
 `CLOSED — CONFIRMED`.
@@ -249,3 +249,12 @@ The active Doctor `CloseSession.tsx` directly updated `clinic_visit_sessions` to
 - P125 and P126 remain fully Production-verified and closed.
 - No speculative health-score calculation, timezone business rule, new Arabic label, or archive change was introduced.
 - The next repair stage remains evidence-driven review of the next active screen/data contract; speculative changes are not authorized.
+
+### P134 — Breach Severity Contract Reconciliation
+`CLOSED — CONFIRMED`.
+Active `BreachLogPage.tsx` previously exposed unsupported severity filter values `high`, `medium`, and `low`, while the canonical Production/Blueprint contract permits only `critical`, `warning`, and `info`. The active UI was reconciled to the existing database contract with Arabic labels `حرج`, `تحذير`, and `معلومة`; no schema, migration, RLS, RPC, Auth, or business-rule change was introduced. The existing `view_audit` permission guard and `deleted_at IS NULL` read boundary were preserved. Implementation commit `b8de47e6e98b5b49341b557b78062cd589c69ab8`; evidence/reconciliation commit `6fcffb4f0d074746b001f9b2412cfe8db3065099`; CI `34346584194` passed Build, TypeScript, and Vitest on the cumulative implementation lineage. Vercel Production deployment `dpl_5mCycjzc3nMbnkyZfH8ZdQmdJ3ZT` is `READY` for exact implementation commit `b8de47e6e98b5b49341b557b78062cd589c69ab8`; checked Production runtime logs contained no error/fatal/warning entries. P134 supersedes the unsupported `high/medium/low` severity values previously recorded under P121; the database/Blueprint contract remains authoritative.
+
+## Roadmap update status
+- P134 is fully implementation, CI, and Production runtime verified.
+- This roadmap entry is recorded without altering any DB/RLS/Auth/RPC contract.
+- The next stage remains evidence-driven inspection of the next active screen/data contract.
