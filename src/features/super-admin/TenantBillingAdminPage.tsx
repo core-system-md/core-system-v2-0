@@ -17,6 +17,7 @@ const TIER_LABELS: Record<SubscriptionTier, string> = {
 type TenantRow = {
   id: string;
   clinic_name: string | null;
+  clinic_name_ar: string | null;
   name: string | null;
   subscription_tier: SubscriptionTier;
   is_active: boolean;
@@ -40,7 +41,7 @@ export default function TenantBillingAdminPage() {
     setError(null);
     const { data, error: queryError } = await supabase
       .from('master_tenants')
-      .select('id, clinic_name, name, subscription_tier, is_active, trial_started_at, subscription_start, subscription_end')
+      .select('id, clinic_name, clinic_name_ar, name, subscription_tier, is_active, trial_started_at, subscription_start, subscription_end')
       .is('deleted_at', null)
       .order('clinic_name');
 
@@ -130,7 +131,7 @@ export default function TenantBillingAdminPage() {
                   const saving = savingId === tenant.id;
                   return (
                     <tr key={tenant.id}>
-                      <td className="px-4 py-3 font-medium text-slate-900">{tenant.clinic_name || tenant.name || tenant.id}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{tenant.clinic_name_ar || tenant.clinic_name || tenant.name || tenant.id}</td>
                       <td className="px-4 py-3">
                         <select
                           value={tenant.subscription_tier}
