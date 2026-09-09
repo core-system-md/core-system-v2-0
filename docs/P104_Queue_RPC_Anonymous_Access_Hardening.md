@@ -11,13 +11,12 @@ The legacy queue SECURITY DEFINER RPCs `get_queue_for_tenant(uuid)` and `get_que
 - Production `pg_proc.proacl` read-back confirms both functions now have only `postgres`, `authenticated`, and `service_role` EXECUTE entries.
 - Supabase Security Advisor anonymous SECURITY DEFINER finding count decreased from 18 to 17 after the change.
 - No function body, signature, RLS policy, Auth contract, tenant predicate, or application queue behavior was changed.
+- Vercel Production deployment for commit `dd2a993b66fb8b5f27f47dcf38fb195c4cb311eb` reached `READY`.
+- Vercel Production build completed successfully; the only observed error-filtered output is the existing chunk-size warning.
+- Vercel Production runtime error verification returned no runtime errors in the selected window.
 
 ## Classification
 CONFIRMED.
 
 ## Verification state
-- Production migration applied successfully.
-- Production ACL read-back passed.
-- Supabase Security Advisor re-check passed for the intended reduction.
-- Vercel Production deployment for commit `dd2a993b66fb8b5f27f47dcf38fb195c4cb311eb` is currently `BUILDING`; final Vercel readiness/runtime verification remains pending.
-- Therefore P104 is **not yet CLOSED** until Vercel reaches READY and the final runtime check is completed.
+CLOSED.
