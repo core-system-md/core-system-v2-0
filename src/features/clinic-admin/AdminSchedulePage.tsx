@@ -45,7 +45,7 @@ export default function AdminSchedulePage() {
           .gte('scheduled_start', dayStart)
           .lte('scheduled_start', dayEnd)
           .order('scheduled_start', { ascending: true }),
-        supabase.from('clinic_users').select('id, full_name').eq('tenant_id', tenantId).eq('role', 'doctor').eq('is_active', true).is('deleted_at', null),
+        supabase.from('clinic_users').select('id, full_name, full_name_ar').eq('tenant_id', tenantId).eq('role', 'doctor').eq('is_active', true).is('deleted_at', null),
         supabase.from('clinic_rooms').select('id, room_name').eq('tenant_id', tenantId).eq('is_active', true).is('deleted_at', null),
         supabase.from('clinic_patients').select('id, full_name').eq('tenant_id', tenantId).is('deleted_at', null),
       ]);
@@ -56,7 +56,7 @@ export default function AdminSchedulePage() {
         setEvents([]);
       } else {
         setEvents((eventResult.data ?? []) as AgendaRow[]);
-        setDoctors((doctorResult.data ?? []).map((row) => ({ id: row.id, label: row.full_name })));
+        setDoctors((doctorResult.data ?? []).map((row) => ({ id: row.id, label: row.full_name_ar || row.full_name })));
         setRooms((roomResult.data ?? []).map((row) => ({ id: row.id, label: row.room_name })));
         setPatients((patientResult.data ?? []).map((row) => ({ id: row.id, label: row.full_name })));
       }
