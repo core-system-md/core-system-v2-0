@@ -1,7 +1,7 @@
 # CORE SYSTEM v2.1 — P94 Feature Flag Read Soft-Delete
 
 ## Status
-`IMPLEMENTED — VERIFICATION COMPLETE — ROADMAP UPDATE REQUIRED`
+`CLOSED — CONFIRMED`
 
 ## Claim → Evidence → Classification → Confidence
 
@@ -27,14 +27,14 @@
 **Confidence:** HIGH
 
 ### 4. Production deployment verification
-**Evidence:** Commit `64642af7479def3ddacda386461fcea0a770b638` reached Vercel Production deployment `dpl_FnhxhQKg3v8N9MibexpA2BVHpKs2` with state `READY`. Its error-only build log contained no build failure; only the known `esbuild@0.25.12` install-script warning was present. Production runtime error/fatal query returned no entries for the deployment.
+**Evidence:** Commit `64642af7479def3ddacda386461fcea0a770b638` reached Vercel Production deployment `dpl_FnhxhQKg3v8N9MibexpA2BVHpKs2` with state `READY`; the final cumulative `main` state also reached Vercel Production READY after commit `3701ec14473e829dafff8311795e9ae1d6537d54`. Error-only build logs contained no build failure; only the known `esbuild@0.25.12` install-script warning was present. Production runtime error/fatal verification returned no entries for the implementation deployment.
 
 **Classification:** CONFIRMED
 
 **Confidence:** HIGH
 
 ### 5. Scope boundary
-No database schema, migration, RPC, RLS, Auth, permission contract, scoring rule, or Zustand architecture was changed. The repair only filters operational feature-flag reads to active rows and preserves the existing tenant-specific-over-global precedence.
+No database schema, migration, RPC, RLS, Auth, permission contract, scoring rule, or Zustand architecture was changed. The repair only filters operational feature-flag reads to active rows and preserves the existing tenant-specific-over-global precedence and tier validation.
 
 ## Closure note
-P94 is eligible for `CLOSED — CONFIRMED` once the Master Repair Roadmap records this evidence. No speculative feature behavior was added.
+P94 is `CLOSED — CONFIRMED`. No speculative feature behavior was added.
