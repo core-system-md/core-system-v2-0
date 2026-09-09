@@ -42,6 +42,7 @@ export default function AdminSchedulePage() {
           .from('master_agenda_events')
           .select('id, doctor_id, room_id, patient_id, scheduled_start, scheduled_end, event_type, visit_type, status, booking_notes')
           .eq('tenant_id', tenantId)
+          .is('deleted_at', null)
           .gte('scheduled_start', dayStart)
           .lte('scheduled_start', dayEnd)
           .order('scheduled_start', { ascending: true }),
