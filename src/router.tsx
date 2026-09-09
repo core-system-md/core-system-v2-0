@@ -39,9 +39,8 @@ const TenantBillingAdminPage = lazy(() => import('@/features/super-admin/TenantB
 const SurveyRouter = lazy(() => import('@/features/survey/SurveyRouter'));
 
 function AuthWrapper() {
-  const { status, isAuthenticated, user } = useAuthStore();
+  const { status } = useAuthStore();
   if (status === 'BOOTING' || status === 'CHECKING_SESSION') return <LoadingScreen />;
-  if (isAuthenticated && user && !user.role) return <Navigate to="/login/roles" replace />;
   return <Suspense fallback={<LoadingScreen />}><AuthScreen /></Suspense>;
 }
 
