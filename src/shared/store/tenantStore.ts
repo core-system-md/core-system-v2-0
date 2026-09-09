@@ -53,9 +53,6 @@ export const useTenantStore = create<TenantState>((set, get) => ({
       return;
     }
 
-    // DEBUG: Trace fetch start
-    console.log('[TENANT STORE] fetch start', { tenantId });
-
     set({ isLoading: true, error: null });
 
     try {
@@ -98,8 +95,8 @@ export const useTenantStore = create<TenantState>((set, get) => ({
 
     } catch (err: unknown) {
       console.error('[tenantStore] Fetch error:', err);
-      set({ 
-        error: err instanceof Error ? err.message : 'Failed to fetch tenant', 
+      set({
+        error: err instanceof Error ? err.message : 'Failed to fetch tenant',
         isLoading: false,
         subscriptionTier: 'trial' // Fallback to safest tier
       });
@@ -109,7 +106,6 @@ export const useTenantStore = create<TenantState>((set, get) => ({
   setTenantId: (id: string, tenantData?: TenantData | null) => {
     if (tenantData) {
       // Use provided tenant data (bypasses RLS re-query)
-      console.log('[tenantStore] setTenantId with data', { id, clinicName: tenantData.clinicName });
       set({
         tenantId: id,
         clinicName: tenantData.clinicName || null,
@@ -121,9 +117,8 @@ export const useTenantStore = create<TenantState>((set, get) => ({
       });
     } else {
       // Fallback: fetch from DB (may fail with RLS in PIN auth)
-      console.log('[tenantStore] setTenantId without data, will fetch', { id });
       set({ tenantId: id });
-      get().fetchTenant();
+      void get().fetchTenant();
     }
   },
 
