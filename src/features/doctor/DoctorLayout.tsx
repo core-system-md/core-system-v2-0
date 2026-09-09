@@ -7,7 +7,16 @@ import { Outlet } from 'react-router-dom';
 import { IdleWatcher } from '@/shared/components/IdleWatcher';
 import { useAuthStore } from '@/shared/store/authStore';
 
+const ROLE_LABELS_AR = {
+  doctor: 'طبيب',
+  clinic_admin: 'مدير العيادة',
+  super_admin: 'مشرف عام',
+  receptionist: 'موظف الاستقبال',
+} as const;
+
 export default function DoctorLayout() {
+  const role = useAuthStore((state) => state.user?.role) ?? 'doctor';
+
   return (
     <IdleWatcher
       timeout={300000}
@@ -18,7 +27,7 @@ export default function DoctorLayout() {
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <h1 className="text-xl font-bold text-[#1B2A4A]">لوحة الطبيب</h1>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-500">طبيب</span>
+              <span className="text-sm text-slate-500">{ROLE_LABELS_AR[role]}</span>
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold">
                 د
               </div>
