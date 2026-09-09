@@ -31,11 +31,12 @@ export function useFeatureFlag(flagKey: string): {
       setError(null);
 
       try {
-        // Fetch tenant-specific + global flags
+        // Only active tenant/global rows are operational feature-flag state.
         const { data, error: supaError } = await supabase
           .from('feature_flags')
           .select('id, tenant_id, flag_key, flag_name, description, is_enabled, allowed_tiers, config_json')
           .eq('flag_key', flagKey)
+          .is('deleted_at', null)
           .or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
 
         if (supaError) throw supaError;
@@ -74,7 +75,7 @@ export function useFeatureFlag(flagKey: string): {
       }
     }
 
-    check();
+    void check();
     return () => { cancelled = true; };
   }, [flagKey, tenantId, currentTier]);
 
@@ -111,6 +112,7 @@ export function useFeatureFlags(flagKeys: string[]): {
           .from('feature_flags')
           .select('id, tenant_id, flag_key, flag_name, description, is_enabled, allowed_tiers, config_json')
           .in('flag_key', flagKeys)
+          .is('deleted_at', null)
           .or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
 
         if (supaError) throw supaError;
@@ -144,7 +146,7 @@ export function useFeatureFlags(flagKeys: string[]): {
       }
     }
 
-    checkAll();
+    void checkAll();
     return () => { cancelled = true; };
   }, [flagKeys.join(','), tenantId, currentTier]);
 
