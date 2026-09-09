@@ -154,7 +154,7 @@ export default function TenantRegistry() {
                 {tenants.map((tenant) => (
                   <tr
                     key={tenant.id}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                    className="border-b border-gray-100 hover:bg-muted transition-colors"
                   >
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
@@ -226,7 +226,7 @@ export default function TenantRegistry() {
                     <td className="text-center py-3 px-4">
                       <button
                         onClick={() => handleViewDetails(tenant)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-accent border border-accent-foreground/20 rounded-lg hover:bg-accent/80 transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         عرض التفاصيل
