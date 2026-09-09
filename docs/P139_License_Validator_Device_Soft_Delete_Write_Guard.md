@@ -12,9 +12,14 @@
 **Classification:** CONFIRMED
 **Confidence:** HIGH
 
-### 3. Automated validation is pending
-**Evidence:** The implementation commit was created on `main`; GitHub Actions had not yet produced a check run at the time this evidence file was recorded.
-**Classification:** INSUFFICIENT EVIDENCE
+### 3. Automated validation passed
+**Evidence:** GitHub Actions run `34349385347` completed successfully for the cumulative `main` lineage after the P139 implementation. Build, TypeScript, and Vitest all passed.
+**Classification:** CONFIRMED
+**Confidence:** HIGH
+
+### 4. Production Edge Function verification passed
+**Evidence:** Production `license-validator` is ACTIVE at version `12`, and the deployed function read-back contains the repaired `.eq('id', existingDevice.id).is('deleted_at', null)` predicate. Deployment completed successfully after the P139 implementation.
+**Classification:** CONFIRMED
 **Confidence:** HIGH
 
 ## Scope
