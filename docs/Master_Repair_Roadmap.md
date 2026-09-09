@@ -179,8 +179,8 @@ Audit actor-role values use the established Arabic role mapping with raw fallbac
 Super Admin subscription-management uses the established Arabic tier mapping for `trial`, `essential`, `professional`, `enterprise`, and `suspended`.
 
 ### P121 — Breach Severity Label Alignment
-`CLOSED — CONFIRMED`.
-Breach severity uses the established Arabic mapping: `critical` → `حرج`, `high` → `عالٍ`, `medium` → `متوسط`, `low` → `منخفض`.
+`CLOSED — SUPERSEDED BY P134`.
+The historical mapping previously recorded unsupported `high`, `medium`, and `low` severity values. P134 reconciled the active UI to the authoritative Production/Blueprint contract `critical`, `warning`, `info`; the stale P121 mapping must not be reintroduced.
 
 ### P122 — Schedule Doctor Arabic Name Alignment
 `CLOSED — CONFIRMED`.
@@ -204,31 +204,43 @@ GitHub Actions executes transient Vitest through Corepack/pnpm without adding a 
 
 ### P127 — Admin Patient Profile Soft-Delete Filter
 `IMPLEMENTED — PRODUCTION VERIFICATION BLOCKED`.
-`AdminPatientsPage` now excludes soft-deleted `patient_longitudinal_profiles` with `.is('deleted_at', null)`. Production confirms the column exists. Implementation `291e8d3136d66d9d748bfff2bdb4c3f1cfdc1087`; evidence `docs/P127_Admin_Patient_Profile_Soft_Delete_Filter.md`; CI `34342803619` passed build, TypeScript, and Vitest. Exact-commit Vercel Production status is `Deployment rate limited — retry in 24 hours`; no matching Production deployment exists.
+`AdminPatientsPage` now excludes soft-deleted `patient_longitudinal_profiles` with `.is('deleted_at', null)`. Production confirms the column exists. Implementation `291e8d3136d66d9d748bfff2bdb4c3f1cfdc1087`; evidence `docs/P127_Admin_Patient_Profile_Soft_Delete_Filter.md`; CI `34342803619` passed build, TypeScript, and Vitest. Exact-commit Vercel Production status was deployment-rate-limited and no matching Production deployment was confirmed.
 
 ### P128 — Admin Schedule Soft-Delete Filter
 `IMPLEMENTED — PRODUCTION VERIFICATION BLOCKED`.
-`AdminSchedulePage` now excludes soft-deleted `master_agenda_events` with `.is('deleted_at', null)`. Production confirms the column exists, and the existing Reception RPC already excludes deleted agenda events. Implementation `52e55c7ff6e58a1a36b02321b0deee684b160d39`; evidence `docs/P128_Admin_Schedule_Soft_Delete_Filter.md`; CI `34343102871` passed build, TypeScript, and Vitest. Exact-commit Vercel Production status is `Deployment rate limited — retry in 24 hours`; no matching Production deployment exists.
+`AdminSchedulePage` now excludes soft-deleted `master_agenda_events` with `.is('deleted_at', null)`. Production confirms the column exists, and the existing Reception RPC already excludes deleted agenda events. Implementation `52e55c7ff6e58a1a36b02321b0deee684b160d39`; evidence `docs/P128_Admin_Schedule_Soft_Delete_Filter.md`; CI `34343102871` passed build, TypeScript, and Vitest. Exact-commit Vercel Production status was deployment-rate-limited and no matching Production deployment was confirmed.
 
 ### P129 — Super Admin Billing Soft-Delete Update Guard
 `IMPLEMENTED — PRODUCTION VERIFICATION BLOCKED`.
-`TenantBillingAdminPage` already excluded deleted tenants during reads, but `updateTier()` and `activateTenant()` previously updated `master_tenants` by `id` only. P129 adds `.is('deleted_at', null)` to both update predicates. Production confirms `master_tenants.deleted_at` exists. Implementation `4264b21addfeb52a6e5f6cb5dbdc1a70c491454c`; evidence `docs/P129_Super_Admin_Billing_Soft_Delete_Update_Guard.md`; CI `34343447815` passed build, TypeScript, and Vitest. Exact-commit Vercel Production status is `Deployment rate limited — retry in 24 hours`; P129 is not Production-verified.
+`TenantBillingAdminPage` updateTier/activateTenant now add `.is('deleted_at', null)`. Production confirms `master_tenants.deleted_at`. Implementation `4264b21addfeb52a6e5f6cb5dbdc1a70c491454c`; evidence `docs/P129_Super_Admin_Billing_Soft_Delete_Update_Guard.md`; CI `34343447815` passed build, TypeScript, and Vitest. Exact-commit Vercel Production status was deployment-rate-limited and no matching Production deployment was confirmed.
 
 ### P130 — Session Soft-Delete Write Boundary
 `IMPLEMENTED — PRODUCTION RLS VERIFIED; VERCEL APPLICATION VERIFICATION PENDING`.
-The active session mutation path excludes logically deleted `clinic_visit_sessions` with `.is('deleted_at', null)` for status, score, doctor-assignment, and room-assignment writes. Production RLS policy `visit_sessions_update` was recreated so both `USING` and `WITH CHECK` require `deleted_at IS NULL`, while preserving the existing tenant/role/doctor ownership semantics. Production read-back confirmed the resulting policy. Repository migration `supabase/migrations/062_p130_session_soft_delete_write_boundary.sql` and evidence `docs/P130_Session_Soft_Delete_Write_Boundary.md` are present. Implementation commits: `9736ebe8e7d3d8c3f71b89ebbe9c9bee5846ef35` and `7725fdb4166e20bc835e2d2fa8b455b4be6a73b3`; evidence commit `16817f6044bc77dcb7c26e06b85974b8ded4d467`. CI `34344325384` passed build, TypeScript, and Vitest. P130 source is included in the later READY P131 Production deployment lineage, but exact-commit Production application verification remains unrecorded.
+The active session mutation path excludes logically deleted `clinic_visit_sessions` with `.is('deleted_at', null)` for status, score, doctor-assignment, and room-assignment writes. Production RLS policy `visit_sessions_update` requires `deleted_at IS NULL` in both `USING` and `WITH CHECK`, while preserving the existing tenant/role/doctor ownership semantics. Production read-back confirmed the resulting policy. Repository migration `supabase/migrations/062_p130_session_soft_delete_write_boundary.sql` and evidence `docs/P130_Session_Soft_Delete_Write_Boundary.md` are present. Implementation commits `9736ebe8e7d3d8c3f71b89ebbe9c9bee5846ef35` and `7725fdb4166e20bc835e2d2fa8b455b4be6a73b3`; evidence commit `16817f6044bc77dcb7c26e06b85974b8ded4d467`; CI `34344325384` passed build, TypeScript, and Vitest.
 
 ### P131 — DecisionCard Session Soft-Delete Write Guard
 `CLOSED — CONFIRMED`.
-The active protected Doctor `DecisionCard.tsx` contained a direct `clinic_visit_sessions` UPDATE in `handleSave()` scoped by session id and tenant id but without `deleted_at IS NULL`. P131 added the existing soft-delete predicate to that exact write path, aligning it with the Production `visit_sessions_update` boundary established by P130. No permission, routing, scoring formula, PAR values, Auth, RPC, schema, or unrelated Doctor behavior was changed. Implementation commit `9398650f983317e723b36fa2cf8822fe4a1416b7`; evidence `docs/P131_DecisionCard_Session_Soft_Delete_Write_Guard.md`; CI `34345270756` and `34345292453` passed. Vercel Production deployment `dpl_D3wHKcvAZZZiLBo1vsbigSwr1beg` is `READY` for exact commit `9398650f983317e723b36fa2cf8822fe4a1416b7`, and Production runtime errors for the project show none in the selected verification window.
+The active protected Doctor `DecisionCard.tsx` session update now has the existing soft-delete predicate. Implementation `9398650f983317e723b36fa2cf8822fe4a1416b7`; CI `34345270756` and `34345292453` passed. Vercel Production `dpl_D3wHKcvAZZZiLBo1vsbigSwr1beg` is `READY` for exact commit `9398650f983317e723b36fa2cf8822fe4a1416b7`; checked Production runtime errors were none.
 
 ### P132 — DoctorSessionView Clinical Notes Soft-Delete Write Guard
 `IMPLEMENTED — CI VERIFIED; VERCEL VERIFICATION PENDING`.
-The active Doctor `DoctorSessionView.tsx` had a direct `clinic_visit_sessions` UPDATE in `persistNotes()` scoped by session id and tenant id but without `deleted_at IS NULL`. P132 adds the existing soft-delete predicate to that exact clinical-notes write path, aligning it with the Production `visit_sessions_update` boundary established by P130. No clinical-note structure, permission, routing, Auth, RLS, RPC, schema, scoring, AllergyGate, CloseSession, or archive behavior was changed. Implementation commit `97a0480636f807932928eaac4cb0051cf6cc332f`; evidence `docs/P132_DoctorSessionView_Soft_Delete_Write_Guard.md`; final Roadmap CI lineage reached successful Build + TypeScript + Vitest. Exact-commit Vercel Production verification is pending.
+The active Doctor `DoctorSessionView.tsx` clinical-notes update now includes `.is('deleted_at', null)`, aligning it with the P130 Production session write boundary. Implementation `97a0480636f807932928eaac4cb0051cf6cc332f`; CI passed on the cumulative lineage. Exact-commit Vercel Production verification remains unconfirmed.
 
 ### P133 — CloseSession Soft-Delete Write Guard
 `IMPLEMENTED — CI VERIFIED; VERCEL VERIFICATION PENDING`.
-The active Doctor `CloseSession.tsx` directly updated `clinic_visit_sessions` to complete a session using session id and tenant id, with doctor ownership additionally applied for doctors, but without `deleted_at IS NULL`. P133 adds the existing soft-delete predicate to that exact close-session write path, aligning it with the Production `visit_sessions_update` boundary already verified in P130. No session lifecycle semantics, permission matrix, routing, Auth, RLS policy, schema, RPC, or archive behavior was changed. Implementation commit `27dd34c10bab7738afb78897351ca463e7ca0fd8`; evidence `docs/P133_CloseSession_Soft_Delete_Write_Guard.md`; final Roadmap CI lineage reached successful Build + TypeScript + Vitest. Exact-commit Vercel Production verification is pending.
+The active Doctor `CloseSession.tsx` completion update now includes `.is('deleted_at', null)`, aligning it with the P130 Production session write boundary. Implementation `27dd34c10bab7738afb78897351ca463e7ca0fd8`; evidence `docs/P133_CloseSession_Soft_Delete_Write_Guard.md`; CI `34345686221` and `34345809380` passed. Exact-commit Vercel Production verification remains unconfirmed.
+
+### P134 — Breach Severity Contract Reconciliation
+`CLOSED — CONFIRMED`.
+Active `BreachLogPage.tsx` previously exposed unsupported severity filter values `high`, `medium`, and `low`, while the canonical Production/Blueprint contract permits only `critical`, `warning`, and `info`. The active UI was reconciled to that contract with Arabic labels `حرج`, `تحذير`, and `معلومة`; no schema, migration, RLS, RPC, Auth, or business-rule change was introduced. The existing `view_audit` permission guard and `deleted_at IS NULL` read boundary were preserved. Implementation `b8de47e6e98b5b49341b557b78062cd589c69ab8`; evidence `docs/P134_Breach_Severity_Contract_Reconciliation.md`; CI `34346584194` passed Build, TypeScript, and Vitest. Vercel Production `dpl_5mCycjzc3nMbnkyZfH8ZdQmdJ3ZT` is `READY` for exact implementation commit `b8de47e6e98b5b49341b557b78062cd589c69ab8`; checked Production runtime logs contained no error/fatal/warning entries. P134 supersedes the stale P121 severity mapping.
+
+### P135 — Analytics Snapshot Patient Soft-Delete Boundary
+`CLOSED — CONFIRMED`.
+The existing `public.compute_daily_snapshot(uuid,date)` SECURITY DEFINER RPC filtered logically deleted sessions and invoices but joined `clinic_patients` without `deleted_at IS NULL`, contrary to the established soft-delete contract. P135 added only `AND p.deleted_at IS NULL` to the existing patient join. No schema change, RPC signature change, output-key change, scoring formula, financial calculation, RLS, Auth, or business-rule change was introduced. Production migration `p135_analytics_snapshot_patient_soft_delete_boundary` applied successfully, and Production `pg_get_functiondef` read-back confirmed the deployed patient guard. Production had zero active sessions joined to soft-deleted patients at verification time. Repository migration `supabase/migrations/067_p135_analytics_snapshot_patient_soft_delete_boundary.sql`; evidence `docs/P135_Analytics_Snapshot_Patient_Soft_Delete_Boundary.md`; CI `34347279966` passed Build, TypeScript, and Vitest. P135 is Production-verified at the database layer; Vercel exact-commit application verification is not required for this DB-only function-body change.
+
+### P136 — Analytics Snapshot Inquiry Soft-Delete Boundary
+`CLOSED — CONFIRMED`.
+The existing `public.compute_daily_snapshot(uuid,date)` inquiry metrics query filtered `tenant_id` and `created_at` but did not honor the existing `clinic_inquiries.deleted_at` soft-delete column, so logically deleted inquiries could affect `total_inquiries`, `converted_inquiries`, and the derived conversion rate. Production schema confirmed `clinic_inquiries.deleted_at`; no soft-deleted inquiries were found in the last 30 days, so no current KPI corruption was identified. P136 added only `AND deleted_at IS NULL` to `inquiry_metrics`. Signature, return type, output keys, financial subunits, scoring aggregation, and security/search-path attributes remain unchanged. Production migration `p136_analytics_snapshot_inquiry_soft_delete_boundary` applied successfully; `pg_get_functiondef` read-back confirms both the P135 patient guard and P136 inquiry guard are deployed. Repository migration `supabase/migrations/068_p136_analytics_snapshot_inquiry_soft_delete_boundary.sql`; evidence `docs/P136_Analytics_Snapshot_Inquiry_Soft_Delete_Boundary.md`; CI run `34347459200` passed Build, TypeScript, and Vitest. P136 is Production-verified at the database layer; no frontend/source runtime change was introduced, so exact-commit Vercel verification is not required for the repair itself.
 
 ## Evidence-blocked / non-speculative findings carried forward
 - `tenant_health_scores` exists in the Blueprint and Production, but Production currently has no active rows and its current policy is tenant-isolated. No Super Admin cross-tenant health-score contract has been evidenced, so no calculation engine or RLS/RPC path was invented.
@@ -241,20 +253,11 @@ The active Doctor `CloseSession.tsx` directly updated `clinic_visit_sessions` to
 - `TenantDetailPanel` exposes `license_key`, but no Blueprint/Constitution requirement for masking was evidenced, so no speculative masking was introduced.
 
 ## Current verification boundary
-- GitHub main is now at roadmap commit for the P131/P132/P133 reconciliation and the preceding P133 Roadmap CI run `34345686221` succeeded on build, TypeScript, and Vitest.
 - P131 is fully Production-verified on exact implementation commit via Vercel `dpl_D3wHKcvAZZZiLBo1vsbigSwr1beg` (`READY`).
 - P130 Production database verification remains confirmed: Supabase production policy `visit_sessions_update` contains `deleted_at IS NULL` in both `USING` and `WITH CHECK`.
-- P132 and P133 are implementation + CI verified; their exact-commit Vercel Production deployments remain unconfirmed due the deployment-rate-limit boundary on the later commits.
-- P127–P129 remain implementation-verified with CI success and exact-commit Vercel Production verification blocked.
+- P132 and P133 are implementation + CI verified; exact-commit Vercel Production deployments remain unconfirmed.
+- P127–P129 remain implementation-verified with CI success; exact-commit Vercel Production deployments remain unconfirmed due earlier rate limiting.
 - P125 and P126 remain fully Production-verified and closed.
+- P134, P135, and P136 are closed with implementation + verification evidence recorded above.
 - No speculative health-score calculation, timezone business rule, new Arabic label, or archive change was introduced.
-- The next repair stage remains evidence-driven review of the next active screen/data contract; speculative changes are not authorized.
-
-### P134 — Breach Severity Contract Reconciliation
-`CLOSED — CONFIRMED`.
-Active `BreachLogPage.tsx` previously exposed unsupported severity filter values `high`, `medium`, and `low`, while the canonical Production/Blueprint contract permits only `critical`, `warning`, and `info`. The active UI was reconciled to the existing database contract with Arabic labels `حرج`, `تحذير`, and `معلومة`; no schema, migration, RLS, RPC, Auth, or business-rule change was introduced. The existing `view_audit` permission guard and `deleted_at IS NULL` read boundary were preserved. Implementation commit `b8de47e6e98b5b49341b557b78062cd589c69ab8`; evidence/reconciliation commit `6fcffb4f0d074746b001f9b2412cfe8db3065099`; CI `34346584194` passed Build, TypeScript, and Vitest on the cumulative implementation lineage. Vercel Production deployment `dpl_5mCycjzc3nMbnkyZfH8ZdQmdJ3ZT` is `READY` for exact implementation commit `b8de47e6e98b5b49341b557b78062cd589c69ab8`; checked Production runtime logs contained no error/fatal/warning entries. P134 supersedes the unsupported `high/medium/low` severity values previously recorded under P121; the database/Blueprint contract remains authoritative.
-
-## Roadmap update status
-- P134 is fully implementation, CI, and Production runtime verified.
-- This roadmap entry is recorded without altering any DB/RLS/Auth/RPC contract.
-- The next stage remains evidence-driven inspection of the next active screen/data contract.
+- Next work remains evidence-driven review of active production code/data contracts only.
