@@ -222,23 +222,27 @@ The active session mutation path now excludes logically deleted `clinic_visit_se
 `IMPLEMENTED — CI VERIFIED; VERCEL VERIFICATION PENDING`.
 The active protected Doctor `DecisionCard.tsx` contained a direct `clinic_visit_sessions` UPDATE in `handleSave()` scoped by session id and tenant id but without `deleted_at IS NULL`. P131 adds the existing soft-delete predicate to that exact write path, aligning it with the Production `visit_sessions_update` boundary already established by P130. No permission, routing, scoring formula, PAR values, Auth, RPC, schema, or unrelated Doctor behavior was changed. Implementation commit `9398650f983317e723b36fa2cf8822fe4a1416b7`; evidence `docs/P131_DecisionCard_Session_Soft_Delete_Write_Guard.md`; CI `34345270756` passed build, TypeScript, and Vitest. Exact-commit Vercel status remains blocked by the current `build-rate-limit`; no matching Production deployment is confirmed.
 
+### P132 — DoctorSessionView Clinical Notes Soft-Delete Write Guard
+`IMPLEMENTED — CI PENDING; VERCEL VERIFICATION PENDING`.
+The active Doctor `DoctorSessionView.tsx` had a direct `clinic_visit_sessions` UPDATE in `persistNotes()` scoped by session id and tenant id but without `deleted_at IS NULL`. P132 adds the existing soft-delete predicate to that exact clinical-notes write path, aligning it with the Production `visit_sessions_update` boundary established by P130. No clinical-note structure, permission, routing, Auth, RLS, RPC, schema, scoring, AllergyGate, CloseSession, or archive behavior was changed. Implementation commit `97a0480636f807932928eaac4cb0051cf6cc332f`; evidence `docs/P132_DoctorSessionView_Soft_Delete_Write_Guard.md`. The CI run triggered by the implementation/evidence lineage is pending on the final Roadmap commit; exact-commit Vercel Production verification is also pending.
+
 ## Evidence-blocked / non-speculative findings carried forward
 - `tenant_health_scores` exists in the Blueprint and Production, but Production currently has no active rows and its current policy is tenant-isolated. No Super Admin cross-tenant health-score contract has been evidenced, so no calculation engine or RLS/RPC path was invented.
 - `AnalyticsOverview` `Hot Leads` remains English because no established Arabic mapping was found in the active contract.
 - No timezone/day-boundary reinterpretation was applied to `AdminSchedulePage`; current evidence confirms `TIMESTAMPTZ` storage but does not establish the required tenant-local business rule.
 - Audit `action` and `table_name` values remain raw because no established Arabic mapping was evidenced.
 - `AdminPatientsPage.patient_status` is backed by `active`, `inactive`, `vip`, `blocked`, `transferred`, but no active Arabic mapping was evidenced.
-- `DecisionCard.tsx` still contains older direct patient/profile reads without explicit `deleted_at` filters, but the active session write in `handleSave()` is now aligned with the P130 soft-delete boundary. No further Doctor read-path change was made without separate evidence.
+- `DecisionCard.tsx` still contains older direct patient/profile reads without explicit `deleted_at` filters, but its active session write in `handleSave()` is now aligned with the P130 soft-delete boundary. P131 did not alter those read paths without separate evidence.
 - Reception PIN-only data access remains mediated by the existing SECURITY DEFINER RPC contract; no direct browser table access was introduced.
 - `TenantDetailPanel` exposes `license_key`, but no Blueprint/Constitution requirement for masking was evidenced, so no speculative masking was introduced.
 
 ## Current verification boundary
-- CI-verified source reaches P131: GitHub Actions Build Test `34345292453` is `SUCCESS` on the evidence commit after the P131 implementation commit `9398650f983317e723b36fa2cf8822fe4a1416b7`.
-- Production database verification reaches P130: Supabase production policy `visit_sessions_update` contains `deleted_at IS NULL` in both `USING` and `WITH CHECK`.
-- Production-verified application deployment remains P126 for the exact application commit lineage; P127–P131 do not yet have exact-commit Vercel Production verification.
+- GitHub main now reaches roadmap commit `P132` with the direct Doctor session write guard implemented and documented.
+- P131 implementation/evidence commit `b22b59dd4c2b748bc4cb30b4e5b815fdb038dbad` had successful Build Test `34345292453`; P131 source implementation commit `9398650f983317e723b36fa2cf8822fe4a1416b7` also had successful Build Test `34345270756`.
+- P130 Production database verification remains confirmed: Supabase production policy `visit_sessions_update` contains `deleted_at IS NULL` in both `USING` and `WITH CHECK`.
+- P132 requires a successful Build Test on the final Roadmap commit before closure; exact-commit Vercel Production verification remains separately pending.
+- Production-verified application deployment remains P126 for the exact application commit lineage; P127–P132 do not yet have exact-commit Vercel Production verification.
 - P125 and P126 are fully Production-verified and closed.
-- P127–P129 are implementation-verified with CI success; P130 additionally has Production RLS verification; P131 is CI-verified and aligned to the same Production session boundary, but neither P130 nor P131 has exact-commit Vercel application verification.
-- P130 changes the existing session RLS contract only to exclude logically deleted rows; tenant/role/doctor ownership semantics are preserved.
-- P131 changes only the active `DecisionCard` session write predicate; the existing `edit_sessions` permission and all other Doctor behavior remain unchanged.
+- P127–P129 are implementation-verified with CI success; P130 has CI + Production RLS verification; P131 has implementation CI success; P132 is implemented and awaiting final Roadmap CI verification.
 - No speculative health-score calculation, timezone business rule, new Arabic label, or archive change was introduced.
 - The next repair stage remains evidence-driven review of the next active screen/data contract; speculative changes are not authorized.
