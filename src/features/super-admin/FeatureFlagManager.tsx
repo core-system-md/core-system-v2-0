@@ -233,7 +233,7 @@ export default function FeatureFlagManager() {
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
+            <tr className="border-b border-gray-200 bg-muted">
               <th className="text-right text-gray-600 text-sm font-medium p-4">الميزة</th>
               <th className="text-right text-gray-600 text-sm font-medium p-4">الحالة</th>
               <th className="text-right text-gray-600 text-sm font-medium p-4">الخطط المسموحة</th>
@@ -249,7 +249,7 @@ export default function FeatureFlagManager() {
               </tr>
             ) : (
               filteredFlags.map(flag => (
-                <tr key={flag.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <tr key={flag.id} className="border-b border-gray-100 hover:bg-muted transition-colors">
                   <td className="p-4">
                     <div>
                       <p className="text-gray-900 font-medium">{flag.flag_name}</p>
@@ -301,7 +301,7 @@ export default function FeatureFlagManager() {
         </table>
       </div>
 
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+      <div className="mt-6 p-4 bg-muted rounded-lg border border-gray-200">
         <h3 className="text-gray-700 font-medium mb-2">الميزات المتاحة للإضافة:</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {PRESET_FLAGS.map(preset => (
