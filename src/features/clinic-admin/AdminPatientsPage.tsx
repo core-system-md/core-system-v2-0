@@ -3,6 +3,7 @@ import { Search, Users } from 'lucide-react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuthStore } from '@/shared/store/authStore';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { subunitsToDisplay } from '@/shared/utils/currency';
 
 type PatientRow = {
   id: string;
@@ -137,7 +138,7 @@ export default function AdminPatientsPage() {
                   <td className="px-4 py-3 text-slate-600">{patient.patient_status || '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{profile?.total_visits ?? 0}</td>
                   <td className="px-4 py-3 text-slate-600">{profile?.total_completed_visits ?? 0}</td>
-                  <td className="px-4 py-3 text-slate-600">{profile?.total_revenue_subunits ?? 0}</td>
+                  <td className="px-4 py-3 text-slate-600">{subunitsToDisplay(profile?.total_revenue_subunits ?? 0)}</td>
                   <td className="px-4 py-3 font-semibold text-slate-800">{patient.core_score_display ?? '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{profile?.last_visit_date || '—'}</td>
                 </tr>
