@@ -40,7 +40,7 @@ Production evidence showed `clinic_patients.rls_patients_isolation` previously u
 
 ### P86 — Staff Identity & Session Write Boundaries
 `CLOSED — CONFIRMED`.
-Production evidence confirmed `clinic_users` previously exposed a tenant-only `FOR ALL` policy with no role-change protection and `clinic_visit_sessions` UPDATE did not constrain doctors to their own sessions or exclude completed sessions. Production migration `20260908204532 / p86_staff_write_boundaries` replaced the staff `FOR ALL` policy with tenant-scoped SELECT, admin-only INSERT/UPDATE, and DELETE denial; added the `BEFORE UPDATE` identity-protection trigger; and replaced session UPDATE authorization with current-tenant plus `(clinic_admin|super_admin|receptionist)` or `(doctor AND doctor_id = auth.uid() AND session_status <> 'completed')`. Production read-back confirmed the resulting policies and trigger. Repository migration `supabase/migrations/056_p86_staff_session_write_boundaries.sql` is present. Vercel Production deployment for commit `9f7366a21d8ee37f053dde6639e766d21f5ef284` was READY. The active reception PIN flow remains mediated by the existing verified RPC contract.
+Production evidence confirmed `clinic_users` previously exposed a tenant-only `FOR ALL` policy with no role-change protection and `clinic_visit_sessions` UPDATE did not constrain doctors to their own sessions or exclude completed sessions. Production migration `20260908204532 / p86_staff_session_write_boundaries` replaced the staff `FOR ALL` policy with tenant-scoped SELECT, admin-only INSERT/UPDATE, and DELETE denial; added the `BEFORE UPDATE` identity-protection trigger; and replaced session UPDATE authorization with current-tenant plus `(clinic_admin|super_admin|receptionist)` or `(doctor AND doctor_id = auth.uid() AND session_status <> 'completed')`. Production read-back confirmed the resulting policies and trigger. Repository migration `supabase/migrations/056_p86_staff_session_write_boundaries.sql` is present. Vercel Production deployment for commit `9f7366a21d8ee37f053dde6639e766d21f5ef284` was READY. The active reception PIN flow remains mediated by the existing verified RPC contract.
 
 ### P87 — Hard-Delete Governance Boundary
 `CLOSED — CONFIRMED`.
@@ -72,7 +72,7 @@ The active Super Admin `FeatureFlagManager` now excludes `deleted_at IS NOT NULL
 
 ### P94 — Feature Flag Consumer Soft-Delete Integrity
 `CLOSED — CONFIRMED`.
-The active `useFeatureFlag`/`useFeatureFlags` hooks and `featureFlagStore.fetchFlags` now exclude soft-deleted `feature_flags` rows before applying the existing tenant-specific-over-global precedence and tier validation. Production contains active and soft-deleted rows for the same global keys, so the filter is evidence-backed operational behavior. Implementation commits: `64642af7479def3ddac386461fcea0a770b638` and `3701ec14473e829dafff8311795e9ae1d6537d54`. Vercel Production deployment for the final store commit is `READY`; build error-only logs show no build failure, only the existing `esbuild@0.25.12` warning, and Production error/fatal runtime logs returned no entries for the deployment. No schema, migration, RPC, RLS, Auth, permission, scoring, or financial-unit contract changed.
+The active `useFeatureFlag`/`useFeatureFlags` hooks and `featureFlagStore.fetchFlags` now exclude soft-deleted `feature_flags` rows before applying the existing tenant-specific-over-global precedence and tier validation. Production contains active and soft-deleted rows for the same global keys, so the filter is evidence-backed operational behavior. Implementation commits: `64642af7479def3ddacda386461fcea0a770b638` and `3701ec14473e829dafff8311795e9ae1d6537d54`. Vercel Production deployment for the final store commit is `READY`; build error-only logs show no build failure, only the existing `esbuild@0.25.12` warning, and Production error/fatal runtime logs returned no entries for the deployment. No schema, migration, RPC, RLS, Auth, permission, scoring, or financial-unit contract changed.
 
 ### P95 — Revenue Chart Theme Token Integrity
 `CLOSED — CONFIRMED`.
@@ -189,7 +189,7 @@ Production `audit_trail` has the authoritative existing audit contract and its e
 
 ### P71 — BreachLog
 `CLOSED — CONFIRMED`.
-Production `system_delivery_breaches` has the authoritative breach contract and existing RLS isolation. Active filtered viewer was added at `/admin/breaches` using existing breach fields and `view_audit`; no new security semantics or RLS changes were introduced. GitHub Actions Build Test run `34211206918` passed install/build/tsc/tests. Vercel Production deployment for the active changes is `READY`.
+Production `system_delivery_breaches` has the authoritative breach contract and existing RLS isolation. Active filtered viewer was added at `/admin/breaches` using only existing breach fields and `view_audit`; no new security semantics or RLS changes were introduced. GitHub Actions Build Test run `34211206918` passed install/build/tsc/tests. Vercel Production deployment for the active changes is `READY`.
 
 ### P72 — GlobalHealthScores
 `BLOCKED — INSUFFICIENT EVIDENCE`.
