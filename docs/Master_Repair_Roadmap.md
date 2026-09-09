@@ -78,6 +78,10 @@ The active `useFeatureFlag`/`useFeatureFlags` hooks and `featureFlagStore.fetchF
 `CLOSED — CONFIRMED`.
 The active `RevenueCards` SVG chart previously hard-coded the primary color `#1B2A4A` and gray guide colors. Those semantic presentation values now use the existing CSS tokens `--primary`, `--border`, and `--muted-foreground`; revenue calculations, integer subunit handling, tenant/date/status filters, and financial contracts are unchanged. The canonical active stylesheet defines `--primary: 219 54% 20%` with the established dark-mode override. Implementation commit: `80cf3942ff2cad4abc295da63f5eb6bffc9b9edc`. Vercel Production deployment `dpl_3fteqTR8TgEaNaGBFJ8v6mvcgvWs` is `READY`. Build and deployment logs showed no build failure; the existing `esbuild@0.25.12` install-script warning remains the only error-only log item observed. P95 is therefore fully verified and closed.
 
+### P96 — Super Admin Theme Token Alignment
+`CLOSED — CONFIRMED`.
+Three active Super Admin surfaces were aligned with the existing canonical `primary` token without changing data access, business logic, schema, RPC, RLS, Auth, permissions, scoring, or financial contracts: `TenantRegistry`, `TenantDetailPanel`, and `CoreRulesConfigManager`. Their previously hard-coded `#1B2A4A` presentation values were replaced with the existing semantic Tailwind/theme token forms (`text-primary`, `bg-primary`, `border-primary`, `hover:bg-primary/90`, and tokenized focus styles). Protected Doctor files, Archive files, and functional fallback literals were intentionally not changed. Implementation commits: `478d7fdb51b919999c8dbf8c1faa57df5f94b4e0`, `280b906519d445a4012adf4f8b0219a1f3d2e91e`, and `e9c20a3d6e4b23a991b917d560497c15476fc2f5`. Vercel Production deployments for all three source commits are `READY`; the final deployment is `dpl_6GLtytuXQUfUs4b5ZSyycu7Pc46c`. Its combined GitHub status is `success`, and the build error-only log contains no build failure; only the existing `esbuild@0.25.12` install-script warning and the standard chunk-size warning were observed. No Production runtime errors/fatals were found in the checked 24-hour window. P96 is fully verified and closed.
+
 ## Current repair status
 ### P62 — CoreScoreWidget Integration
 `CLOSED — CONFIRMED`.
@@ -199,3 +203,6 @@ The repair program is complete when active code and DB contracts align with Cons
 
 ## P94 verification record
 P94 was closed after source verification, Production feature-flag data read-back, and Vercel Production readiness verification. The final implementation preserves tenant-specific-over-global precedence and tier validation while excluding all soft-deleted rows from operational consumers.
+
+## P96 verification record
+P96 was closed after direct source implementation, sequential Production deployment verification for all three affected Super Admin files, final Vercel deployment readiness for commit `e9c20a3d6e4b23a991b917d560497c15476fc2f5`, successful combined Vercel GitHub status, and build-log inspection showing no build failure. Production runtime error/fatal verification for the checked 24-hour window returned no entries. The remaining `esbuild@0.25.12` install-script warning and standard chunk-size warning are non-blocking and were not concealed.
