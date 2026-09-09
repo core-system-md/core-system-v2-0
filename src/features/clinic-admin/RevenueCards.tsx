@@ -120,7 +120,7 @@ export default function RevenueCards() {
                 y1={chartHeight - ratio * chartHeight + 20}
                 x2={totalWidth + 30}
                 y2={chartHeight - ratio * chartHeight + 20}
-                stroke="#e5e7eb"
+                stroke="hsl(var(--border))"
                 strokeDasharray="3,3"
               />
               <text
@@ -128,7 +128,7 @@ export default function RevenueCards() {
                 y={chartHeight - ratio * chartHeight + 25}
                 textAnchor="end"
                 fontSize="10"
-                fill="#9ca3af"
+                fill="hsl(var(--muted-foreground))"
               >
                 {subunitsToDisplay(Math.round(maxRevenue * ratio))}
               </text>
@@ -147,7 +147,7 @@ export default function RevenueCards() {
                   y={y}
                   width={barWidth}
                   height={barHeight}
-                  fill="#1B2A4A"
+                  fill="hsl(var(--primary))"
                   rx="4"
                 >
                   <title>{d.date}: {subunitsToDisplay(d.revenue)}</title>
@@ -157,7 +157,7 @@ export default function RevenueCards() {
                   y={chartHeight + 40}
                   textAnchor="middle"
                   fontSize="10"
-                  fill="#6b7280"
+                  fill="hsl(var(--muted-foreground))"
                 >
                   {d.date}
                 </text>
