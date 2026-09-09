@@ -86,6 +86,10 @@ Three active Super Admin surfaces were aligned with the existing canonical `prim
 `CLOSED — CONFIRMED`.
 Supabase Performance Advisor identified two active `clinic_visit_sessions` policies, `rls_sessions_select` and `visit_sessions_update`, for row-by-row re-evaluation of tenant/role/auth lookups. The policies were recreated with scalar `SELECT` wrappers around `get_current_tenant_id()`, `get_current_user_role()`, and `auth.uid()` so the existing authorization predicates remain unchanged while enabling statement-level evaluation optimization. Production read-back confirmed both policies and the migration `p97_session_rls_initplan_optimization` (`20260909074808`) is present. The Performance Advisor no longer reports the `auth_rls_initplan` finding; only the pre-existing unused-index advisories remain. Repository migration: `supabase/migrations/060_p97_session_rls_initplan_optimization.sql`. Vercel Production deployment for commit `8c93dc5774a03f64481ff9ca5636b9f7379c7a1f` is `READY`, and its Production runtime error/fatal check returned no entries. No schema, RPC signature, Auth, scoring, financial-unit, or business access semantics were changed.
 
+### P98 — Tenant-Aware PIN Pad Theme Alignment
+`CLOSED — CONFIRMED`.
+The active `AmbientKioskView` already consumes the tenant `primaryColor`, while `PinPad` previously rendered a fixed `#1B2A4A → #243656` gradient and therefore ignored the tenant-specific primary color already available in `tenantStore`. `PinPad` now reads the existing `primaryColor` state and applies it to its background, preserving the current fallback `#1B2A4A`. PIN validation, lockout behavior, allowed-role checks, RPC contracts, and navigation behavior were unchanged. Implementation commit: `094c4e3dc469e89fbbae6b9bdae86dbe76c88d0b`. Vercel Production deployment `dpl_CzXxxuWCupdiYhYUER4DHVVD6M4M` is `READY`; the build completed `1971 modules transformed` with no build failure, and the only observed warning was the existing `esbuild@0.25.12` install-script allow-list warning. Production runtime-error verification returned no errors in the selected window.
+
 ## Current repair status
 ### P62 — CoreScoreWidget Integration
 `CLOSED — CONFIRMED`.
@@ -213,3 +217,6 @@ P96 was closed after direct source implementation, sequential Production deploym
 
 ## P97 verification record
 P97 was closed after Production policy replacement, direct `pg_policies` read-back, Supabase Performance Advisor re-check, repository migration synchronization, Vercel Production readiness for commit `8c93dc5774a03f64481ff9ca5636b9f7379c7a1f`, and a deployment-scoped Production runtime error/fatal check with no entries. The `auth_rls_initplan` advisory finding for `clinic_visit_sessions` was cleared while authorization semantics remained unchanged.
+
+## P98 verification record
+P98 was closed after direct active-source verification, tenant-aware `PinPad` implementation, Vercel Production deployment readiness for commit `094c4e3dc469e89fbbae6b9bdae86dbe76c88d0b`, build-log verification with 1971 transformed modules and no build failure, and Production runtime-error verification with no errors in the selected window. No authentication, RPC, RLS, permission, scoring, financial-unit, schema, or navigation contract was changed.
