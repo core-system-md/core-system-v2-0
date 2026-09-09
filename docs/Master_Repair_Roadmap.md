@@ -246,6 +246,14 @@ The existing `public.compute_daily_snapshot(uuid,date)` inquiry metrics query fi
 `CLOSED — CONFIRMED`.
 The active `src/core/offline/SyncEngine.ts` previously executed a physical Supabase `.delete()` whenever a queued offline mutation used `operation === 'delete'`, contradicting the Constitution's mandatory soft-delete rule. Production schema inspection confirmed the current public tables carrying `deleted_at`. P137 replaces the active hard-delete branch with a verified soft-delete allowlist: supported tables receive `UPDATE ... deleted_at = NOW()` semantics with an additional `deleted_at IS NULL` guard, while any table without a verified soft-delete contract is rejected explicitly instead of being physically deleted. Create/update synchronization behavior is unchanged. Regression coverage was added in `tests/offline-sync.test.ts` for both supported soft-delete and unsupported-table rejection. CI run `34348263727` passed Build, TypeScript, and Vitest. Vercel Production `dpl_APgpThS5H5qzdXtgNmnLfRy1onQ6` is `READY` for implementation commit `537f3531117fa68bb8c9eb79a5dbf4a6cf67816a`. No schema, RLS, Auth, RPC signature, permission matrix, scoring, financial-subunit, or business-rule contract was changed; archive content remains untouched.
 
+### P138 — Doctor Session Clinical Notes Read Persistence
+`IMPLEMENTED — CI VERIFIED; VERCEL APPLICATION VERIFICATION PENDING`.
+The active Doctor `DoctorSessionView.tsx` read projection now selects the existing `session_metadata` column and reads `row.session_metadata` for persisted clinical notes. The repair restores the existing read contract without changing storage, permissions, schema, RLS, Auth, RPC, scoring, financial, or archive behavior. Implementation commit `5b1adf7645ff2cdf9ce3b09fb45633139cd91933`; evidence `docs/P138_Clinical_Notes_Read_Persistence.md`; CI run `34348932438` passed Build, TypeScript, and Vitest. Vercel Production application verification remains pending because no Production deployment containing the implementation commit has been observed; the latest READY Production deployment is cumulative commit `537f3531117fa68bb8c9eb79a5dbf4a6cf67816a`.
+
+### P139 — License Validator Device Soft-Delete Write Guard
+`CLOSED — CONFIRMED`.
+The active `supabase/functions/license-validator/index.ts` already excluded soft-deleted `tenant_devices` on reads, but its existing-device heartbeat UPDATE was scoped only by `id`. P139 added `.is('deleted_at', null)` to that existing UPDATE, preserving the request/response contract, device-limit rule, tenant validation, authentication flow, schema, and permissions. Implementation commit `4340344beeac700be6e7504403e3d9e7efc1670c`; evidence `docs/P139_License_Validator_Device_Soft_Delete_Write_Guard.md`. GitHub Actions run `34349385347` completed successfully with Build, TypeScript, and Vitest passing. Production Supabase `license-validator` is ACTIVE at version 12, and Production function read-back confirmed the repaired `.eq('id', existingDevice.id).is('deleted_at', null)` predicate. No Vercel deployment was required because the change is in the Supabase Edge Function. No schema, RLS, Auth, RPC, permission-matrix, scoring, financial, or archive contract was changed.
+
 ## Evidence-blocked / non-speculative findings carried forward
 - `tenant_health_scores` exists in the Blueprint and Production, but Production currently has no active rows and its current policy is tenant-isolated. No Super Admin cross-tenant health-score contract has been evidenced, so no calculation engine or RLS/RPC path was invented.
 - `AnalyticsOverview` `Hot Leads` remains English because no established Arabic mapping was found in the active contract.
@@ -262,6 +270,7 @@ The active `src/core/offline/SyncEngine.ts` previously executed a physical Supab
 - P132 and P133 are implementation + CI verified; exact-commit Vercel Production deployments remain unconfirmed.
 - P127–P129 remain implementation-verified with CI success; exact-commit Vercel Production deployments remain unconfirmed due earlier rate limiting.
 - P125 and P126 remain fully Production-verified and closed.
-- P134, P135, P136, and P137 are closed with implementation + verification evidence recorded above.
+- P134, P135, P136, P137, and P139 are closed with implementation + verification evidence recorded above.
+- P138 remains open pending Vercel application verification for commit `5b1adf7645ff2cdf9ce3b09fb45633139cd91933`; the Vercel GitHub status is currently blocked by the platform build-rate limit.
 - No speculative health-score calculation, timezone business rule, new Arabic label, or archive change was introduced.
 - Next work remains evidence-driven review of active production code/data contracts only.
