@@ -18,9 +18,14 @@ type StaffRow = {
   is_active: boolean;
 };
 
-type StaffDraft = Pick<StaffRow, 'full_name_ar' | 'phone' | 'specialization' | 'role' | 'is_active'> & {
-  full_name: string;
-};
+type StaffDraft = Pick<StaffRow, 'full_name_ar' | 'phone' | 'specialization' | 'role' | 'is_active'> & { full_name: string };
+
+type UpdateRoleRpc = (
+  functionName: 'update_clinic_user_role',
+  args: { p_user_id: string; p_role: StaffRole },
+) => Promise<{ data: null; error: { message: string } | null }>;
+
+const updateRoleRpc = supabase.rpc as unknown as UpdateRoleRpc;
 
 const roles: Array<{ value: StaffRole; label: string }> = [
   { value: 'clinic_admin', label: 'مدير العيادة' },
@@ -43,202 +48,81 @@ export default function StaffManagement() {
 
   const editableRoles = useMemo(
     () => currentUserRole === 'super_admin' ? roles : roles.filter((role) => role.value !== 'super_admin'),
-    [currentUserRole]
+    [currentUserRole],
   );
 
   async function loadStaff() {
     if (!tenantId) return;
-    setLoading(true);
-    setError(null);
-
+    setLoading(true); setError(null);
     const { data, error: queryError } = await supabase
       .from('clinic_users')
       .select('id, full_name, full_name_ar, email, employee_code, phone, specialization, role, is_active')
       .eq('tenant_id', tenantId)
       .is('deleted_at', null)
       .order('full_name', { ascending: true });
-
-    if (queryError) {
-      setError(queryError.message);
-      setStaff([]);
-    } else {
-      setStaff((data ?? []) as StaffRow[]);
-    }
+    if (queryError) { setError(queryError.message); setStaff([]); } else setStaff((data ?? []) as StaffRow[]);
     setLoading(false);
   }
 
-  useEffect(() => {
-    void loadStaff();
-  }, [tenantId]);
+  useEffect(() => { void loadStaff(); }, [tenantId]);
 
   function startEdit(member: StaffRow) {
     setEditingId(member.id);
-    setDraft({
-      full_name: member.full_name ?? '',
-      full_name_ar: member.full_name_ar,
-      phone: member.phone,
-      specialization: member.specialization,
-      role: member.role,
-      is_active: member.is_active,
-    });
-    setError(null);
-    setNotice(null);
+    setDraft({ full_name: member.full_name ?? '', full_name_ar: member.full_name_ar, phone: member.phone, specialization: member.specialization, role: member.role, is_active: member.is_active });
+    setError(null); setNotice(null);
   }
 
-  function cancelEdit() {
-    setEditingId(null);
-    setDraft(null);
-  }
+  function cancelEdit() { setEditingId(null); setDraft(null); }
 
   async function saveEdit() {
     if (!editingId || !tenantId || !draft) return;
-    setSaving(true);
-    setError(null);
-    setNotice(null);
-
+    setSaving(true); setError(null); setNotice(null);
     const existingMember = staff.find((member) => member.id === editingId);
-    if (!existingMember) {
-      setError('لم يتم العثور على الموظف المحدد.');
-      setSaving(false);
-      return;
-    }
+    if (!existingMember) { setError('لم يتم العثور على الموظف المحدد.'); setSaving(false); return; }
 
-    const roleChanged = draft.role !== existingMember.role;
-
-    if (roleChanged) {
-      const { error: roleError } = await supabase.rpc('update_clinic_user_role', {
-        p_user_id: editingId,
-        p_role: draft.role,
-      });
-
-      if (roleError) {
-        setError(roleError.message);
-        setSaving(false);
-        return;
-      }
+    if (draft.role !== existingMember.role) {
+      const { error: roleError } = await updateRoleRpc('update_clinic_user_role', { p_user_id: editingId, p_role: draft.role });
+      if (roleError) { setError(roleError.message); setSaving(false); return; }
     }
 
     const { error: updateError } = await supabase
       .from('clinic_users')
-      .update({
-        full_name: draft.full_name,
-        full_name_ar: draft.full_name_ar,
-        phone: draft.phone,
-        specialization: draft.specialization,
-        is_active: draft.is_active,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ full_name: draft.full_name, full_name_ar: draft.full_name_ar, phone: draft.phone, specialization: draft.specialization, is_active: draft.is_active, updated_at: new Date().toISOString() })
       .eq('id', editingId)
       .eq('tenant_id', tenantId)
       .is('deleted_at', null);
 
-    if (updateError) {
-      setError(updateError.message);
-    } else {
-      setNotice('تم حفظ بيانات الموظف.');
-      cancelEdit();
-      await loadStaff();
-    }
+    if (updateError) setError(updateError.message);
+    else { setNotice('تم حفظ بيانات الموظف.'); cancelEdit(); await loadStaff(); }
     setSaving(false);
   }
 
   return (
     <PermissionGuard required="edit_staff">
       <section className="space-y-4" dir="rtl">
-        <div className="flex items-center gap-3">
-          <UserCog className="h-6 w-6 text-primary" />
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">إدارة الطاقم</h2>
-            <p className="text-sm text-slate-500">تعديل بيانات الموظفين وحالتهم ودورهم ضمن العيادة الحالية.</p>
-          </div>
-        </div>
-
+        <div className="flex items-center gap-3"><UserCog className="h-6 w-6 text-primary" /><div><h2 className="text-xl font-bold text-slate-900">إدارة الطاقم</h2><p className="text-sm text-slate-500">تعديل بيانات الموظفين وحالتهم ودورهم ضمن العيادة الحالية.</p></div></div>
         {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
         {notice && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div>}
-
-        {loading ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">جاري تحميل الطاقم...</div>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-            <table className="min-w-full text-sm">
-              <thead className="bg-muted text-right text-slate-600">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">الموظف</th>
-                  <th className="px-4 py-3 font-semibold">الكود</th>
-                  <th className="px-4 py-3 font-semibold">الهاتف</th>
-                  <th className="px-4 py-3 font-semibold">التخصص</th>
-                  <th className="px-4 py-3 font-semibold">الدور</th>
-                  <th className="px-4 py-3 font-semibold">الحالة</th>
-                  <th className="px-4 py-3 font-semibold">إجراء</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {staff.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">لا يوجد موظفون ضمن هذا tenant.</td></tr>
-                ) : staff.map((member) => {
-                  const isEditing = editingId === member.id && draft !== null;
-                  const displayName = member.full_name_ar || member.full_name || member.email || '—';
-                  const roleLabel = roles.find((role) => role.value === member.role)?.label ?? member.role;
-                  const availableRoles = member.role === 'super_admin' && currentUserRole !== 'super_admin'
-                    ? [roles.find((role) => role.value === 'super_admin')!, ...editableRoles]
-                    : editableRoles;
-
-                  return (
-                    <tr key={member.id} className="align-top">
-                      {isEditing ? (
-                        <>
-                          <td className="space-y-2 px-4 py-3">
-                            <input value={draft.full_name} onChange={(event) => setDraft({ ...draft, full_name: event.target.value })} placeholder="الاسم" className="w-full rounded border border-slate-200 px-3 py-2" />
-                            <input value={draft.full_name_ar ?? ''} onChange={(event) => setDraft({ ...draft, full_name_ar: event.target.value || null })} placeholder="الاسم بالعربية" className="w-full rounded border border-slate-200 px-3 py-2" />
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">{member.employee_code || '—'}</td>
-                          <td className="px-4 py-3">
-                            <input value={draft.phone ?? ''} onChange={(event) => setDraft({ ...draft, phone: event.target.value || null })} placeholder="الهاتف" className="w-full rounded border border-slate-200 px-3 py-2" />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input value={draft.specialization ?? ''} onChange={(event) => setDraft({ ...draft, specialization: event.target.value || null })} placeholder="التخصص" className="w-full rounded border border-slate-200 px-3 py-2" />
-                          </td>
-                          <td className="px-4 py-3">
-                            <select value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value as StaffRole })} className="rounded border border-slate-200 px-3 py-2">
-                              {availableRoles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-                            </select>
-                          </td>
-                          <td className="px-4 py-3">
-                            <label className="flex items-center gap-2">
-                              <input type="checkbox" checked={draft.is_active} onChange={(event) => setDraft({ ...draft, is_active: event.target.checked })} />
-                              <span>{draft.is_active ? 'نشط' : 'معطل'}</span>
-                            </label>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <button type="button" disabled={saving} onClick={() => void saveEdit()} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-white disabled:opacity-50"><Save className="h-4 w-4" />حفظ</button>
-                              <button type="button" disabled={saving} onClick={cancelEdit} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-slate-700"><X className="h-4 w-4" />إلغاء</button>
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="px-4 py-3 font-medium text-slate-900">{displayName}</td>
-                          <td className="px-4 py-3 text-slate-600">{member.employee_code || '—'}</td>
-                          <td className="px-4 py-3 text-slate-600">{member.phone || '—'}</td>
-                          <td className="px-4 py-3 text-slate-600">{member.specialization || '—'}</td>
-                          <td className="px-4 py-3 text-slate-600">{roleLabel}</td>
-                          <td className="px-4 py-3 text-slate-600">{member.is_active ? 'نشط' : 'معطل'}</td>
-                          <td className="px-4 py-3">
-                            <button type="button" onClick={() => startEdit(member)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-slate-700 hover:bg-muted">
-                              <Pencil className="h-4 w-4" />تعديل
-                            </button>
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        {loading ? <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">جاري تحميل الطاقم...</div> : (
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white"><table className="min-w-full text-sm"><thead className="bg-muted text-right text-slate-600"><tr><th className="px-4 py-3 font-semibold">الموظف</th><th className="px-4 py-3 font-semibold">الكود</th><th className="px-4 py-3 font-semibold">الهاتف</th><th className="px-4 py-3 font-semibold">التخصص</th><th className="px-4 py-3 font-semibold">الدور</th><th className="px-4 py-3 font-semibold">الحالة</th><th className="px-4 py-3 font-semibold">إجراء</th></tr></thead><tbody className="divide-y divide-slate-100">
+            {staff.length === 0 ? <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">لا يوجد موظفون ضمن هذا tenant.</td></tr> : staff.map((member) => {
+              const isEditing = editingId === member.id && draft !== null;
+              const displayName = member.full_name_ar || member.full_name || member.email || '—';
+              const roleLabel = roles.find((role) => role.value === member.role)?.label ?? member.role;
+              const availableRoles = member.role === 'super_admin' && currentUserRole !== 'super_admin' ? [roles.find((role) => role.value === 'super_admin')!, ...editableRoles] : editableRoles;
+              return <tr key={member.id} className="align-top">{isEditing ? <>
+                <td className="space-y-2 px-4 py-3"><input value={draft.full_name} onChange={(e) => setDraft({ ...draft, full_name: e.target.value })} placeholder="الاسم" className="w-full rounded border border-slate-200 px-3 py-2" /><input value={draft.full_name_ar ?? ''} onChange={(e) => setDraft({ ...draft, full_name_ar: e.target.value || null })} placeholder="الاسم بالعربية" className="w-full rounded border border-slate-200 px-3 py-2" /></td>
+                <td className="px-4 py-3 text-slate-600">{member.employee_code || '—'}</td><td className="px-4 py-3"><input value={draft.phone ?? ''} onChange={(e) => setDraft({ ...draft, phone: e.target.value || null })} placeholder="الهاتف" className="w-full rounded border border-slate-200 px-3 py-2" /></td>
+                <td className="px-4 py-3"><input value={draft.specialization ?? ''} onChange={(e) => setDraft({ ...draft, specialization: e.target.value || null })} placeholder="التخصص" className="w-full rounded border border-slate-200 px-3 py-2" /></td>
+                <td className="px-4 py-3"><select value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value as StaffRole })} className="rounded border border-slate-200 px-3 py-2">{availableRoles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}</select></td>
+                <td className="px-4 py-3"><label className="flex items-center gap-2"><input type="checkbox" checked={draft.is_active} onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })} /><span>{draft.is_active ? 'نشط' : 'معطل'}</span></label></td>
+                <td className="px-4 py-3"><div className="flex items-center gap-2"><button type="button" disabled={saving} onClick={() => void saveEdit()} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-white disabled:opacity-50"><Save className="h-4 w-4" />حفظ</button><button type="button" disabled={saving} onClick={cancelEdit} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-slate-700"><X className="h-4 w-4" />إلغاء</button></div></td>
+              </> : <>
+                <td className="px-4 py-3 font-medium text-slate-900">{displayName}</td><td className="px-4 py-3 text-slate-600">{member.employee_code || '—'}</td><td className="px-4 py-3 text-slate-600">{member.phone || '—'}</td><td className="px-4 py-3 text-slate-600">{member.specialization || '—'}</td><td className="px-4 py-3 text-slate-600">{roleLabel}</td><td className="px-4 py-3 text-slate-600">{member.is_active ? 'نشط' : 'معطل'}</td><td className="px-4 py-3"><button type="button" onClick={() => startEdit(member)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-slate-700 hover:bg-muted"><Pencil className="h-4 w-4" />تعديل</button></td>
+              </>}</tr>;
+            })}
+          </tbody></table></div>
         )}
-
         {currentUserId && <p className="text-xs text-slate-400">تغيير الأدوار يمر عبر RPC محمي في قاعدة البيانات، مع منع تغيير الدور الذاتي وحدود المشرف العام القائمة.</p>}
       </section>
     </PermissionGuard>
