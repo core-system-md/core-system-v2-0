@@ -13,6 +13,23 @@ describe('permission matrix contract', () => {
     expect(hasPermission('doctor', 'view_invoices')).toBe(false);
   });
 
+  it('grants receptionist inquiry access without exposing it to the clinical roles', () => {
+    expect(hasPermission('receptionist', 'view_inquiries')).toBe(true);
+    expect(hasPermission('receptionist', 'edit_inquiries')).toBe(true);
+    expect(hasPermission('doctor', 'view_inquiries')).toBe(false);
+    expect(hasPermission('doctor', 'edit_inquiries')).toBe(false);
+  });
+
+  it('keeps receptionist away from clinical scoring and administration domains', () => {
+    expect(hasPermission('receptionist', 'edit_sessions')).toBe(false);
+    expect(hasPermission('receptionist', 'view_analytics')).toBe(false);
+    expect(hasPermission('receptionist', 'view_staff')).toBe(false);
+    expect(hasPermission('receptionist', 'view_inventory')).toBe(false);
+    expect(hasPermission('receptionist', 'view_settings')).toBe(false);
+    expect(hasPermission('receptionist', 'view_audit')).toBe(false);
+    expect(hasPermission('receptionist', 'super_admin_access')).toBe(false);
+  });
+
   it('keeps analytics access separate from invoice access for receptionist and doctor roles', () => {
     expect(hasPermission('clinic_admin', 'view_analytics')).toBe(true);
     expect(hasPermission('super_admin', 'view_analytics')).toBe(true);
