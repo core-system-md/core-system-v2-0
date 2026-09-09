@@ -96,9 +96,38 @@ export default function StaffManagement() {
     setError(null);
     setNotice(null);
 
+    const existingMember = staff.find((member) => member.id === editingId);
+    if (!existingMember) {
+      setError('لم يتم العثور على الموظف المحدد.');
+      setSaving(false);
+      return;
+    }
+
+    const roleChanged = draft.role !== existingMember.role;
+
+    if (roleChanged) {
+      const { error: roleError } = await supabase.rpc('update_clinic_user_role', {
+        p_user_id: editingId,
+        p_role: draft.role,
+      });
+
+      if (roleError) {
+        setError(roleError.message);
+        setSaving(false);
+        return;
+      }
+    }
+
     const { error: updateError } = await supabase
       .from('clinic_users')
-      .update({ ...draft, updated_at: new Date().toISOString() })
+      .update({
+        full_name: draft.full_name,
+        full_name_ar: draft.full_name_ar,
+        phone: draft.phone,
+        specialization: draft.specialization,
+        is_active: draft.is_active,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', editingId)
       .eq('tenant_id', tenantId)
       .is('deleted_at', null);
@@ -210,7 +239,7 @@ export default function StaffManagement() {
           </div>
         )}
 
-        {currentUserId && <p className="text-xs text-slate-400">تغييرات الدور على حساب مدير العيادة نفسه مرفوضة من قاعدة البيانات. ترقية أو تعديل دور مدير النظام محصور بمدير النظام.</p>}
+        {currentUserId && <p className="text-xs text-slate-400">تغيير الأدوار يمر عبر RPC محمي في قاعدة البيانات، مع منع تغيير الدور الذاتي وحدود المشرف العام القائمة.</p>}
       </section>
     </PermissionGuard>
   );
