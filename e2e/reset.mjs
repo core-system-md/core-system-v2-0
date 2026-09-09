@@ -16,8 +16,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 });
 const tenantId = process.env.E2E_TENANT_ID;
 const deletedAt = new Date().toISOString();
+const agendaIds = E2E_PATIENTS.map((p) => `20000000-0000-4000-8000-${String(p.n).padStart(12, '0')}`);
 
-// Constitution/P137 contract: never issue physical DELETE; use verified soft-delete tables.
 const { error: intakeError } = await supabase
   .from('patient_intake_responses')
   .update({ deleted_at: deletedAt })
@@ -25,6 +25,14 @@ const { error: intakeError } = await supabase
   .in('session_id', E2E_SESSION_IDS)
   .is('deleted_at', null);
 if (intakeError) throw new Error(`[E2E] intake soft-reset failed: ${intakeError.message}`);
+
+const { error: agendaError } = await supabase
+  .from('master_agenda_events')
+  .update({ deleted_at: deletedAt })
+  .eq('tenant_id', tenantId)
+  .in('id', agendaIds)
+  .is('deleted_at', null);
+if (agendaError) throw new Error(`[E2E] agenda soft-reset failed: ${agendaError.message}`);
 
 const { error: sessionError } = await supabase
   .from('clinic_visit_sessions')
@@ -51,4 +59,4 @@ const { data: remaining, error: verifyError } = await supabase
 if (verifyError) throw new Error(`[E2E] reset verification failed: ${verifyError.message}`);
 if ((remaining?.length ?? 0) !== 0) throw new Error(`[E2E] reset verification failed: ${remaining?.length ?? 0} active fixtures remain.`);
 
-console.log(`[E2E] Soft-reset complete for ${E2E_PATIENTS.length} patient fixtures.`);
+console.log(`[E2E] Soft-reset complete for ${E2E_PATIENTS.length} patient fixtures and their sessions/appointments.`);
