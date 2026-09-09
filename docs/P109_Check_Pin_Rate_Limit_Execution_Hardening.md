@@ -16,10 +16,16 @@ CONFIRMED.
 EXECUTE was revoked from `PUBLIC`, `anon`, and `authenticated` for `public.check_pin_rate_limit(uuid,text)`. `postgres` and `service_role` remain executable. No Auth, RLS, tenant, PIN validation, schema, function signature/body, or business rule was changed.
 
 ## Verification
-- Production migration `p109_restrict_unused_check_pin_rate_limit_execute` applied.
-- Production ACL read-back is required to confirm client roles have no EXECUTE and internal roles remain intact.
-- Security Advisor re-check is required to confirm anonymous and authenticated SECURITY DEFINER findings each decrease by one.
-- Vercel deployment/build/runtime verification is required before closure.
+- Production migration `20260909082532 / p109_restrict_unused_check_pin_rate_limit_execute` is registered.
+- Production ACL read-back: PASS — `anon_execute=false`, `authenticated_execute=false`, `service_role_execute=true`, `postgres_execute=true`.
+- No active application RPC caller was found.
+- The internal `validate_pin` database call remains valid because function-to-function execution is not dependent on the revoked client-role ACL.
+- Supabase Security Advisor anonymous SECURITY DEFINER findings decreased from 15 to 14; authenticated findings decreased from 13 to 12.
+- Vercel Production deployment for source commit `38ff66632f37b6cc3e40a834941cf421880b3faf` reached `READY`. Build error-only logs show no build failure; only the known `esbuild@0.25.12` install-script warning and standard chunk-size warning remain.
+- Deployment-scoped Production runtime error/fatal verification returned no logs.
+- Repository migration recorded as `supabase/migrations/066_p109_restrict_unused_check_pin_rate_limit_execute.sql`.
 
 ## Closure
-Pending final Production ACL read-back, migration-history confirmation, Advisor verification, and Vercel verification.
+**CLOSED — CONFIRMED.**
+
+P109 is closed because the active access contract was preserved, client-role execution was removed with a surgical ACL change, Production migration and ACL were verified, Advisor reduction was confirmed, and Vercel build/runtime verification passed.
