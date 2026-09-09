@@ -2,6 +2,7 @@ export type Permission =
   | 'view_patients' | 'edit_patients'
   | 'view_sessions' | 'edit_sessions'
   | 'view_invoices' | 'edit_invoices'
+  | 'view_inquiries' | 'edit_inquiries'
   | 'view_queue' | 'edit_queue'
   | 'view_analytics' | 'edit_analytics'
   | 'view_staff' | 'edit_staff'
@@ -14,14 +15,16 @@ export type UserRole = 'super_admin' | 'clinic_admin' | 'doctor' | 'receptionist
 export const permissionMatrix: Record<UserRole, Permission[]> = {
   super_admin: [
     'view_patients', 'edit_patients', 'view_sessions', 'edit_sessions',
-    'view_invoices', 'edit_invoices', 'view_queue', 'edit_queue',
+    'view_invoices', 'edit_invoices', 'view_inquiries', 'edit_inquiries',
+    'view_queue', 'edit_queue',
     'view_analytics', 'edit_analytics', 'view_staff', 'edit_staff',
     'view_inventory', 'edit_inventory', 'view_settings', 'edit_settings',
     'view_audit', 'super_admin_access',
   ],
   clinic_admin: [
     'view_patients', 'edit_patients', 'view_sessions', 'edit_sessions',
-    'view_invoices', 'edit_invoices', 'view_queue', 'edit_queue',
+    'view_invoices', 'edit_invoices', 'view_inquiries', 'edit_inquiries',
+    'view_queue', 'edit_queue',
     'view_analytics', 'edit_analytics', 'view_staff', 'edit_staff',
     'view_inventory', 'edit_inventory', 'view_settings', 'edit_settings',
     'view_audit',
@@ -31,7 +34,8 @@ export const permissionMatrix: Record<UserRole, Permission[]> = {
   ],
   receptionist: [
     'view_patients', 'edit_patients', 'view_sessions',
-    'view_invoices', 'edit_invoices', 'view_queue', 'edit_queue',
+    'view_invoices', 'edit_invoices', 'view_inquiries', 'edit_inquiries',
+    'view_queue', 'edit_queue',
   ],
 };
 
