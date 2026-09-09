@@ -74,9 +74,9 @@ export default function AnalyticsOverview() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4" dir="rtl">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-4" />
-            <div className="h-8 bg-gray-200 rounded w-3/4" />
+          <div key={i} className="bg-white rounded-lg shadow-sm border border-border p-6 animate-pulse">
+            <div className="h-4 bg-muted rounded w-1/2 mb-4" />
+            <div className="h-8 bg-muted rounded w-3/4" />
           </div>
         ))}
       </div>
@@ -100,8 +100,8 @@ export default function AnalyticsOverview() {
       title: 'إجمالي المرضى',
       value: kpi.totalPatients.toLocaleString('ar-JO'),
       icon: Users,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
+      color: 'text-primary',
+      bg: 'bg-accent',
     },
     {
       title: 'الزيارات اليوم',
@@ -128,7 +128,7 @@ export default function AnalyticsOverview() {
       title: 'تجاوزات SLA',
       value: kpi.slaBreaches.toLocaleString('ar-JO'),
       icon: AlertTriangle,
-      color: kpi.slaBreaches > 0 ? 'text-red-600' : 'text-gray-600',
+      color: kpi.slaBreaches > 0 ? 'text-red-600' : 'text-muted-foreground',
       bg: kpi.slaBreaches > 0 ? 'bg-red-50' : 'bg-muted',
     },
     {
@@ -143,9 +143,9 @@ export default function AnalyticsOverview() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4" dir="rtl">
       {cards.map((card) => (
-        <div key={card.title} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+        <div key={card.title} className="bg-white rounded-lg shadow-sm border border-border p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-gray-600">{card.title}</span>
+            <span className="text-sm font-medium text-muted-foreground">{card.title}</span>
             <div className={`p-2 rounded-lg ${card.bg}`}>
               <card.icon className={`w-5 h-5 ${card.color}`} />
             </div>
