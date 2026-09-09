@@ -1,6 +1,7 @@
 // ============================================================
 // CORE SYSTEM v2.1 — FeatureFlagManager
 // FIXED: 2026-07-22 — P23: UI Theme Alignment (Light Theme)
+// FIXED: 2026-09-09 — P93: Exclude soft-deleted flags and surface seed failures
 // Constitution §3: Features fetch their own data. NO props drilling.
 // ============================================================
 
@@ -47,16 +48,17 @@ export default function FeatureFlagManager() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch all feature flags
+      // Fetch active feature flags only; soft-deleted rows are not operational state.
       const { data: flagsData, error: flagsError } = await supabase
         .from('feature_flags')
         .select('id, tenant_id, flag_key, flag_name, description, is_enabled, allowed_tiers, config_json')
+        .is('deleted_at', null)
         .order('flag_key');
 
       if (flagsError) throw flagsError;
@@ -82,7 +84,6 @@ export default function FeatureFlagManager() {
       if (tenantsError) throw tenantsError;
       const tenantRows: any[] = (tenantsData || []) as any[];
       setTenants(tenantRows.map(t => ({ id: t.id, clinic_name: t.clinic_name, subscription_tier: t.subscription_tier })));
-
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'فشل في تحميل البيانات');
     } finally {
@@ -148,7 +149,7 @@ export default function FeatureFlagManager() {
         );
 
         if (!exists) {
-          await supabase.from('feature_flags').insert({
+          const { error } = await supabase.from('feature_flags').insert({
             tenant_id: tenantId,
             flag_key: preset.key,
             flag_name: preset.name,
@@ -157,11 +158,13 @@ export default function FeatureFlagManager() {
             allowed_tiers: ['professional', 'enterprise'],
             config_json: {}
           });
+
+          if (error) throw error;
         }
       }
 
+      await fetchData();
       toast.success('تم إضافة الميزات المفقودة');
-      fetchData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'فشل في الإضافة');
     } finally {
@@ -169,7 +172,6 @@ export default function FeatureFlagManager() {
     }
   };
 
-  // Filter flags by selected tenant
   const filteredFlags = flags.filter(f => {
     if (selectedTenant === 'global') return f.tenant_id === null;
     return f.tenant_id === selectedTenant;
@@ -186,7 +188,6 @@ export default function FeatureFlagManager() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto" dir="rtl">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1B2A4A] flex items-center gap-2">
@@ -195,18 +196,17 @@ export default function FeatureFlagManager() {
           <p className="text-gray-500 text-sm mt-1">التحكم في الميزات حسب الاشتراك</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={fetchData} disabled={loading}
+          <button onClick={() => void fetchData()} disabled={loading}
             className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> تحديث
           </button>
-          <button onClick={seedMissingFlags} disabled={saving}
+          <button onClick={() => void seedMissingFlags()} disabled={saving}
             className="px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors flex items-center gap-2">
             <Save className="w-4 h-4" /> إضافة ميزات مفقودة
           </button>
         </div>
       </div>
 
-      {/* Tenant Selector */}
       <div className="mb-6">
         <label className="block text-gray-600 text-sm mb-2">اختر المستأجر</label>
         <select value={selectedTenant} onChange={(e) => setSelectedTenant(e.target.value)}
@@ -220,7 +220,6 @@ export default function FeatureFlagManager() {
         </select>
       </div>
 
-      {/* Flags Table */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
         <table className="w-full">
           <thead>
@@ -248,7 +247,7 @@ export default function FeatureFlagManager() {
                     </div>
                   </td>
                   <td className="p-4">
-                    <button onClick={() => toggleFlag(flag.id, flag.is_enabled)} disabled={saving}
+                    <button onClick={() => void toggleFlag(flag.id, flag.is_enabled)} disabled={saving}
                       className="flex items-center gap-2 transition-colors">
                       {flag.is_enabled ? (
                         <ToggleRight className="w-8 h-8 text-green-600" />
@@ -268,7 +267,7 @@ export default function FeatureFlagManager() {
                           const newTiers = current.includes(tier)
                             ? current.filter(t => t !== tier)
                             : [...current, tier];
-                          updateTiers(flag.id, newTiers);
+                          void updateTiers(flag.id, newTiers);
                         }} disabled={saving}
                           className={`px-2 py-1 rounded text-xs transition-colors ${(Array.isArray(flag.allowed_tiers) && flag.allowed_tiers.includes(tier))
                               ? 'bg-blue-50 text-blue-700 border border-blue-200'
@@ -292,7 +291,6 @@ export default function FeatureFlagManager() {
         </table>
       </div>
 
-      {/* Preset Reference */}
       <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <h3 className="text-gray-700 font-medium mb-2">الميزات المتاحة للإضافة:</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
