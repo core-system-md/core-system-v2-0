@@ -116,7 +116,7 @@ export default function AuthScreen() {
   }, [validateLicense, loginWithPin, clearError, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-primary">CORE SYSTEM v2.1</CardTitle>
@@ -133,8 +133,8 @@ export default function AuthScreen() {
           )}
 
           {import.meta.env.DEV && step === 1 && (
-            <div className="space-y-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs text-blue-600 font-bold text-center">🚀 وضع التطوير — تسجيل الدخول الفوري</p>
+            <div className="space-y-2 p-3 bg-accent border border-accent-foreground/20 rounded-lg">
+              <p className="text-xs text-accent-foreground font-bold text-center">🚀 وضع التطوير — تسجيل الدخول الفوري</p>
               <Button type="button" variant="outline" onClick={handleDevMode} className="w-full text-xs">
                 تسجيل الدخول الفوري (وضع التطوير)
               </Button>
@@ -283,7 +283,7 @@ export default function AuthScreen() {
           )}
 
           {import.meta.env.DEV && tenant_id && (
-            <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-500 font-mono">
+            <div className="mt-4 p-2 bg-muted rounded text-xs text-muted-foreground font-mono">
               <p>tenant_id: {tenant_id}</p>
               <p>status: {authStatus}</p>
             </div>
