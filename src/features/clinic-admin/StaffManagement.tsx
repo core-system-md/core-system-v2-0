@@ -161,7 +161,7 @@ export default function StaffManagement() {
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
             <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-right text-slate-600">
+              <thead className="bg-muted text-right text-slate-600">
                 <tr>
                   <th className="px-4 py-3 font-semibold">الموظف</th>
                   <th className="px-4 py-3 font-semibold">الكود</th>
@@ -225,7 +225,7 @@ export default function StaffManagement() {
                           <td className="px-4 py-3 text-slate-600">{roleLabel}</td>
                           <td className="px-4 py-3 text-slate-600">{member.is_active ? 'نشط' : 'معطل'}</td>
                           <td className="px-4 py-3">
-                            <button type="button" onClick={() => startEdit(member)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-slate-700 hover:bg-slate-50">
+                            <button type="button" onClick={() => startEdit(member)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-slate-700 hover:bg-muted">
                               <Pencil className="h-4 w-4" />تعديل
                             </button>
                           </td>
