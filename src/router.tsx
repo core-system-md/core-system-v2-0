@@ -5,10 +5,10 @@ import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
       <div className="flex flex-col items-center gap-4">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <p className="text-sm text-gray-600">جاري التحميل...</p>
+        <p className="text-sm text-muted-foreground">جاري التحميل...</p>
       </div>
     </div>
   );
@@ -29,13 +29,17 @@ const AdminRevenuePage = lazy(() => import('@/features/clinic-admin/AdminRevenue
 const AdminStaffPage = lazy(() => import('@/features/clinic-admin/AdminStaffPage'));
 const AdminSchedulePage = lazy(() => import('@/features/clinic-admin/AdminSchedulePage'));
 const AdminPatientsPage = lazy(() => import('@/features/clinic-admin/AdminPatientsPage'));
+const InventoryManager = lazy(() => import('@/features/clinic-admin/InventoryManager'));
 const AuditTrailViewerPage = lazy(() => import('@/features/clinic-admin/AuditTrailViewerPage'));
 const BreachLogPage = lazy(() => import('@/features/clinic-admin/BreachLogPage'));
 const BillingStatusPage = lazy(() => import('@/features/clinic-admin/BillingStatusPage'));
 const TenantRegistry = lazy(() => import('@/features/super-admin/TenantRegistry'));
+const TenantDetailPage = lazy(() => import('@/features/super-admin/TenantDetailPage'));
 const FeatureFlagManager = lazy(() => import('@/features/super-admin/FeatureFlagManager'));
 const CoreRulesConfigManager = lazy(() => import('@/features/super-admin/CoreRulesConfigManager'));
 const TenantBillingAdminPage = lazy(() => import('@/features/super-admin/TenantBillingAdminPage'));
+const SystemAlertConsole = lazy(() => import('@/features/super-admin/SystemAlertConsole'));
+const TierOverridePanel = lazy(() => import('@/features/super-admin/TierOverridePanel'));
 const SurveyRouter = lazy(() => import('@/features/survey/SurveyRouter'));
 
 function AuthWrapper() {
@@ -63,71 +67,52 @@ const router = createBrowserRouter([
   { path: '/', element: <RootRedirect /> },
   { path: '/kiosk', element: <Suspense fallback={<LoadingScreen />}><AmbientKioskView /></Suspense> },
   {
-    path: '/login',
-    element: <AuthWrapper />,
-    children: [
+    path: '/login', element: <AuthWrapper />, children: [
       { index: true, element: <Suspense fallback={<LoadingScreen />}><AuthScreen /></Suspense> },
       { path: 'roles', element: <Navigate to="/login" replace /> },
     ],
   },
   {
-    path: '/admin',
-    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['clinic_admin', 'super_admin']} /></Suspense>,
-    children: [{
-      element: <Suspense fallback={<LoadingScreen />}><AdminLayout /></Suspense>,
-      children: [
-        { index: true, element: <Suspense fallback={<LoadingScreen />}><AdminOverviewPage /></Suspense> },
-        { path: 'revenue', element: <Suspense fallback={<LoadingScreen />}><AdminRevenuePage /></Suspense> },
-        { path: 'staff', element: <Suspense fallback={<LoadingScreen />}><AdminStaffPage /></Suspense> },
-        { path: 'schedule', element: <Suspense fallback={<LoadingScreen />}><AdminSchedulePage /></Suspense> },
-        { path: 'patients', element: <Suspense fallback={<LoadingScreen />}><AdminPatientsPage /></Suspense> },
-        { path: 'audit', element: <Suspense fallback={<LoadingScreen />}><AuditTrailViewerPage /></Suspense> },
-        { path: 'breaches', element: <Suspense fallback={<LoadingScreen />}><BreachLogPage /></Suspense> },
-        { path: 'billing', element: <Suspense fallback={<LoadingScreen />}><BillingStatusPage /></Suspense> },
-      ],
-    }],
+    path: '/admin', element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['clinic_admin', 'super_admin']} /></Suspense>,
+    children: [{ element: <Suspense fallback={<LoadingScreen />}><AdminLayout /></Suspense>, children: [
+      { index: true, element: <Suspense fallback={<LoadingScreen />}><AdminOverviewPage /></Suspense> },
+      { path: 'revenue', element: <Suspense fallback={<LoadingScreen />}><AdminRevenuePage /></Suspense> },
+      { path: 'staff', element: <Suspense fallback={<LoadingScreen />}><AdminStaffPage /></Suspense> },
+      { path: 'schedule', element: <Suspense fallback={<LoadingScreen />}><AdminSchedulePage /></Suspense> },
+      { path: 'patients', element: <Suspense fallback={<LoadingScreen />}><AdminPatientsPage /></Suspense> },
+      { path: 'inventory', element: <Suspense fallback={<LoadingScreen />}><InventoryManager /></Suspense> },
+      { path: 'audit', element: <Suspense fallback={<LoadingScreen />}><AuditTrailViewerPage /></Suspense> },
+      { path: 'breaches', element: <Suspense fallback={<LoadingScreen />}><BreachLogPage /></Suspense> },
+      { path: 'billing', element: <Suspense fallback={<LoadingScreen />}><BillingStatusPage /></Suspense> },
+    ]}],
   },
   {
-    path: '/doctor',
-    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['doctor', 'clinic_admin', 'super_admin']} /></Suspense>,
-    children: [{
-      element: <Suspense fallback={<LoadingScreen />}><DoctorLayout /></Suspense>,
-      children: [
-        { index: true, element: <Suspense fallback={<LoadingScreen />}><DoctorTodayPatients /></Suspense> },
-        { path: 'session/:sessionId', element: <Suspense fallback={<LoadingScreen />}><DoctorSessionView /></Suspense> },
-      ],
-    }],
+    path: '/doctor', element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['doctor', 'clinic_admin', 'super_admin']} /></Suspense>,
+    children: [{ element: <Suspense fallback={<LoadingScreen />}><DoctorLayout /></Suspense>, children: [
+      { index: true, element: <Suspense fallback={<LoadingScreen />}><DoctorTodayPatients /></Suspense> },
+      { path: 'session/:sessionId', element: <Suspense fallback={<LoadingScreen />}><DoctorSessionView /></Suspense> },
+    ]}],
   },
   {
-    path: '/reception',
-    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['receptionist', 'clinic_admin', 'super_admin']} /></Suspense>,
-    children: [{
-      element: <Suspense fallback={<LoadingScreen />}><ReceptionLayout /></Suspense>,
-      children: [
-        { index: true, element: <Suspense fallback={<LoadingScreen />}><ReceptionDashboard /></Suspense> },
-      ],
-    }],
+    path: '/reception', element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['receptionist', 'clinic_admin', 'super_admin']} /></Suspense>,
+    children: [{ element: <Suspense fallback={<LoadingScreen />}><ReceptionLayout /></Suspense>, children: [
+      { index: true, element: <Suspense fallback={<LoadingScreen />}><ReceptionDashboard /></Suspense> },
+    ]}],
   },
   {
-    path: '/super-admin',
-    element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['super_admin']} /></Suspense>,
-    children: [{
-      element: <Suspense fallback={<LoadingScreen />}><SuperAdminLayout /></Suspense>,
-      children: [
-        { index: true, element: <Suspense fallback={<LoadingScreen />}><TenantRegistry /></Suspense> },
-        { path: 'feature-flags', element: <Suspense fallback={<LoadingScreen />}><FeatureFlagManager /></Suspense> },
-        { path: 'core-rules', element: <Suspense fallback={<LoadingScreen />}><CoreRulesConfigManager /></Suspense> },
-        { path: 'billing', element: <Suspense fallback={<LoadingScreen />}><TenantBillingAdminPage /></Suspense> },
-      ],
-    }],
+    path: '/super-admin', element: <Suspense fallback={<LoadingScreen />}><ProtectedWrapper allowedRoles={['super_admin']} /></Suspense>,
+    children: [{ element: <Suspense fallback={<LoadingScreen />}><SuperAdminLayout /></Suspense>, children: [
+      { index: true, element: <Suspense fallback={<LoadingScreen />}><TenantRegistry /></Suspense> },
+      { path: 'tenants/:tenantId', element: <Suspense fallback={<LoadingScreen />}><TenantDetailPage /></Suspense> },
+      { path: 'feature-flags', element: <Suspense fallback={<LoadingScreen />}><FeatureFlagManager /></Suspense> },
+      { path: 'core-rules', element: <Suspense fallback={<LoadingScreen />}><CoreRulesConfigManager /></Suspense> },
+      { path: 'billing', element: <Suspense fallback={<LoadingScreen />}><TenantBillingAdminPage /></Suspense> },
+      { path: 'alerts', element: <Suspense fallback={<LoadingScreen />}><SystemAlertConsole /></Suspense> },
+      { path: 'tier-overrides', element: <Suspense fallback={<LoadingScreen />}><TierOverridePanel /></Suspense> },
+    ]}],
   },
-  {
-    path: '/survey/:sessionId',
-    element: <Suspense fallback={<LoadingScreen />}><SurveyRouter /></Suspense>,
-  },
+  { path: '/survey/:sessionId', element: <Suspense fallback={<LoadingScreen />}><SurveyRouter /></Suspense> },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
 
-export function Router() {
-  return <RouterProvider router={router} />;
-}
+export function Router() { return <RouterProvider router={router} />; }
