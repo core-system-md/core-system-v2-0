@@ -3,7 +3,6 @@ import {
   getDefaultRoute,
   hasPermission,
   permissionMatrix,
-  type UserRole,
 } from '../src/core/permissions/permissionMatrix';
 
 describe('permission matrix contract', () => {
@@ -21,10 +20,9 @@ describe('permission matrix contract', () => {
     expect(hasPermission('doctor', 'view_analytics')).toBe(false);
   });
 
-  it('does not expose unknown permissions through the runtime matrix', () => {
-    const roles = Object.keys(permissionMatrix) as UserRole[];
-    for (const role of roles) {
-      expect(permissionMatrix[role]).toEqual(expect.arrayContaining(permissionMatrix[role]));
+  it('keeps every role permission list free of duplicates', () => {
+    for (const permissions of Object.values(permissionMatrix)) {
+      expect(new Set(permissions).size).toBe(permissions.length);
     }
   });
 
