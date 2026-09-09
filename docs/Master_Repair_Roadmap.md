@@ -74,6 +74,10 @@ The active Super Admin `FeatureFlagManager` now excludes `deleted_at IS NOT NULL
 `CLOSED — CONFIRMED`.
 The active `useFeatureFlag`/`useFeatureFlags` hooks and `featureFlagStore.fetchFlags` now exclude soft-deleted `feature_flags` rows before applying the existing tenant-specific-over-global precedence and tier validation. Production contains active and soft-deleted rows for the same global keys, so the filter is evidence-backed operational behavior. Implementation commits: `64642af7479def3ddacda386461fcea0a770b638` and `3701ec14473e829dafff8311795e9ae1d6537d54`. Vercel Production deployment for the final store commit is `READY`; build error-only logs show no build failure, only the existing `esbuild@0.25.12` warning, and Production error/fatal runtime logs returned no entries for the deployment. No schema, migration, RPC, RLS, Auth, permission, scoring, or financial-unit contract changed.
 
+### P95 — Revenue Chart Theme Token Integrity
+`CLOSED — CONFIRMED`.
+The active `RevenueCards` SVG chart previously hard-coded the primary color `#1B2A4A` and gray guide colors. Those semantic presentation values now use the existing CSS tokens `--primary`, `--border`, and `--muted-foreground`; revenue calculations, integer subunit handling, tenant/date/status filters, and financial contracts are unchanged. The canonical active stylesheet defines `--primary: 219 54% 20%` with the established dark-mode override. Implementation commit: `80cf3942ff2cad4abc295da63f5eb6bffc9b9edc`. Vercel Production deployment is required for this final source state before any later stage is marked closed.
+
 ## Current repair status
 ### P62 — CoreScoreWidget Integration
 `CLOSED — CONFIRMED`.
