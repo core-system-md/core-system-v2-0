@@ -17,10 +17,15 @@ CONFIRMED.
 EXECUTE was revoked from `PUBLIC`, `anon`, and `authenticated` for `public.hash_pin(text)`. `postgres` and `service_role` remain executable. No Auth, RLS, tenant, PIN validation flow, schema, function signature/body, or business rule was changed.
 
 ## Verification
-- Production migration `p108_restrict_unused_hash_pin_execute` applied.
-- Final Production ACL read-back: PASS — client roles must have no EXECUTE and internal roles remain available.
-- Security Advisor re-check is required to confirm the anonymous and authenticated SECURITY DEFINER findings each decrease by one.
-- Vercel deployment/build/runtime verification is required before closure.
+- Production migration `20260909082349 / p108_restrict_unused_hash_pin_execute` is registered.
+- Production ACL read-back: PASS — `anon_execute=false`, `authenticated_execute=false`, `service_role_execute=true`, `postgres_execute=true`.
+- No active application caller was found.
+- Supabase Security Advisor anonymous SECURITY DEFINER findings decreased from 16 to 15; authenticated SECURITY DEFINER findings decreased from 14 to 13.
+- Vercel Production deployment for source commit `aa153114986c636a1568a1fad4b6e3bb4ac2c9e9` is `READY`. Errors-only build logs show no build failure; only the known `esbuild@0.25.12` install-script warning and standard chunk-size warning remain.
+- Deployment-scoped Production runtime error/fatal verification returned no logs.
+- Repository migration recorded as `supabase/migrations/065_p108_restrict_unused_hash_pin_execute.sql`.
 
 ## Closure
-Pending final Production ACL read-back, Advisor verification, and Vercel verification.
+**CLOSED — CONFIRMED.**
+
+P108 is closed because the access-contract evidence, Production ACL change, migration registration, Advisor reduction, successful Vercel deployment, build verification, and runtime verification are complete. No active PIN/authentication behavior or database business contract was changed.
