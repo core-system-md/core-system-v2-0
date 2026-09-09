@@ -5,6 +5,13 @@ import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 
 const PAGE_SIZE = 25;
 
+const ROLE_LABELS_AR: Record<string, string> = {
+  doctor: 'طبيب',
+  receptionist: 'موظف الاستقبال',
+  clinic_admin: 'مدير العيادة',
+  super_admin: 'مشرف عام',
+};
+
 type AuditEvent = {
   id: string;
   actor_id: string | null;
@@ -103,7 +110,7 @@ export default function AuditTrailViewerPage() {
                       </td>
                       <td className="px-4 py-3 font-medium text-slate-900">{event.action}</td>
                       <td className="px-4 py-3 text-slate-700">{event.table_name}</td>
-                      <td className="px-4 py-3 text-slate-700">{event.actor_role ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-700">{event.actor_role ? ROLE_LABELS_AR[event.actor_role] ?? event.actor_role : '—'}</td>
                       <td className="max-w-[180px] break-all px-4 py-3 text-xs text-slate-500">{event.record_id ?? '—'}</td>
                       <td className="px-4 py-3 text-slate-600">{event.reason ?? '—'}</td>
                     </tr>
