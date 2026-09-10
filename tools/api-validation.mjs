@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 
-const baseUrl = (process.env.SUPABASE_URL ?? '').replace(/\/$/, '');
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+const baseUrl = (process.env.SUPABASE_URL ?? '').trim().replace(/^['\"]+|['\"]+$/g, '').replace(/\/$/, '');
+const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim().replace(/^['\"]+|['\"]+$/g, '');
 
 if (!baseUrl || !serviceKey) {
   throw new Error('[api-validation] SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
 }
 
+function url(path) {
+  return new URL(path, `${baseUrl}/`).toString();
+}
+
 async function request(path) {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(url(path), {
     headers: {
       apikey: serviceKey,
       Authorization: `Bearer ${serviceKey}`,
@@ -32,7 +36,7 @@ for (const [path, label] of checks) {
   console.log(`[api-validation] PASS — ${label}`);
 }
 
-const health = await fetch(`${baseUrl}/auth/v1/health`);
+const health = await fetch(url('/auth/v1/health'));
 if (!health.ok) throw new Error(`[api-validation] auth health -> HTTP ${health.status}`);
 console.log('[api-validation] PASS — auth API health');
 
