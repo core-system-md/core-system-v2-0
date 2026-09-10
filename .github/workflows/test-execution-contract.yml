@@ -35,7 +35,11 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # The repository's migration 012 creates project helper functions in auth.
+          # Supabase's managed local Postgres images introduced the auth-schema
+          # restriction after the 2025-04-21 rollout. Pin the pre-restriction CLI
+          # stack so the existing migration history can be replayed for CI/E2E.
+          version: 2.20.12
 
       - name: Install dependencies
         run: npm install
