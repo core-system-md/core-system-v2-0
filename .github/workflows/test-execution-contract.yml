@@ -83,6 +83,8 @@ jobs:
           node --check tools/migration-validation.mjs
           node --check e2e/run-full.mjs
           node --check e2e/reconcile.mjs
+          node --check e2e/role-routes.spec.mjs
+          node --check e2e/security-negative.spec.mjs
 
       - name: Generate decision plan
         run: |
@@ -99,7 +101,6 @@ jobs:
         run: npm run test:contract
 
       - name: Install Playwright browser
-        if: ${{ contains(join(fromJSON('[]'), ''), '') }}
         run: npx playwright install --with-deps chromium
 
       - name: Run selected validation scope
