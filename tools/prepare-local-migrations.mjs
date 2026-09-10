@@ -27,8 +27,8 @@ for (const name of files) {
 }
 
 // Historical migrations sharing a numeric version do not encode dependency order.
-// Keep an explicit replay-only exception where P74 must run before Migration 044,
-// because the function definition references the soft-delete column introduced by P74.
+// P74 must run before Migration 044 because the function definition references
+// the soft-delete column introduced by P74.
 const REPLAY_ORDER = new Map([
   ['044', ['044_p74_governance_deleted_at_columns.sql', '044_fix_update_session_status_authorization.sql']],
 ]);
@@ -39,7 +39,7 @@ for (const [version, names] of groups) {
 
   const ordered = REPLAY_ORDER.has(version)
     ? REPLAY_ORDER.get(version).filter((name) => names.includes(name))
-    : names;
+    : [...names];
 
   for (const name of names) {
     if (!ordered.includes(name)) ordered.push(name);
@@ -65,10 +65,23 @@ for (const [version, names] of groups) {
   consolidated.push({ version, primary, merged: ordered.slice(1) });
 }
 
+// Replay-only compatibility bridge: the early clinic_users migration predates
+// the canonical PIN/soft-delete identity fields used by later historical migrations.
+const usersBase = path.join(MIGRATIONS, '002_tenants_users.sql');
+if (fs.existsSync(usersBase)) {
+  const marker = '-- CORE SYSTEM local replay compatibility: canonical clinic_users fields';
+  let sql = fs.readFileSync(usersBase, 'utf8').replace(/\s+$/, '');
+  if (!sql.includes(marker)) {
+    sql += `\n\n${marker}\nALTER TABLE public.clinic_users\n  ADD COLUMN IF NOT EXISTS full_name_ar TEXT,\n  ADD COLUMN IF NOT EXISTS employee_code TEXT,\n  ADD COLUMN IF NOT EXISTS pin_code TEXT,\n  ADD COLUMN IF NOT EXISTS phone TEXT,\n  ADD COLUMN IF NOT EXISTS specialization TEXT,\n  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;\n`;
+    fs.writeFileSync(usersBase, `${sql}\n`, 'utf8');
+  }
+}
+
 const report = {
   mode: 'local-replay-only',
-  purpose: 'Consolidate historical duplicate numeric migration prefixes for an isolated Supabase replay without changing repository migration history.',
+  purpose: 'Consolidate historical duplicate numeric migration prefixes and bridge legacy base-schema gaps for an isolated Supabase replay without changing repository migration history.',
   consolidated,
+  compatibility_bridges: ['002_tenants_users.sql: clinic_users canonical PIN/identity/soft-delete columns'],
 };
 fs.writeFileSync(path.join(ROOT, '.migration-replay-map.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 
