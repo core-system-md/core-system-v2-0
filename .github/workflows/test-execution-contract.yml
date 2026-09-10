@@ -20,6 +20,7 @@ permissions:
 jobs:
   execution-contract:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout full history
         uses: actions/checkout@v4
@@ -35,10 +36,6 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          # The repository's migration 012 creates project helper functions in auth.
-          # Supabase's managed local Postgres images introduced the auth-schema
-          # restriction after the 2025-04-21 rollout. Pin the pre-restriction CLI
-          # stack so the existing migration history can be replayed for CI/E2E.
           version: 2.20.12
 
       - name: Install dependencies
@@ -49,7 +46,7 @@ jobs:
 
       - name: Start isolated Supabase
         shell: bash
-        run: timeout 10m supabase start -x vector,studio,imgproxy,mailpit,logflare
+        run: timeout 10m supabase start -x vector,studio,imgproxy,mailpit,logflare,storage-api,edge-runtime,postgres-meta,supavisor
 
       - name: Export isolated Supabase environment
         shell: bash
