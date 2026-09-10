@@ -48,7 +48,7 @@ jobs:
         run: node tools/prepare-local-migrations.mjs
 
       - name: Start isolated Supabase
-        run: supabase start -x vector
+        run: supabase start -x vector,studio,imgproxy
 
       - name: Export isolated Supabase environment
         shell: bash
