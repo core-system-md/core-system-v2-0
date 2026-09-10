@@ -8,6 +8,7 @@ export interface QueueItem {
   sessionId: string;
   patientId: string;
   patientName: string;
+  sessionStatus: string;
   priority: PatientClass;
   slaStatus: 'green' | 'yellow' | 'red';
   waitMinutes: number;
@@ -24,7 +25,6 @@ export interface QueueState {
   selectedSessionId: string | null;
   isLoading: boolean;
 
-  // Actions
   setItems: (items: QueueItem[]) => void;
   updateItem: (sessionId: string, partial: Partial<QueueItem>) => void;
   removeItem: (sessionId: string) => void;
