@@ -50,7 +50,6 @@ export function useQueue() {
     queryKey: [QUEUE_KEY, tenantId, isPinAuthenticated],
     queryFn: async (): Promise<QueueItem[]> => {
       if (!tenantId) throw new Error('MISSING_TENANT_ID');
-
       const sessionToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
       if (!sessionToken) throw new Error('MISSING_PIN_SESSION');
 
@@ -59,19 +58,16 @@ export function useQueue() {
         p_tenant_id: tenantId,
         p_session_token: sessionToken,
       });
-
       if (error) throw new Error(error.message);
 
       const rows = (Array.isArray(data) ? data : []) as QueueRpcRow[];
-
       return rows.map((row) => {
         const waitMinutes = Number(row.wait_time_minutes ?? 0);
         const score = row.core_score_display;
-
         let priority: PatientClass = 'medium_priority';
         if (score !== null) priority = classifyPatient(score);
 
-        let slaStatus: 'green' | 'yellow' | 'red' = 'green';
+        let slaStatus: QueueItem['slaStatus'] = 'green';
         if (waitMinutes >= 25) slaStatus = 'red';
         else if (waitMinutes >= 15) slaStatus = 'yellow';
 
@@ -79,6 +75,7 @@ export function useQueue() {
           sessionId: row.id,
           patientId: row.patient_id ?? '',
           patientName: row.clinic_patients?.full_name ?? 'Unknown',
+          sessionStatus: row.session_status,
           priority,
           slaStatus,
           waitMinutes,
