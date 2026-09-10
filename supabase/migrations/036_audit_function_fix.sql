@@ -1,4 +1,4 @@
-﻿-- 036_audit_function_fix.sql
+-- 036_audit_function_fix.sql
 -- Fix fn_audit_sensitive_changes column names to match actual audit_trail schema
 -- Migration 021 used actor_id/actor_role/table_name/record_id
 -- Actual columns: user_id/actor_type/entity_type/entity_id
