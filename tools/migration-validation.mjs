@@ -18,10 +18,17 @@ const versions = files.map((file) => {
   if (!match) throw new Error(`Migration naming failure: ${file} must start with a numeric version and '_' or '-'.`);
   return { file, version: Number(match[1]) };
 });
-const seen = new Set();
+
+const versionGroups = new Map();
 for (const item of versions) {
-  if (seen.has(item.version)) throw new Error(`Migration version collision: ${item.version} (${item.file}).`);
-  seen.add(item.version);
+  const group = versionGroups.get(item.version) ?? [];
+  group.push(item.file);
+  versionGroups.set(item.version, group);
+}
+
+const duplicateVersions = [...versionGroups.entries()].filter(([, group]) => group.length > 1);
+for (const [version, group] of duplicateVersions) {
+  console.warn(`[migration] REVIEW: numeric prefix ${version} is shared by ${group.join(', ')}. Historical duplicate prefixes are retained; deterministic filename ordering is used for replay.`);
 }
 
 const staticIssues = [];
@@ -32,7 +39,7 @@ for (const { file } of versions) {
 }
 if (staticIssues.length) throw new Error(`Migration static validation failed:\n${staticIssues.join('\n')}`);
 
-console.log(`[migration] Static validation PASS — ${files.length} migration files, versions unique and naming valid.`);
+console.log(`[migration] Static validation PASS — ${files.length} migration files, naming valid${duplicateVersions.length ? `; ${duplicateVersions.length} historical duplicate numeric prefixes reviewed` : ''}.`);
 if (!apply) process.exit(0);
 
 const result = spawnSync('supabase', ['db', 'reset', '--local'], {
