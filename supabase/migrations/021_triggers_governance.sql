@@ -1,6 +1,16 @@
 -- 021_triggers_governance.sql
 -- Financial Governance Triggers for CORE SYSTEM v2.1
 
+-- The base session migration predates the CORE score columns. Keep the
+-- migration chain self-contained without rewriting the historical 006 migration.
+ALTER TABLE clinic_visit_sessions
+  ADD COLUMN IF NOT EXISTS score_aps INTEGER,
+  ADD COLUMN IF NOT EXISTS score_dri INTEGER,
+  ADD COLUMN IF NOT EXISTS score_tsi INTEGER,
+  ADD COLUMN IF NOT EXISTS score_uri INTEGER,
+  ADD COLUMN IF NOT EXISTS score_pqs INTEGER,
+  ADD COLUMN IF NOT EXISTS score_rvs INTEGER;
+
 -- TRIGGER 1: Consultation Fee Gate
 -- Prevents starting consultation without paid invoice
 CREATE OR REPLACE FUNCTION check_consultation_fee_gate()
@@ -93,7 +103,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_ghost_evaluation_guard ON clinic_visit_sessions;
 CREATE TRIGGER tr_ghost_evaluation_guard
-BEFORE UPDATE OF score_aps, score_dri, score_tsi, score_uri, score_pqs, score_rvs 
+BEFORE UPDATE OF score_aps, score_dri, score_tsi, score_uri, score_pqs, score_rvs
 ON clinic_visit_sessions
 FOR EACH ROW EXECUTE FUNCTION fn_detect_ghost_evaluation();
 
@@ -145,6 +155,6 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_verify_triangulation ON clinic_invoices;
 CREATE TRIGGER tr_verify_triangulation
-BEFORE UPDATE OF doctor_par_confirmed, collected_reception, amount_paid_subunits 
+BEFORE UPDATE OF doctor_par_confirmed, collected_reception, amount_paid_subunits
 ON clinic_invoices
 FOR EACH ROW EXECUTE FUNCTION fn_verify_triangulation();
