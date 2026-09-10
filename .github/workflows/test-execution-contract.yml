@@ -1,0 +1,98 @@
+name: Master Test Execution Contract
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Base branch/ref to compare
+        required: false
+        default: main
+      candidate_ref:
+        description: Candidate commit/ref; defaults to current workflow SHA
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  execution-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve comparison refs
+        id: refs
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DISPATCH_BASE: ${{ inputs.base_ref }}
+          DISPATCH_CANDIDATE: ${{ inputs.candidate_ref }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "$PR_BASE_SHA" ]; then
+            echo "base=$PR_BASE_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=${DISPATCH_BASE:-main}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "candidate=${DISPATCH_CANDIDATE:-$WORKFLOW_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate decision plan
+        run: |
+          node tools/test-execution-setup.mjs \
+            --base "${{ steps.refs.outputs.base }}" \
+            --candidate "${{ steps.refs.outputs.candidate }}" \
+            --output test-execution-plan.json
+
+      - name: Validate decision plan
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('test-execution-plan.json','utf8')); const required=['contract_version','baseline','candidate','merge_base','changed_files','impact','affected_domains','affected_modules','affected_roles','affected_workflows','security_impact','data_impact','required_engineering','required_e2e','required_negative_tests','required_reconciliation','regression_level']; for (const k of required) if (!(k in p)) throw new Error('missing '+k); if(!/^R[0-4]$/.test(p.regression_level)) throw new Error('invalid regression'); console.log('Plan valid:', p.regression_level);"
+
+      - name: Run contract self-test
+        run: npm run test:contract
+
+      - name: Run selected engineering validation
+        run: node tools/test-execution-setup.mjs --base "${{ steps.refs.outputs.base }}" --candidate "${{ steps.refs.outputs.candidate }}" --output test-execution-plan.json --execute
+
+      - name: Report unimplemented required validations
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const plan = JSON.parse(fs.readFileSync('test-execution-plan.json','utf8'));
+          const unsupported = plan.required_engineering.filter((x) => ['integration_tests','api_tests','database_validation','migration_validation'].includes(x));
+          if (unsupported.length) {
+            console.log('Required validations without an executable repository-native runner:', unsupported.join(', '));
+            console.log('Classification: INSUFFICIENT EVIDENCE');
+          }
+          if (plan.required_e2e.length) {
+            console.log('Required E2E:', plan.required_e2e.join(', '));
+            console.log('E2E execution requires an explicitly provisioned, isolated environment; production mutation is not attempted by this workflow.');
+          }
+          if (plan.required_negative_tests.length) {
+            console.log('Required negative/security validation:', plan.required_negative_tests.join(', '));
+          }
+          NODE
+
+      - name: Upload execution plan
+        if: ${{ always() && hashFiles('test-execution-plan.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-execution-plan
+          path: test-execution-plan.json
+          if-no-files-found: error
