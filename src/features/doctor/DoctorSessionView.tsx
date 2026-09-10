@@ -41,10 +41,7 @@ export default function DoctorSessionView() {
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [allergyConfirmed, setAllergyConfirmed] = useState(false);
-  const handleSessionRealtime = useCallback(() => {
-    setRefreshKey((key) => key + 1);
-  }, []);
-
+  const handleSessionRealtime = useCallback(() => { setRefreshKey((key) => key + 1); }, []);
   useSessionChannel(tenantId ?? '', handleSessionRealtime);
 
   const fetchSession = useCallback(async () => {
@@ -53,12 +50,8 @@ export default function DoctorSessionView() {
     if (!user?.id || !role) { setError('User not authenticated'); setLoading(false); return; }
     if (!['doctor', 'clinic_admin', 'super_admin'].includes(role)) { setError('Access denied'); setLoading(false); return; }
     setLoading(true); setError(null);
-
     let query = supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, session_metadata, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId).is('deleted_at', null).is('clinic_patients.deleted_at', null);
-    if (role === 'doctor') {
-      query = query.eq('doctor_id', user.id);
-    }
-
+    if (role === 'doctor') query = query.eq('doctor_id', user.id);
     const { data, error: dbError } = await query.single();
     if (dbError || !data) { setError(dbError?.message || 'Session not found or access denied'); setLoading(false); return; }
     const row = data as unknown as SessionQueryResult;
@@ -76,71 +69,29 @@ export default function DoctorSessionView() {
     if (!sessionId || !tenantId) return;
     try { const updatedMeta = { ...sessionMetaRef.current, clinical_notes: updatedNotes }; const { error } = await supabase.from('clinic_visit_sessions').update({ session_metadata: updatedMeta as unknown as Json, updated_at: new Date().toISOString() }).eq('id', sessionId).eq('tenant_id', tenantId).is('deleted_at', null); if (error) { console.error('Persist notes error:', error); toast.error('فشل في حفظ الملاحظات السريرية'); } else { sessionMetaRef.current = updatedMeta; } } catch (err) { console.error('Persist notes exception:', err); }
   }, [sessionId, tenantId]);
-
   const handleAddNote = useCallback((note: Omit<Note, 'id' | 'created_at'>) => { const newNote: Note = { ...note, id: crypto.randomUUID(), created_at: new Date().toISOString() }; setNotes((prev) => { const updated = [...prev, newNote]; persistNotes(updated); return updated; }); }, [persistNotes]);
   const handleUpdateNote = useCallback((id: string, content: string) => { setNotes((prev) => { const updated = prev.map((n) => (n.id === id ? { ...n, content } : n)); persistNotes(updated); return updated; }); }, [persistNotes]);
   const handleSessionClosed = useCallback(() => { setSession((prev) => prev ? { ...prev, session_status: 'completed' } : prev); setRefreshKey((k) => k + 1); }, []);
 
   if (loading) return <LoadingSkeleton />;
-  if (error || !session) { return (<div className="max-w-5xl mx-auto p-4 md:p-6" dir="rtl"><Card className="border-red-200 bg-red-50"><CardContent className="flex items-center gap-4 pt-6"><AlertCircle className="h-8 w-8 text-red-600 shrink-0" /><div><p className="font-bold text-red-900 text-lg">خطأ في تحميل الجلسة</p><p className="text-sm text-red-700 mt-1">{error || 'Session not found'}</p><button onClick={() => navigate('/doctor')} className="mt-3 text-sm text-red-800 underline hover:text-red-900">العودة لقائمة المرضى</button></div></CardContent></Card></div>); }
+  if (error || !session) return (<div className="max-w-5xl mx-auto p-4 md:p-6" dir="rtl"><Card className="border-red-200 bg-red-50"><CardContent className="flex items-center gap-4 pt-6"><AlertCircle className="h-8 w-8 text-red-600 shrink-0" /><div><p className="font-bold text-red-900 text-lg">خطأ في تحميل الجلسة</p><p className="text-sm text-red-700 mt-1">{error || 'Session not found'}</p><button onClick={() => navigate('/doctor')} className="mt-3 text-sm text-red-800 underline hover:text-red-900">العودة لقائمة المرضى</button></div></CardContent></Card></div>);
 
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-6" dir="rtl">
       <div className="space-y-5">
-        <Card className="border-slate-200 shadow-sm overflow-hidden">
-          <CardContent className="p-0">
-            <div className="flex flex-col md:flex-row md:items-center gap-4 p-5">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold shrink-0 shadow-md"><User className="h-8 w-8" /></div>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-slate-900 truncate">{session.patient_name}</h1>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 text-sm text-slate-500">
-                  <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(session.created_at)}</span>
-                  <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{formatTime(session.created_at)}</span>
-                  {session.patient_name_ar && <span className="text-slate-400 font-medium">{session.patient_name_ar}</span>}
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <StatusBadge status={session.session_status} isInsured={session.is_insured} />
-                {session.dominant_disc_profile && (<DiscProfileBadge profile={session.dominant_disc_profile} />)}
-              </div>
-            </div>
-            <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-muted/50">
-              <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">وقت الانتظار</div><div className="text-lg font-bold text-slate-700">{session.waiting_time_minutes !== null ? `${session.waiting_time_minutes} د` : '—'}</div></div>
-              <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">مدة الجلسة</div><div className="text-lg font-bold text-slate-700">{session.session_duration_minutes !== null ? `${session.session_duration_minutes} د` : '—'}</div></div>
-              <div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">Core Score</div><div className={`text-lg font-bold ${(session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' : (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{session.core_score_display !== null ? session.core_score_display.toFixed(1) : '—'}</div></div>
-            </div>
-          </CardContent>
-        </Card>
+        <Card className="border-slate-200 shadow-sm overflow-hidden"><CardContent className="p-0"><div className="flex flex-col md:flex-row md:items-center gap-4 p-5"><div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold shrink-0 shadow-md"><User className="h-8 w-8" /></div><div className="flex-1 min-w-0"><h1 className="text-2xl font-bold text-slate-900 truncate">{session.patient_name}</h1><div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 text-sm text-slate-500"><span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(session.created_at)}</span><span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{formatTime(session.created_at)}</span>{session.patient_name_ar && <span className="text-slate-400 font-medium">{session.patient_name_ar}</span>}</div></div><div className="flex flex-col items-end gap-2"><StatusBadge status={session.session_status} isInsured={session.is_insured} />{session.dominant_disc_profile && (<DiscProfileBadge profile={session.dominant_disc_profile} />)}</div></div><div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-muted/50"><div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">وقت الانتظار</div><div className="text-lg font-bold text-slate-700">{session.waiting_time_minutes !== null ? `${session.waiting_time_minutes} د` : '—'}</div></div><div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">مدة الجلسة</div><div className="text-lg font-bold text-slate-700">{session.session_duration_minutes !== null ? `${session.session_duration_minutes} د` : '—'}</div></div><div className="p-3 text-center"><div className="text-xs text-slate-400 font-medium">Core Score</div><div className={`text-lg font-bold ${(session.core_score_display ?? 0) >= 80 ? 'text-emerald-600' : (session.core_score_display ?? 0) >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{session.core_score_display !== null ? session.core_score_display.toFixed(1) : '—'}</div></div></div></CardContent></Card>
 
         {session.allergies?.trim() && !allergyConfirmed ? (
           <section aria-label="Allergy Gate"><AllergyGate allergies={session.allergies} onConfirm={() => setAllergyConfirmed(true)} /></section>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
             <div className="space-y-5">
-              <section aria-label="Core Score Visualization">
-                {session.core_score_display !== null ? (
-                  <CoreScoreWidget score={session.core_score_display} label="التقييم السلوكي CORE" size="md" />
-                ) : (
-                  <Card className="border-slate-200 shadow-sm">
-                    <CardContent className="p-6 text-center text-slate-500" dir="rtl">
-                      لا توجد نتيجة CORE مسجلة لهذه الجلسة.
-                    </CardContent>
-                  </Card>
-                )}
-              </section>
-              <section aria-label="Decision Card"><DecisionCard sessionId={session.id} /></section>
+              <section aria-label="Core Score Visualization">{session.core_score_display !== null ? <CoreScoreWidget score={session.core_score_display} label="التقييم السلوكي CORE" size="md" /> : <Card className="border-slate-200 shadow-sm"><CardContent className="p-6 text-center text-slate-500" dir="rtl">لا توجد نتيجة CORE مسجلة لهذه الجلسة.</CardContent></Card>}</section>
+              <PermissionGuard required="edit_sessions"><section aria-label="Decision Card"><DecisionCard sessionId={session.id} /></section></PermissionGuard>
               <section aria-label="Clinical Notes"><PermissionGuard required="edit_sessions"><ClinicalNotes notes={notes} onAddNote={handleAddNote} onUpdateNote={handleUpdateNote} patientName={session.patient_name} /></PermissionGuard></section>
-              <section aria-label="Close Session"><CloseSession sessionId={session.id} onClose={handleSessionClosed} /></section>
+              <PermissionGuard required="edit_sessions"><section aria-label="Close Session"><CloseSession sessionId={session.id} onClose={handleSessionClosed} /></section></PermissionGuard>
             </div>
-            <aside className="lg:sticky lg:top-5 self-start" aria-label="Sandler Scripts">
-              <SandlerScriptPanel
-                patientName={session.patient_name}
-                discProfile={session.dominant_disc_profile}
-                patientClass={session.patient_class}
-                parResult={session.par_result}
-                coreScore={session.core_score_display}
-              />
-            </aside>
+            <aside className="lg:sticky lg:top-5 self-start" aria-label="Sandler Scripts"><SandlerScriptPanel patientName={session.patient_name} discProfile={session.dominant_disc_profile} patientClass={session.patient_class} parResult={session.par_result} coreScore={session.core_score_display} /></aside>
           </div>
         )}
       </div>
