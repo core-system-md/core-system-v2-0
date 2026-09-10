@@ -26,7 +26,7 @@ ALTER TABLE public.billing_events ALTER COLUMN updated_at SET DEFAULT now();
 ALTER TABLE public.billing_events ALTER COLUMN updated_at SET NOT NULL;
 
 ALTER TABLE public.inventory_ledger ADD COLUMN IF NOT EXISTS updated_at timestamptz;
-UPDATE public.inventory_ledger SET updated_at = created_at WHERE created_at IS NULL;
+UPDATE public.inventory_ledger SET updated_at = created_at WHERE updated_at IS NULL;
 ALTER TABLE public.inventory_ledger ALTER COLUMN updated_at SET DEFAULT now();
 ALTER TABLE public.inventory_ledger ALTER COLUMN updated_at SET NOT NULL;
 
