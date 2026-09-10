@@ -34,18 +34,18 @@ for (const [path, label] of tables) {
 }
 
 const functions = [
-  '/rest/v1/rpc/validate_license',
-  '/rest/v1/rpc/validate_pin',
+  '/rpc/validate_license',
+  '/rpc/validate_pin',
 ];
-for (const path of functions) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: 'OPTIONS',
-    headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
-  });
-  if (![200, 204].includes(response.status)) {
-    throw new Error(`[database-validation] RPC endpoint contract unavailable: ${path} -> HTTP ${response.status}`);
-  }
-}
-console.log('[database-validation] PASS — critical RPC endpoints are exposed by PostgREST.');
 
+const openApi = JSON.parse(await get('/rest/v1/', 'PostgREST OpenAPI contract'));
+for (const rpcPath of functions) {
+  const route = openApi.paths?.[rpcPath];
+  if (!route || typeof route !== 'object') {
+    throw new Error(`[database-validation] RPC endpoint contract unavailable: ${rpcPath}`);
+  }
+  console.log(`[database-validation] PASS — ${rpcPath} is exposed by PostgREST.`);
+}
+
+console.log('[database-validation] PASS — critical RPC endpoints are exposed by PostgREST.');
 console.log('[database-validation] PASS — database contract smoke validation completed.');
