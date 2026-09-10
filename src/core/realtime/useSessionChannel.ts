@@ -1,16 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuthStore } from '@/shared/store/authStore';
 
 export function useSessionChannel(tenantId: string, callback?: (payload: unknown) => void) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const channelIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!tenantId || !isAuthenticated) return;
 
-    channelIdRef.current = channelIdRef.current ?? crypto.randomUUID();
-    const channelName = `sessions_${tenantId}_${channelIdRef.current}`;
+    const channelName = `sessions_${tenantId}_${crypto.randomUUID()}`;
     const channel = supabase
       .channel(channelName)
       .on(
