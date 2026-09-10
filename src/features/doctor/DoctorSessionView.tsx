@@ -15,6 +15,7 @@ import SandlerScriptPanel from './SandlerScriptPanel';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, User, Calendar, Clock, Shield } from 'lucide-react';
 import type { Json } from '@/infrastructure/supabase/database.types';
+import { formatDate, formatTime } from '@/shared/utils/dateTime';
 
 interface Note { id: string; content: string; type: 'subjective' | 'objective' | 'assessment' | 'plan'; created_at: string; created_by: string; }
 interface SessionData { id: string; patient_id: string; patient_name: string; patient_name_ar: string | null; session_status: string; created_at: string; waiting_time_minutes: number | null; session_duration_minutes: number | null; is_insured: boolean; core_score_display: number | null; core_score_backend: number | null; patient_class: string | null; doctor_notes: string | null; par_result: string | null; room_id: string | null; agenda_event_id: string | null; dominant_disc_profile: string | null; allergies: string | null; }
@@ -47,7 +48,7 @@ export default function DoctorSessionView() {
     if (!['doctor', 'clinic_admin', 'super_admin'].includes(role)) { setError('Access denied'); setLoading(false); return; }
     setLoading(true); setError(null);
 
-    let query = supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, session_metadata, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId);
+    let query = supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, session_metadata, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId).is('deleted_at', null).is('clinic_patients.deleted_at', null);
     if (role === 'doctor') {
       query = query.eq('doctor_id', user.id);
     }
@@ -87,8 +88,8 @@ export default function DoctorSessionView() {
               <div className="flex-1 min-w-0">
                 <h1 className="text-2xl font-bold text-slate-900 truncate">{session.patient_name}</h1>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 text-sm text-slate-500">
-                  <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{new Date(session.created_at).toLocaleDateString('ar-JO', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                  <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{new Date(session.created_at).toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(session.created_at)}</span>
+                  <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{formatTime(session.created_at)}</span>
                   {session.patient_name_ar && <span className="text-slate-400 font-medium">{session.patient_name_ar}</span>}
                 </div>
               </div>

@@ -6,6 +6,7 @@ import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { User, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { addMinutes, formatDate, formatTime, parseDate } from '@/shared/utils/dateTime';
 
 interface Patient {
   id: string;
@@ -34,7 +35,9 @@ export default function DoctorTodayPatients() {
       setLoading(true);
       setError(null);
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatDate(new Date());
+      const dayStart = parseDate(today);
+      const nextDayStart = addMinutes(dayStart, 24 * 60);
 
       let query = supabase
         .from('clinic_visit_sessions')
@@ -52,8 +55,10 @@ export default function DoctorTodayPatients() {
         `)
         .eq('tenant_id', tenantId)
         .eq('session_status', 'waiting')
-        .gte('created_at', `${today}T00:00:00`)
-        .lte('created_at', `${today}T23:59:59`)
+        .is('deleted_at', null)
+        .is('clinic_patients.deleted_at', null)
+        .gte('created_at', dayStart.toISOString())
+        .lt('created_at', nextDayStart.toISOString())
         .order('created_at', { ascending: true });
 
       if (user.role === 'doctor') {
@@ -138,14 +143,11 @@ export default function DoctorTodayPatients() {
                 <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3.5 w-3.5" />
-                    {new Date(patient.created_at).toLocaleDateString('ar-JO')}
+                    {formatDate(patient.created_at)}
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
-                    {new Date(patient.created_at).toLocaleTimeString('ar-JO', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    {formatTime(patient.created_at)}
                   </span>
                   {patient.waiting_time_minutes !== null && (
                     <span className="text-amber-600 font-medium">

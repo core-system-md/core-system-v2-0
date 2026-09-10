@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../core/auth/useAuth";
+import { formatDateTime } from '@/shared/utils/dateTime';
 
 interface Note {
   id: string;
@@ -57,7 +58,7 @@ export function ClinicalNotes({ notes, onAddNote, onUpdateNote, patientName }: C
         {filteredNotes.map((note) => (
           <div key={note.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-500">{new Date(note.created_at).toLocaleString('ar-JO')}</span>
+              <span className="text-xs text-slate-500">{formatDateTime(note.created_at)}</span>
               <span className="text-xs text-slate-500">{note.created_by}</span>
             </div>
             <textarea
