@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { E2E_STAFF, E2E_LICENSE_KEY, E2E_TENANT_ID } from './fixtures/staff.mjs';
+import { E2E_STAFF, E2E_LICENSE_KEY } from './fixtures/staff.mjs';
 import { E2E_SESSION_IDS } from './fixtures/patients.mjs';
 
 const BASE_ROUTES = ['/admin', '/doctor', '/reception', '/super-admin'];
@@ -22,11 +22,11 @@ const roleAccess = {
   receptionist: ['/reception', '/reception/inquiries', '/reception/invoices'],
 };
 
-const deniedByRole = {
-  super_admin: [],
-  clinic_admin: ['/super-admin', '/super-admin/feature-flags', '/super-admin/core-rules', '/super-admin/billing', '/super-admin/alerts', '/super-admin/tier-overrides', '/super-admin/health-scores'],
-  doctor: ['/admin', '/reception', '/super-admin'],
-  receptionist: ['/admin', '/doctor', '/super-admin'],
+const expectedDefault = {
+  super_admin: '/super-admin',
+  clinic_admin: '/admin',
+  doctor: '/doctor',
+  receptionist: '/reception',
 };
 
 async function clearBrowserAuth(page) {
@@ -42,12 +42,10 @@ async function loginAs(page, staff) {
   await clearBrowserAuth(page);
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
-  await expect(page.getByRole('button', { name: 'تسجيل باستخدام البريد' })).toBeVisible();
-  await page.getByRole('button', { name: 'تسجيل باستخدام البريد' }).click();
-  await page.getByLabel('البريد الإلكتروني').fill(staff.email);
-  await page.getByLabel('كلمة المرور').fill(staff.password);
+  await expect(page.getByLabel('رمز PIN (4 أرقام)')).toBeVisible();
+  await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
   await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
-  await expect(page).toHaveURL(/\/((admin)|(doctor)|(reception)|(super-admin))/);
+  await expect(page).toHaveURL(new RegExp(`${expectedDefault[staff.role].replace('/', '\\/')}$`));
 }
 
 test.describe('role and screen coverage', () => {
@@ -58,21 +56,18 @@ test.describe('role and screen coverage', () => {
       page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}`));
 
       await loginAs(page, staff);
-      const expectedDefault = staff.role === 'super_admin' ? '/super-admin' : staff.role === 'clinic_admin' ? '/admin' : staff.role === 'doctor' ? '/doctor' : '/reception';
-      await expect(page).toHaveURL(new RegExp(`${expectedDefault.replace('/', '\\/')}$`));
-
       for (const route of roleAccess[staff.role]) {
         await page.goto(route);
         await page.waitForLoadState('domcontentloaded');
         await expect(page.locator('body')).toContainText(/./);
       }
-
       expect(browserErrors, `${staff.role} produced unexpected browser errors`).toEqual([]);
     });
   }
 
-  test('route map covers every protected base area', async ({ page }) => {
+  test('every protected base route rejects anonymous users', async ({ page }) => {
     for (const route of BASE_ROUTES) {
+      await clearBrowserAuth(page);
       await page.goto(route);
       await expect(page).toHaveURL(/\/login$/);
     }
