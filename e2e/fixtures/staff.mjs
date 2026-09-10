@@ -1,6 +1,7 @@
 export const E2E_STAFF = [
   {
     role: 'super_admin',
+    pin: '9001',
     email: 'e2e-super-admin@core-system.invalid',
     password: 'E2E-Only-Password-1!',
     full_name: 'E2E Super Admin',
@@ -9,6 +10,7 @@ export const E2E_STAFF = [
   },
   {
     role: 'clinic_admin',
+    pin: '9002',
     email: 'e2e-clinic-admin@core-system.invalid',
     password: 'E2E-Only-Password-2!',
     full_name: 'E2E Clinic Admin',
@@ -17,6 +19,7 @@ export const E2E_STAFF = [
   },
   {
     role: 'doctor',
+    pin: '9003',
     email: 'e2e-doctor@core-system.invalid',
     password: 'E2E-Only-Password-3!',
     full_name: 'E2E Doctor',
@@ -25,6 +28,7 @@ export const E2E_STAFF = [
   },
   {
     role: 'receptionist',
+    pin: '9004',
     email: 'e2e-receptionist@core-system.invalid',
     password: 'E2E-Only-Password-4!',
     full_name: 'E2E Receptionist',
