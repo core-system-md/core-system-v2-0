@@ -1,4 +1,4 @@
-﻿-- 040_validate_pin_rate_limiting.sql
+-- 040_validate_pin_rate_limiting.sql
 -- P38-B2: Integrate backend rate limiting into validate_pin
 -- Fixes check_pin_rate_limit column reference (attempted_at -> created_at)
 
