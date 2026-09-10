@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const baseUrl = (process.env.SUPABASE_URL ?? '').replace(/\/$/, '');
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+const baseUrl = (process.env.SUPABASE_URL ?? '').trim().replace(/^"|"$/g, '').replace(/\/$/, '');
+const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim().replace(/^"|"$/g, '');
 
 if (!baseUrl || !serviceKey) {
   throw new Error('[database-validation] SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
