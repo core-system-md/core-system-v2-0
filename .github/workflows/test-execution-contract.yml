@@ -48,7 +48,8 @@ jobs:
         run: node tools/prepare-local-migrations.mjs
 
       - name: Start isolated Supabase
-        run: supabase start -x vector,studio,imgproxy
+        shell: bash
+        run: timeout 10m supabase start -x vector,studio,imgproxy,mailpit,logflare
 
       - name: Export isolated Supabase environment
         shell: bash
