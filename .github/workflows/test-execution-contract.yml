@@ -63,12 +63,14 @@ jobs:
 
       - name: Validate decision plan
         run: |
-          node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('test-execution-plan.json','utf8')); const required=['contract_version','baseline','candidate','merge_base','changed_files','impact','affected_domains','affected_modules','affected_roles','affected_workflows','security_impact','data_impact','required_engineering','required_e2e','required_negative_tests','required_reconciliation','regression_level']; for (const k of required) if (!(k in p)) throw new Error('missing '+k); if(!/^R[0-4]$/.test(p.regression_level)) throw new Error('invalid regression'); console.log(JSON.stringify({regression_level:p.regression_level, impact:p.impact, affected_roles:p.affected_roles, required_engineering:p.required_engineering, required_e2e:p.required_e2e}, null, 2));"
+          node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('test-execution-plan.json','utf8')); const required=['contract_version','baseline','candidate','merge_base','changed_files','impact','affected_domains','affected_modules','affected_roles','affected_workflows','security_impact','data_impact','required_engineering','required_e2e','required_negative_tests','required_reconciliation','regression_level']; for (const k of required) if (!(k in p)) throw new Error('missing '+k); if(!/^R[0-4]$/.test(p.regression_level)) throw new Error('invalid regression'); console.log(JSON.stringify({regression_level:p.regression_level, impact:p.impact, affected_roles:p.affected_roles, required_engineering:p.required_engineering, required_e2e:p.required_e2e, required_negative_tests:p.required_negative_tests, required_reconciliation:p.required_reconciliation}, null, 2));"
 
       - name: Run contract self-test
         run: npm run test:contract
 
       - name: Run selected validation scope
+        env:
+          TEST_EXECUTION_RUN_E2E: 'true'
         run: node tools/test-execution-runner.mjs test-execution-plan.json
 
       - name: Upload execution plan
