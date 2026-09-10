@@ -54,9 +54,12 @@ jobs:
         shell: bash
         run: |
           supabase status -o env > .supabase.env
-          api_url=$(grep '^API_URL=' .supabase.env | cut -d= -f2-)
-          anon_key=$(grep '^ANON_KEY=' .supabase.env | cut -d= -f2-)
-          service_role_key=$(grep '^SERVICE_ROLE_KEY=' .supabase.env | cut -d= -f2-)
+          strip_wrapping_quotes() {
+            printf '%s' "$1" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"
+          }
+          api_url=$(strip_wrapping_quotes "$(grep '^API_URL=' .supabase.env | cut -d= -f2-)")
+          anon_key=$(strip_wrapping_quotes "$(grep '^ANON_KEY=' .supabase.env | cut -d= -f2-)")
+          service_role_key=$(strip_wrapping_quotes "$(grep '^SERVICE_ROLE_KEY=' .supabase.env | cut -d= -f2-)")
           printf 'VITE_SUPABASE_URL=%s\n' "$api_url" >> "$GITHUB_ENV"
           printf 'VITE_SUPABASE_ANON_KEY=%s\n' "$anon_key" >> "$GITHUB_ENV"
           printf 'SUPABASE_URL=%s\n' "$api_url" >> "$GITHUB_ENV"
