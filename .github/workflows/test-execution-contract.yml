@@ -51,6 +51,9 @@ jobs:
           fi
           echo "candidate=${DISPATCH_CANDIDATE:-$WORKFLOW_SHA}" >> "$GITHUB_OUTPUT"
 
+      - name: Check Decision Engine syntax
+        run: node --check tools/test-execution-setup.mjs && node --check tools/test-execution-runner.mjs
+
       - name: Generate decision plan
         run: |
           node tools/test-execution-setup.mjs \
@@ -60,34 +63,13 @@ jobs:
 
       - name: Validate decision plan
         run: |
-          node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('test-execution-plan.json','utf8')); const required=['contract_version','baseline','candidate','merge_base','changed_files','impact','affected_domains','affected_modules','affected_roles','affected_workflows','security_impact','data_impact','required_engineering','required_e2e','required_negative_tests','required_reconciliation','regression_level']; for (const k of required) if (!(k in p)) throw new Error('missing '+k); if(!/^R[0-4]$/.test(p.regression_level)) throw new Error('invalid regression'); console.log('Plan valid:', p.regression_level);"
+          node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('test-execution-plan.json','utf8')); const required=['contract_version','baseline','candidate','merge_base','changed_files','impact','affected_domains','affected_modules','affected_roles','affected_workflows','security_impact','data_impact','required_engineering','required_e2e','required_negative_tests','required_reconciliation','regression_level']; for (const k of required) if (!(k in p)) throw new Error('missing '+k); if(!/^R[0-4]$/.test(p.regression_level)) throw new Error('invalid regression'); console.log(JSON.stringify({regression_level:p.regression_level, impact:p.impact, affected_roles:p.affected_roles, required_engineering:p.required_engineering, required_e2e:p.required_e2e}, null, 2));"
 
       - name: Run contract self-test
         run: npm run test:contract
 
-      - name: Run selected engineering validation
-        run: node tools/test-execution-setup.mjs --base "${{ steps.refs.outputs.base }}" --candidate "${{ steps.refs.outputs.candidate }}" --output test-execution-plan.json --execute
-
-      - name: Report unimplemented required validations
-        if: ${{ always() }}
-        shell: bash
-        run: |
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const plan = JSON.parse(fs.readFileSync('test-execution-plan.json','utf8'));
-          const unsupported = plan.required_engineering.filter((x) => ['integration_tests','api_tests','database_validation','migration_validation'].includes(x));
-          if (unsupported.length) {
-            console.log('Required validations without an executable repository-native runner:', unsupported.join(', '));
-            console.log('Classification: INSUFFICIENT EVIDENCE');
-          }
-          if (plan.required_e2e.length) {
-            console.log('Required E2E:', plan.required_e2e.join(', '));
-            console.log('E2E execution requires an explicitly provisioned, isolated environment; production mutation is not attempted by this workflow.');
-          }
-          if (plan.required_negative_tests.length) {
-            console.log('Required negative/security validation:', plan.required_negative_tests.join(', '));
-          }
-          NODE
+      - name: Run selected validation scope
+        run: node tools/test-execution-runner.mjs test-execution-plan.json
 
       - name: Upload execution plan
         if: ${{ always() && hashFiles('test-execution-plan.json') != '' }}
