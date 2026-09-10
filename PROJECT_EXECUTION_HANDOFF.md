@@ -24,7 +24,8 @@ Master Test Execution Contract installation and self-validation.
 
 - Authoritative methodology: `docs/testing/MASTER_TEST_EXECUTION_CONTRACT.md`.
 - Decision Engine: `tools/test-execution-setup.mjs`.
-- Generated machine-readable plan: `test-execution-plan.json`.
+- Execution runner: `tools/test-execution-runner.mjs`.
+- Generated machine-readable plan: `test-execution-plan.json` (CI artifact; not hand-maintained).
 - CI enforcement: `.github/workflows/test-execution-contract.yml`.
 - Self-test command: `npm run test:contract`.
 - Plan command: `npm run test:execution-plan`.
@@ -39,9 +40,10 @@ The engine compares baseline and candidate using Git merge-base/diff and classif
 - Repository discovery: COMPLETE.
 - Architecture/testing/CI audit: COMPLETE.
 - Contract implementation: COMPLETE on installation branch.
-- Decision Engine self-test: REQUIRED and executed in CI as part of this branch.
-- Engineering validation: REQUIRED and selected dynamically by generated plan.
-- Application E2E for the contract installation: NOT REQUIRED when the generated plan correctly classifies this change as contract/CI tooling only.
+- Decision Engine self-test: PASS. It covers contract-installation R0, documentation R0, source/UI R2, database R3, security/role R3, and cross-module R3 classification cases.
+- CI plan generation: PASS. The contract installation generated `regression_level: R0`, no affected roles, no security impact, no E2E requirement, and only `unit_tests` as required engineering validation.
+- Engineering validation: PASS for the selected R0 scope; existing Vitest suite completed successfully (23 tests in 5 files in the current CI run).
+- Application E2E for the contract installation: NOT REQUIRED by the generated plan.
 - Production deployment: NOT requested and not performed by this contract installation.
 
 ## Known blockers / gaps
@@ -50,13 +52,14 @@ The engine compares baseline and candidate using Git merge-base/diff and classif
 - No dedicated negative/security browser suite was discovered.
 - No database migration execution job is currently present in CI.
 - Existing Playwright coverage is not full role-based workflow coverage.
+- Repository baseline has an npm lockfile synchronization mismatch (`npm ci` reports missing Playwright packages from the lock); the contract workflow intentionally reuses the repository's existing `npm install` convention and does not modify dependencies as part of this installation.
 
-These are explicit repository gaps, not fabricated failures.
+These are explicit repository findings, not application-failure claims.
 
 ## Closure state
 
-`NOT CLOSED` until CI executes the installed contract successfully and its generated plan plus self-test evidence are inspected. Production deployment is intentionally out of scope unless separately authorized.
+`READY FOR MERGE` once the final PR head CI run is green. The contract installation itself does not require production deployment verification because no production deployment was requested and its generated scope is R0.
 
 ## Next execution stage
 
-After this installation reaches its merge gate, future engineering changes must run the Decision Engine before test-scope decisions are made.
+After this installation reaches the merge gate, future engineering changes must run the Decision Engine before test-scope decisions are made. For UI/role/security changes the engine will select additional validation rather than silently downgrading missing evidence to PASS.
