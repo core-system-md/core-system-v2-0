@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { E2E_PREFIX, E2E_PATIENTS, E2E_SESSION_IDS } from './fixtures/patients.mjs';
+import { E2E_STAFF, E2E_TENANT_ID } from './fixtures/staff.mjs';
 
-for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'E2E_TENANT_ID']) {
+for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
   if (!process.env[key]) throw new Error(`[E2E] Missing required environment variable: ${key}`);
 }
 if (process.env.E2E_ALLOW_MUTATION !== 'true') {
@@ -14,10 +15,9 @@ if (process.env.E2E_ALLOW_PRODUCTION === 'true' && !/^https:\/\//i.test(process.
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const tenantId = process.env.E2E_TENANT_ID;
+const tenantId = process.env.E2E_TENANT_ID ?? E2E_TENANT_ID;
 const deletedAt = new Date().toISOString();
 
-// Constitution/P137 contract: never issue physical DELETE; use verified soft-delete tables.
 const { error: intakeError } = await supabase
   .from('patient_intake_responses')
   .update({ deleted_at: deletedAt })
@@ -42,6 +42,14 @@ const { error: patientError } = await supabase
   .is('deleted_at', null);
 if (patientError) throw new Error(`[E2E] patient soft-reset failed: ${patientError.message}`);
 
+const { error: staffError } = await supabase
+  .from('clinic_users')
+  .update({ deleted_at: deletedAt, is_active: false })
+  .eq('tenant_id', tenantId)
+  .in('email', E2E_STAFF.map((staff) => staff.email))
+  .is('deleted_at', null);
+if (staffError) throw new Error(`[E2E] staff soft-reset failed: ${staffError.message}`);
+
 const { data: remaining, error: verifyError } = await supabase
   .from('clinic_patients')
   .select('id')
@@ -49,6 +57,15 @@ const { data: remaining, error: verifyError } = await supabase
   .like('mrn', `${E2E_PREFIX}%`)
   .is('deleted_at', null);
 if (verifyError) throw new Error(`[E2E] reset verification failed: ${verifyError.message}`);
-if ((remaining?.length ?? 0) !== 0) throw new Error(`[E2E] reset verification failed: ${remaining?.length ?? 0} active fixtures remain.`);
+if ((remaining?.length ?? 0) !== 0) throw new Error(`[E2E] reset verification failed: ${remaining?.length ?? 0} active patient fixtures remain.`);
 
-console.log(`[E2E] Soft-reset complete for ${E2E_PATIENTS.length} patient fixtures.`);
+const { data: staffRemaining, error: staffVerifyError } = await supabase
+  .from('clinic_users')
+  .select('id')
+  .eq('tenant_id', tenantId)
+  .in('email', E2E_STAFF.map((staff) => staff.email))
+  .is('deleted_at', null);
+if (staffVerifyError) throw new Error(`[E2E] staff reset verification failed: ${staffVerifyError.message}`);
+if ((staffRemaining?.length ?? 0) !== 0) throw new Error(`[E2E] reset verification failed: ${staffRemaining?.length ?? 0} active staff fixtures remain.`);
+
+console.log(`[E2E] Soft-reset complete for ${E2E_PATIENTS.length} patient fixtures and ${E2E_STAFF.length} role fixtures.`);

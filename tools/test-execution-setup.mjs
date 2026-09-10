@@ -85,7 +85,6 @@ function analyzeFiles(base, candidate, cwd = ROOT) {
 
   const dependencyDiff = packageFiles.length > 0 && /^(?:\+|-).*"(?:dependencies|devDependencies|peerDependencies|optionalDependencies)"|^[-+].*package-lock/.test(diff);
   const packageScriptOnly = packageFiles.length > 0 && !dependencyDiff;
-
   const authImpact = sourceFiles.some((f) => /(auth|login|jwt)/i.test(f)) || /loginWithPin|isAuthenticated|ProtectedWrapper|auth\.uid\(|get_current_tenant_id\(/.test(sourceText);
   const roleImpact = sourceFiles.some((f) => /(permissionMatrix|RoleGuard|PermissionGuard|allowedRoles)/i.test(f)) || /PermissionGuard|allowedRoles|UserRole|permissionMatrix/.test(sourceText);
   const rlsImpact = migrationFiles.some((f) => /(rls|policy|grant|revoke|definer)/i.test(f)) || (migrationFiles.length > 0 && /RLS|SECURITY DEFINER/.test(sourceText));
@@ -102,7 +101,6 @@ function analyzeFiles(base, candidate, cwd = ROOT) {
   for (const route of routes) for (const file of files) { const a = area(file); if (a && route.includes(a)) workflows.add(route); }
   if (testFiles.some((f) => f.startsWith('e2e/'))) workflows.add('existing-e2e-suite');
   const crossModule = new Set(changedDomains.filter(Boolean)).size > 1 || /import[^\n]+(?:features|components)\/[^\n]+(?:features|components)\//.test(sourceText);
-
   return { mergeBase, diff, changed, files, contents, sourceFiles, testFiles, migrationFiles, ciFiles, configFiles, packageFiles, docsOnlyCandidates, dependencyDiff, packageScriptOnly, authImpact, roleImpact, rlsImpact, securityImpact, apiImpact, uiImpact, dataImpact, databaseImpact, deploymentImpact, changedDomains, changedAreas, workflows: unique([...workflows]), crossModule, filesText };
 }
 
@@ -166,19 +164,22 @@ function buildPlan(base, candidate, impact, cwd = ROOT) {
     integration_tests: false,
     api_tests: false,
     playwright: fs.existsSync(path.join(cwd, 'playwright.config.mjs')) || fs.existsSync(path.join(cwd, 'playwright.config.ts')),
-    migration_validation: fs.existsSync(path.join(cwd, 'supabase/migrations')),
-    database_validation: fs.existsSync(path.join(cwd, 'supabase')),
+    migration_validation: fs.existsSync(path.join(cwd, 'tools/migration-validation.mjs')) && fs.existsSync(path.join(cwd, 'supabase/migrations')),
+    database_validation: fs.existsSync(path.join(cwd, 'supabase/migrations')),
+    negative_security_e2e: fs.existsSync(path.join(cwd, 'e2e/security-negative.spec.mjs')),
+    reconciliation: fs.existsSync(path.join(cwd, 'e2e/reconcile.mjs')),
   };
 
   const unknowns = [];
   if (impact.crossModule && !available.integration_tests) unknowns.push('No dedicated integration-test runner discovered; integration scope remains NOT VERIFIED.');
-  if (negative.length && !impact.testFiles.some((f) => /security|auth|permission|negative/i.test(f))) unknowns.push('No dedicated negative/security E2E suite discovered for the candidate.');
+  if (negative.length && !available.negative_security_e2e) unknowns.push('No dedicated negative/security E2E suite discovered for the candidate.');
+  if (reconciliation.length && !available.reconciliation) unknowns.push('No persistent-state reconciliation runner discovered.');
   if (impact.databaseImpact && !available.database_validation) unknowns.push('No repository database validation tooling discovered.');
   if (e2eRequired && !available.playwright) unknowns.push('No Playwright configuration discovered.');
   if (impact.deploymentImpact) unknowns.push('Production/deployment validation is separate and requires explicit authorization.');
 
   return {
-    contract_version: '1.0', generated_at: new Date().toISOString(),
+    contract_version: '1.1', generated_at: new Date().toISOString(),
     repository: safeGit(['config', '--get', 'remote.origin.url'], cwd) ?? 'UNKNOWN', primary_branch: 'main',
     baseline: base, candidate, merge_base: impact.mergeBase, changed_files: impact.changed,
     changed_directories: unique(impact.files.map((f) => path.posix.dirname(f))), impact: unique(tags),
@@ -233,7 +234,7 @@ export function selfTest() {
     writeFixture(cwd, 'supabase/migrations/001_test.sql', 'alter table example add column value text;\n');
     const db = commit(cwd, 'db: add migration');
     const dbPlan = analyzeRepository(source, db, cwd);
-    if (dbPlan.regression_level !== 'R3' || !dbPlan.database_impact) throw new Error('database classification failed');
+    if (dbPlan.regression_level !== 'R3' || !dbPlan.database_impact || !dbPlan.required_engineering.includes('migration_validation')) throw new Error('database classification failed');
 
     writeFixture(cwd, 'src/core/permissions/permissionMatrix.ts', "export type UserRole = 'admin' | 'operator';\nexport const permissionMatrix = { admin: [], operator: [] };\nexport const guard = 'PermissionGuard';\n");
     const sec = commit(cwd, 'security: adjust permissions');
