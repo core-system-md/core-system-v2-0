@@ -55,11 +55,16 @@ function normalizeIndicator(value: number | null | undefined): number | null {
   return Number.isInteger(value) && value >= 0 && value <= 1000 ? value : null;
 }
 
-function hasCompleteIndicators(indicators: IndicatorValues): indicators is Record<IndicatorKey, number> {
-  return INDICATOR_KEYS.every((key) => {
+function getCompleteIndicators(indicators: IndicatorValues): Record<IndicatorKey, number> | null {
+  const complete = {} as Record<IndicatorKey, number>;
+  for (const key of INDICATOR_KEYS) {
     const value = indicators[key];
-    return Number.isInteger(value) && value >= 0 && value <= 1000;
-  });
+    if (value === null || !Number.isInteger(value) || value < 0 || value > 1000) {
+      return null;
+    }
+    complete[key] = value;
+  }
+  return complete;
 }
 
 export default function DecisionCard({ sessionId }: DecisionCardProps) {
@@ -151,14 +156,15 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
 
   const handleCalculateScore = async () => {
     if (!sessionId || !tenant_id || !session) return;
-    if (!hasCompleteIndicators(indicators)) {
+    const completeIndicators = getCompleteIndicators(indicators);
+    if (!completeIndicators) {
       toast.error('لا يمكن حساب CORE قبل توفر جميع المؤشرات الفعلية من 0 إلى 1000');
       return;
     }
 
     setCalculating(true);
     try {
-      const result = await CoreScoreEngine.calculate(indicators, { sessionId, tenantId: tenant_id });
+      const result = await CoreScoreEngine.calculate(completeIndicators, { sessionId, tenantId: tenant_id });
       toast.success(`تم حساب Core Score: ${result.display} (${result.patientClass})`);
       await fetchSessionData();
     } catch (err: unknown) {
@@ -170,6 +176,8 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
   const updateIndicator = (key: IndicatorKey, value: string) => {
     setIndicators((previous) => ({ ...previous, [key]: value === '' ? null : Number(value) }));
   };
+
+  const completeIndicators = getCompleteIndicators(indicators);
 
   if (loading) {
     return (
@@ -220,7 +228,7 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
             <p className="mt-1 text-xs leading-5 text-slate-500">الحساب النهائي يبقى عبر المسار المعتمد في CoreScoreEngine/Edge Function. لا توجد قيم افتراضية غير موثقة.</p>
           </div>
           <PermissionGuard required="edit_sessions">
-            <button type="button" onClick={handleCalculateScore} disabled={calculating || !hasCompleteIndicators(indicators)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1B2A4A] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#223A63] disabled:cursor-not-allowed disabled:opacity-40"><RefreshCw className={`h-4 w-4 ${calculating ? 'animate-spin' : ''}`} />{calculating ? 'جاري الحساب...' : 'حساب الدرجة'}</button>
+            <button type="button" onClick={handleCalculateScore} disabled={calculating || completeIndicators === null} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1B2A4A] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#223A63] disabled:cursor-not-allowed disabled:opacity-40"><RefreshCw className={`h-4 w-4 ${calculating ? 'animate-spin' : ''}`} />{calculating ? 'جاري الحساب...' : 'حساب الدرجة'}</button>
           </PermissionGuard>
         </div>
 
@@ -233,7 +241,7 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
           ))}
         </div>
 
-        {!hasCompleteIndicators(indicators) && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">لا يمكن تشغيل الحساب قبل توفر المؤشرات الستة كاملةً. لم تتم إضافة قيم تقديرية تلقائيًا.</div>}
+        {completeIndicators === null && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">لا يمكن تشغيل الحساب قبل توفر المؤشرات الستة كاملةً. لم تتم إضافة قيم تقديرية تلقائيًا.</div>}
         {session.core_score_backend !== null && <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3"><p className="text-sm text-emerald-800">✓ آخر درجة محسوبة: <strong>{session.core_score_display ?? '—'}</strong>{session.patient_class ? ` (${session.patient_class})` : ''}</p></div>}
       </section>
 
