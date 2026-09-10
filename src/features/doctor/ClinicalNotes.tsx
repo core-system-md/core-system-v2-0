@@ -17,31 +17,35 @@ interface ClinicalNotesProps {
   patientName: string;
 }
 
+const tabs = [
+  { key: "subjective" as const, label: "S", labelAr: "ذاتي", active: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  { key: "objective" as const, label: "O", labelAr: "موضوعي", active: "border-sky-200 bg-sky-50 text-sky-700" },
+  { key: "assessment" as const, label: "A", labelAr: "تقييم", active: "border-amber-200 bg-amber-50 text-amber-700" },
+  { key: "plan" as const, label: "P", labelAr: "خطة", active: "border-violet-200 bg-violet-50 text-violet-700" },
+];
+
 export function ClinicalNotes({ notes, onAddNote, onUpdateNote, patientName }: ClinicalNotesProps) {
   const [activeTab, setActiveTab] = useState<Note["type"]>("subjective");
   const [newContent, setNewContent] = useState("");
   const { user } = useAuth();
-
-  const tabs = [
-    { key: "subjective" as const, label: "S", labelAr: "ذاتي", color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
-    { key: "objective" as const, label: "O", labelAr: "موضوعي", color: "text-blue-400 border-blue-500/30 bg-blue-500/10" },
-    { key: "assessment" as const, label: "A", labelAr: "تقييم", color: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
-    { key: "plan" as const, label: "P", labelAr: "خطة", color: "text-purple-400 border-purple-500/30 bg-purple-500/10" },
-  ];
-
-  const filteredNotes = notes.filter((n) => n.type === activeTab);
+  const activeLabel = tabs.find((tab) => tab.key === activeTab)?.labelAr ?? "ملاحظة";
+  const filteredNotes = notes.filter((note) => note.type === activeTab);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col h-full" dir="rtl">
-      <div className="p-4 border-b border-slate-800">
-        <h2 className="text-lg font-semibold text-white">ملاحظات SOAP — {patientName}</h2>
-        <div className="flex gap-2 mt-3">
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" dir="rtl">
+      <div className="border-b border-slate-200 bg-slate-50 px-4 py-4 md:px-5">
+        <p className="text-xs font-medium text-slate-400">السجل السريري</p>
+        <h2 className="mt-1 text-lg font-bold text-[#1B2A4A]">ملاحظات SOAP — {patientName}</h2>
+        <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="أنواع الملاحظات السريرية">
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`w-10 h-10 rounded-xl border text-sm font-bold transition-all ${activeTab === tab.key ? tab.color : "border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200"}`}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
               title={tab.labelAr}
+              onClick={() => setActiveTab(tab.key)}
+              className={`h-10 w-10 rounded-xl border text-sm font-bold transition-colors ${activeTab === tab.key ? tab.active : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100"}`}
             >
               {tab.label}
             </button>
@@ -49,47 +53,57 @@ export function ClinicalNotes({ notes, onAddNote, onUpdateNote, patientName }: C
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 space-y-3">
-        {filteredNotes.length === 0 && (
-          <div className="text-center text-slate-500 text-sm py-8">
-            لا توجد ملاحظات {tabs.find(t => t.key === activeTab)?.labelAr}
+      <div className="max-h-[420px] overflow-y-auto p-4 md:p-5">
+        {filteredNotes.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+            <p className="text-sm font-medium text-slate-500">لا توجد ملاحظات من نوع {activeLabel}</p>
+            <p className="mt-1 text-xs text-slate-400">أضف الملاحظة من الحقل أدناه.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredNotes.map((note) => (
+              <article key={note.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                  <span>{formatDateTime(note.created_at)}</span>
+                  <span>{note.created_by}</span>
+                </div>
+                <textarea
+                  defaultValue={note.content}
+                  onBlur={(event) => onUpdateNote(note.id, event.target.value)}
+                  aria-label={`ملاحظة ${activeLabel}`}
+                  className="min-h-[84px] w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700 outline-none transition focus:border-[#1B2A4A] focus:bg-white focus:ring-2 focus:ring-slate-200"
+                  dir="rtl"
+                />
+              </article>
+            ))}
           </div>
         )}
-        {filteredNotes.map((note) => (
-          <div key={note.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-500">{formatDateTime(note.created_at)}</span>
-              <span className="text-xs text-slate-500">{note.created_by}</span>
-            </div>
-            <textarea
-              defaultValue={note.content}
-              onBlur={(e) => onUpdateNote(note.id, e.target.value)}
-              className="w-full bg-transparent text-sm text-slate-300 resize-none focus:outline-none min-h-[60px]"
-              dir="rtl"
-            />
-          </div>
-        ))}
       </div>
 
-      <div className="p-4 border-t border-slate-800">
+      <div className="border-t border-slate-200 bg-white p-4 md:p-5">
+        <label className="block text-sm font-semibold text-slate-700" htmlFor="doctor-new-clinical-note">
+          إضافة ملاحظة {activeLabel}
+        </label>
         <textarea
+          id="doctor-new-clinical-note"
           value={newContent}
-          onChange={(e) => setNewContent(e.target.value)}
-          placeholder={`أضف ملاحظة ${tabs.find(t => t.key === activeTab)?.labelAr}...`}
-          className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none min-h-[80px]"
+          onChange={(event) => setNewContent(event.target.value)}
+          placeholder={`أضف ملاحظة ${activeLabel}...`}
+          className="mt-2 min-h-[100px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700 outline-none transition focus:border-[#1B2A4A] focus:bg-white focus:ring-2 focus:ring-slate-200"
           dir="rtl"
         />
         <button
+          type="button"
           onClick={() => {
             if (!newContent.trim()) return;
-            onAddNote({ content: newContent, type: activeTab, created_by: user?.id ?? '' });
+            onAddNote({ content: newContent.trim(), type: activeTab, created_by: user?.id ?? '' });
             setNewContent("");
           }}
-          className="w-full mt-2 py-2.5 rounded-xl bg-blue-500/10 text-blue-400 text-sm font-medium hover:bg-blue-500/20 transition-colors border border-blue-500/20"
+          className="mt-3 w-full rounded-xl bg-[#1B2A4A] py-3 text-sm font-bold text-white transition-colors hover:bg-[#223A63]"
         >
-          إضافة ملاحظة
+          إضافة الملاحظة
         </button>
       </div>
-    </div>
+    </section>
   );
 }
