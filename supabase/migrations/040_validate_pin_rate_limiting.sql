@@ -13,7 +13,7 @@ RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $\$
+AS $$
 DECLARE
   v_attempt_count INT;
 BEGIN
@@ -25,7 +25,7 @@ BEGIN
 
   RETURN v_attempt_count < 5;
 END;
-$\$;
+$$;
 
 -- ============================================================
 -- STEP 2: Update validate_pin with rate limiting + logging
@@ -38,7 +38,7 @@ RETURNS SETOF clinic_users
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $\$
+AS $$
 DECLARE
   v_caller_tenant_id UUID;
   v_match_count INT;
@@ -84,4 +84,4 @@ BEGIN
     AND is_active = true
     AND deleted_at IS NULL;
 END;
-$\$;
+$$;
