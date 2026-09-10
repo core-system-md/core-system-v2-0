@@ -15,7 +15,7 @@ type QueueRpcClient = { rpc: (fn: string, args: Record<string, unknown>) => Prom
 const rpcClient = () => supabase as unknown as QueueRpcClient
 
 function SlaIndicator({ status, waitMinutes }: { status: QueueItem['slaStatus']; waitMinutes: number }) {
-  const colorMap = { green: 'bg-emerald-500', yellow: 'bg-amber-500', red: 'bg-red-500 animate-pulse' }
+  const colorMap: Record<QueueItem['slaStatus'], string> = { green: 'bg-emerald-500', yellow: 'bg-amber-500', red: 'bg-red-500 animate-pulse' }
   return <div className="flex items-center gap-2"><span className={cn('h-2.5 w-2.5 rounded-full', colorMap[status])} /><span className="text-sm text-slate-500">{waitMinutes} د</span></div>
 }
 function LockIndicator({ holderName }: { holderName: string | null }) {
@@ -30,8 +30,8 @@ function PriorityBadge({ priority }: { priority: QueueItem['priority'] }) {
     qualified: { label: 'مؤهل', className: 'bg-emerald-50 text-emerald-700' },
     hot_lead: { label: 'ساخن', className: 'bg-red-50 text-red-700' },
   }
-  const { label, className } = config[priority] ?? config.medium_priority
-  return <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', className)}>{label}</span>
+  const value = config[priority] ?? config.medium_priority
+  return <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', value.className)}>{value.label}</span>
 }
 
 export function LiveQueueBoard({ onSelectSession }: LiveQueueBoardProps) {
@@ -56,7 +56,7 @@ export function LiveQueueBoard({ onSelectSession }: LiveQueueBoardProps) {
     if (fromIndex < 0 || toIndex < 0 || items[fromIndex]?.sessionStatus !== 'waiting' || items[toIndex]?.sessionStatus !== 'waiting') return
     const previous = items
     const next = [...items]
-    const [moved] = next.splice(fromIndex, 1)
+    const moved = next.splice(fromIndex, 1)[0]
     if (!moved) return
     next.splice(toIndex, 0, moved)
     setItems(next)
@@ -68,9 +68,7 @@ export function LiveQueueBoard({ onSelectSession }: LiveQueueBoardProps) {
     } catch (err) {
       setItems(previous)
       toast.error(err instanceof Error ? err.message : 'تعذر إعادة ترتيب الانتظار')
-    } finally {
-      setBusyId(null)
-    }
+    } finally { setBusyId(null) }
   }
 
   const handleLock = async (item: QueueItem) => {
@@ -80,9 +78,8 @@ export function LiveQueueBoard({ onSelectSession }: LiveQueueBoardProps) {
       const result = await callQueueRpc(fn, { p_session_id: item.sessionId })
       if (!result?.success) toast.error(result?.error === 'ALREADY_LOCKED' ? 'الجلسة مقفلة بواسطة موظف آخر' : 'تعذر تحديث القفل')
       else { await refetch(); toast.success(item.lockHolderId ? 'تم تحرير القفل' : 'تم حجز الجلسة لك') }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'تعذر تحديث القفل')
-    } finally { setBusyId(null) }
+    } catch (err) { toast.error(err instanceof Error ? err.message : 'تعذر تحديث القفل') }
+    finally { setBusyId(null) }
   }
   const handleSelect = (sessionId: string) => { selectSession(sessionId); onSelectSession?.(sessionId) }
 
