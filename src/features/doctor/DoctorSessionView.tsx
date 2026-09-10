@@ -16,6 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, User, Calendar, Clock, Shield } from 'lucide-react';
 import type { Json } from '@/infrastructure/supabase/database.types';
 import { formatDate, formatTime } from '@/shared/utils/dateTime';
+import { useSessionChannel } from '@/core/realtime/useSessionChannel';
 
 interface Note { id: string; content: string; type: 'subjective' | 'objective' | 'assessment' | 'plan'; created_at: string; created_by: string; }
 interface SessionData { id: string; patient_id: string; patient_name: string; patient_name_ar: string | null; session_status: string; created_at: string; waiting_time_minutes: number | null; session_duration_minutes: number | null; is_insured: boolean; core_score_display: number | null; core_score_backend: number | null; patient_class: string | null; doctor_notes: string | null; par_result: string | null; room_id: string | null; agenda_event_id: string | null; dominant_disc_profile: string | null; allergies: string | null; }
@@ -40,6 +41,11 @@ export default function DoctorSessionView() {
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [allergyConfirmed, setAllergyConfirmed] = useState(false);
+  const handleSessionRealtime = useCallback(() => {
+    setRefreshKey((key) => key + 1);
+  }, []);
+
+  useSessionChannel(tenantId ?? '', handleSessionRealtime);
 
   const fetchSession = useCallback(async () => {
     if (!tenantId) { setError('Tenant not initialized'); setLoading(false); return; }

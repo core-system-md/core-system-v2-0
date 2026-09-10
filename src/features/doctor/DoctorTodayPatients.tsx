@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { User, Calendar, Clock, AlertCircle } from 'lucide-react';
 import { addMinutes, formatDate, formatTime, parseDate } from '@/shared/utils/dateTime';
+import { useSessionChannel } from '@/core/realtime/useSessionChannel';
 
 interface Patient {
   id: string;
@@ -27,6 +28,12 @@ export default function DoctorTodayPatients() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const handleSessionRealtime = useCallback(() => {
+    setRefreshKey((key) => key + 1);
+  }, []);
+
+  useSessionChannel(tenantId ?? '', handleSessionRealtime);
 
   useEffect(() => {
     async function fetchPatients() {
@@ -89,7 +96,7 @@ export default function DoctorTodayPatients() {
     }
 
     void fetchPatients();
-  }, [tenantId, user?.id, user?.role]);
+  }, [tenantId, user?.id, user?.role, refreshKey]);
 
   if (loading) {
     return (
