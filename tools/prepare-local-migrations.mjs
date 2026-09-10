@@ -75,6 +75,36 @@ function appendOnce(fileName, marker, sqlBlock) {
   return true;
 }
 
+// Replay-only compatibility bridge: the early master_tenants migration predates
+// the canonical Blueprint tenant identity/licensing/profile fields used by the
+// active application, auth flow, and E2E fixtures.
+const tenantsBridge = appendOnce(
+  '002_tenants_users.sql',
+  '-- CORE SYSTEM local replay compatibility: canonical master_tenants fields',
+  `ALTER TABLE public.master_tenants
+  ADD COLUMN IF NOT EXISTS clinic_name TEXT,
+  ADD COLUMN IF NOT EXISTS clinic_name_ar TEXT,
+  ADD COLUMN IF NOT EXISTS license_key TEXT,
+  ADD COLUMN IF NOT EXISTS subscription_start TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS subscription_end TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS max_devices SMALLINT NOT NULL DEFAULT 2,
+  ADD COLUMN IF NOT EXISTS primary_phone TEXT,
+  ADD COLUMN IF NOT EXISTS whatsapp_number TEXT,
+  ADD COLUMN IF NOT EXISTS address TEXT,
+  ADD COLUMN IF NOT EXISTS country_code TEXT,
+  ADD COLUMN IF NOT EXISTS timezone TEXT,
+  ADD COLUMN IF NOT EXISTS currency TEXT,
+  ADD COLUMN IF NOT EXISTS currency_subunit TEXT,
+  ADD COLUMN IF NOT EXISTS logo_url TEXT,
+  ADD COLUMN IF NOT EXISTS primary_color VARCHAR(7) DEFAULT '#1B2A4A';
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_master_tenants_license_key
+  ON public.master_tenants (license_key)
+  WHERE license_key IS NOT NULL;`,
+);
+
 // Replay-only compatibility bridge: the early clinic_users migration predates
 // the canonical PIN/identity/soft-delete fields used by later historical migrations.
 const usersBridge = appendOnce(
@@ -140,6 +170,7 @@ const report = {
   purpose: 'Consolidate historical duplicate numeric migration prefixes and bridge legacy base-schema gaps for an isolated Supabase replay without changing repository migration history.',
   consolidated,
   compatibility_bridges: [
+    ...(tenantsBridge ? ['002_tenants_users.sql: canonical master_tenants Blueprint identity/licensing/profile fields'] : []),
     ...(usersBridge ? ['002_tenants_users.sql: clinic_users canonical PIN/identity/soft-delete columns'] : []),
     ...(patientBridge ? ['004_patients.sql: patient soft-delete columns'] : []),
     ...(schedulingBridge ? ['005_scheduling.sql: inquiry/agenda soft-delete columns'] : []),
