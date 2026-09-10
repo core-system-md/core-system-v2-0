@@ -49,7 +49,7 @@ CREATE TABLE master_agenda_events (
     CONSTRAINT no_overlapping_events EXCLUDE USING GIST (
         tenant_id WITH =,
         resource_id WITH =,
-        tsrange(start_at, end_at) WITH &&
+        tstzrange(start_at, end_at) WITH &&
     )
 );
 
