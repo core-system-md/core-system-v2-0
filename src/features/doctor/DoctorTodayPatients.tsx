@@ -116,17 +116,26 @@ export default function DoctorTodayPatients() {
     if (!user?.id || !user.role || !tenantId) return;
     setStartingId(sessionId);
     setError(null);
-    const { error: rpcError } = await supabase.rpc('update_session_status', {
-      p_session_id: sessionId,
-      p_new_status: 'in_consultation',
-      p_user_id: user.id,
-      p_user_role: user.role,
-    });
-    if (rpcError) {
-      setError(`تعذر بدء الجلسة: ${rpcError.message}`);
+
+    const { error: updateError } = await supabase
+      .from('clinic_visit_sessions')
+      .update({
+        session_status: 'in_consultation',
+        actual_start: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', sessionId)
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null)
+      .select('id')
+      .single();
+
+    if (updateError) {
+      setError(`تعذر بدء الجلسة: ${updateError.message}`);
       setStartingId(null);
       return;
     }
+
     setStartingId(null);
     navigate(`/doctor/session/${sessionId}`);
   };
