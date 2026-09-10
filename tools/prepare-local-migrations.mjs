@@ -26,16 +26,31 @@ for (const name of files) {
   groups.get(version).push(name);
 }
 
+// Historical migrations sharing a numeric version do not encode dependency order.
+// Keep an explicit replay-only exception where P74 must run before Migration 044,
+// because the function definition references the soft-delete column introduced by P74.
+const REPLAY_ORDER = new Map([
+  ['044', ['044_p74_governance_deleted_at_columns.sql', '044_fix_update_session_status_authorization.sql']],
+]);
+
 const consolidated = [];
 for (const [version, names] of groups) {
   if (names.length < 2) continue;
 
-  const primary = names[0];
+  const ordered = REPLAY_ORDER.has(version)
+    ? REPLAY_ORDER.get(version).filter((name) => names.includes(name))
+    : names;
+
+  for (const name of names) {
+    if (!ordered.includes(name)) ordered.push(name);
+  }
+
+  const primary = ordered[0];
   const primaryPath = path.join(MIGRATIONS, primary);
   const existing = fs.readFileSync(primaryPath, 'utf8').replace(/\s+$/, '');
   const sections = [existing];
 
-  for (const duplicate of names.slice(1)) {
+  for (const duplicate of ordered.slice(1)) {
     const duplicatePath = path.join(MIGRATIONS, duplicate);
     const sql = fs.readFileSync(duplicatePath, 'utf8').replace(/^\s+|\s+$/g, '');
     sections.push([
@@ -47,7 +62,7 @@ for (const [version, names] of groups) {
   }
 
   fs.writeFileSync(primaryPath, `${sections.join('\n\n')}\n`, 'utf8');
-  consolidated.push({ version, primary, merged: names.slice(1) });
+  consolidated.push({ version, primary, merged: ordered.slice(1) });
 }
 
 const report = {
