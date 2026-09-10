@@ -13,6 +13,22 @@ describe('permission matrix contract', () => {
     expect(hasPermission('doctor', 'view_invoices')).toBe(false);
   });
 
+  it('locks the complete receptionist frontline permission set', () => {
+    expect(permissionMatrix.receptionist).toEqual(expect.arrayContaining([
+      'view_patients',
+      'edit_patients',
+      'view_sessions',
+      'view_invoices',
+      'edit_invoices',
+      'view_inquiries',
+      'edit_inquiries',
+      'view_queue',
+      'edit_queue',
+    ]));
+    expect(hasPermission('receptionist', 'edit_invoices')).toBe(true);
+    expect(hasPermission('receptionist', 'edit_queue')).toBe(true);
+  });
+
   it('grants receptionist inquiry access without exposing it to the clinical roles', () => {
     expect(hasPermission('receptionist', 'view_inquiries')).toBe(true);
     expect(hasPermission('receptionist', 'edit_inquiries')).toBe(true);
