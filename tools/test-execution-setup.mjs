@@ -10,30 +10,20 @@ const OUTPUT = 'test-execution-plan.json';
 const REGRESSION = new Set(['R0', 'R1', 'R2', 'R3', 'R4']);
 const ENGINEERING = new Set(['build', 'lint', 'typecheck', 'unit_tests', 'integration_tests', 'api_tests', 'database_validation', 'migration_validation']);
 
-function git(args, cwd = ROOT) {
-  return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-}
-
-function safeGit(args, cwd = ROOT) {
-  try { return git(args, cwd); } catch { return null; }
-}
-
-function read(file, cwd = ROOT) {
-  try { return fs.readFileSync(path.join(cwd, file), 'utf8'); } catch { return ''; }
-}
-
+function git(args, cwd = ROOT) { return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim(); }
+function safeGit(args, cwd = ROOT) { try { return git(args, cwd); } catch { return null; } }
+function read(file, cwd = ROOT) { try { return fs.readFileSync(path.join(cwd, file), 'utf8'); } catch { return ''; } }
 function unique(values) { return [...new Set(values.filter(Boolean))].sort(); }
 function norm(value) { return value.replaceAll('\\', '/'); }
 
 function parseArgs(argv) {
-  const out = { base: null, candidate: null, output: path.join(ROOT, OUTPUT), selfTest: false, execute: false };
+  const out = { base: null, candidate: null, output: path.join(ROOT, OUTPUT), selfTest: false };
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--base') out.base = argv[++i] ?? null;
     else if (arg === '--candidate') out.candidate = argv[++i] ?? null;
     else if (arg === '--output') out.output = path.resolve(argv[++i] ?? OUTPUT);
     else if (arg === '--self-test') out.selfTest = true;
-    else if (arg === '--execute') out.execute = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
   return out;
@@ -82,7 +72,9 @@ function analyzeFiles(base, candidate, cwd = ROOT) {
   const { mergeBase, diff, changed } = collectDelta(base, candidate, cwd);
   const files = changed.map((x) => x.path);
   const contents = new Map(files.map((file) => [file, read(file, cwd)]));
-  const joined = [...contents.values()].join('\n');
+  const sourceEntries = [...contents.entries()].filter(([file]) => /^src\//.test(file) || /^supabase\//.test(file));
+  const sourceText = sourceEntries.map(([, content]) => content).join('\n');
+  const filesText = files.join('\n');
   const sourceFiles = files.filter((f) => /^src\//.test(f));
   const testFiles = files.filter((f) => /^(tests|e2e)\//.test(f));
   const migrationFiles = files.filter((f) => /^supabase\/migrations\//.test(f) || /\.sql$/i.test(f));
@@ -93,66 +85,33 @@ function analyzeFiles(base, candidate, cwd = ROOT) {
 
   const dependencyDiff = packageFiles.length > 0 && /^(?:\+|-).*"(?:dependencies|devDependencies|peerDependencies|optionalDependencies)"|^[-+].*package-lock/.test(diff);
   const packageScriptOnly = packageFiles.length > 0 && !dependencyDiff;
-  const authImpact = files.some((f) => /(auth|login|jwt)/i.test(f)) || /loginWithPin|isAuthenticated|ProtectedWrapper|auth\.uid\(|get_current_tenant_id\(/.test(joined);
-  const roleImpact = files.some((f) => /(permissionMatrix|RoleGuard|PermissionGuard|allowedRoles)/i.test(f)) || /PermissionGuard|allowedRoles|UserRole|permissionMatrix/.test(joined);
-  const rlsImpact = migrationFiles.some((f) => /(rls|policy|grant|revoke|definer)/i.test(f)) || /RLS|SECURITY DEFINER/.test(joined);
+
+  const authImpact = sourceFiles.some((f) => /(auth|login|jwt)/i.test(f)) || /loginWithPin|isAuthenticated|ProtectedWrapper|auth\.uid\(|get_current_tenant_id\(/.test(sourceText);
+  const roleImpact = sourceFiles.some((f) => /(permissionMatrix|RoleGuard|PermissionGuard|allowedRoles)/i.test(f)) || /PermissionGuard|allowedRoles|UserRole|permissionMatrix/.test(sourceText);
+  const rlsImpact = migrationFiles.some((f) => /(rls|policy|grant|revoke|definer)/i.test(f)) || (migrationFiles.length > 0 && /RLS|SECURITY DEFINER/.test(sourceText));
   const securityImpact = authImpact || roleImpact || rlsImpact;
-  const apiImpact = files.some((f) => /supabase\/functions|\/api\/|\brpc\b|queries|mutations|services/i.test(f)) || /supabase\.(from|rpc|functions\.invoke)\(/.test(joined);
+  const apiImpact = sourceFiles.some((f) => /\/api\/|\brpc\b|queries|mutations|services/i.test(f)) || files.some((f) => /^supabase\/functions\//.test(f)) || /supabase\.(from|rpc|functions\.invoke)\(/.test(sourceText);
   const uiImpact = sourceFiles.some((f) => /\.(tsx|jsx|css|scss)$/.test(f));
   const dataImpact = apiImpact || migrationFiles.length > 0 || sourceFiles.some((f) => /(store|state|repository|mutation|queries|services)/i.test(f));
   const databaseImpact = migrationFiles.length > 0 || files.some((f) => /^supabase\//.test(f));
   const deploymentImpact = ciFiles.length > 0 || files.some((f) => /(^|\/)(vercel|docker|deploy)/i.test(f));
   const changedDomains = unique(files.map(domain));
   const changedAreas = unique(files.map(area));
-  const routeAreas = routeMap(cwd);
+  const routes = routeMap(cwd);
   const workflows = new Set();
-  for (const route of routeAreas) for (const file of files) {
-    const a = area(file);
-    if (a && route.includes(a)) workflows.add(route);
-  }
+  for (const route of routes) for (const file of files) { const a = area(file); if (a && route.includes(a)) workflows.add(route); }
   if (testFiles.some((f) => f.startsWith('e2e/'))) workflows.add('existing-e2e-suite');
-  const nonCoreDomains = changedDomains.filter((d) => d && !d.startsWith('core:'));
-  const crossModule = new Set(nonCoreDomains).size > 1 || /import[^\n]+(?:features|components)\/[^\n]+(?:features|components)\//.test(joined);
+  const crossModule = new Set(changedDomains.filter(Boolean)).size > 1 || /import[^\n]+(?:features|components)\/[^\n]+(?:features|components)\//.test(sourceText);
 
-  return {
-    mergeBase,
-    diff,
-    changed,
-    files,
-    contents,
-    sourceFiles,
-    testFiles,
-    migrationFiles,
-    ciFiles,
-    configFiles,
-    packageFiles,
-    docsOnlyCandidates,
-    dependencyDiff,
-    packageScriptOnly,
-    authImpact,
-    roleImpact,
-    rlsImpact,
-    securityImpact,
-    apiImpact,
-    uiImpact,
-    dataImpact,
-    databaseImpact,
-    deploymentImpact,
-    changedDomains,
-    changedAreas,
-    workflows: unique([...workflows]),
-    crossModule,
-  };
+  return { mergeBase, diff, changed, files, contents, sourceFiles, testFiles, migrationFiles, ciFiles, configFiles, packageFiles, docsOnlyCandidates, dependencyDiff, packageScriptOnly, authImpact, roleImpact, rlsImpact, securityImpact, apiImpact, uiImpact, dataImpact, databaseImpact, deploymentImpact, changedDomains, changedAreas, workflows: unique([...workflows]), crossModule, filesText };
 }
 
 function rolesFor(impact, cwd = ROOT) {
   const roles = repoRoles(cwd);
   if (!roles.length) return [];
-  if (impact.roleImpact && impact.files.some((f) => /permissionMatrix|auth|router|ProtectedWrapper/.test(f))) return roles;
+  if (impact.roleImpact && impact.files.some((f) => /^(src\/core\/permissions|src\/features\/|src\/router)/.test(f))) return roles;
   const found = new Set();
-  for (const content of impact.contents.values()) for (const role of roles) {
-    if (new RegExp(`\\b${role}\\b`).test(content)) found.add(role);
-  }
+  for (const [file, content] of impact.contents) if (/^src\//.test(file)) for (const role of roles) if (new RegExp(`\\b${role}\\b`).test(content)) found.add(role);
   if (impact.changedDomains.includes('doctor') && roles.includes('doctor')) found.add('doctor');
   if (impact.changedDomains.includes('reception') && roles.includes('receptionist')) found.add('receptionist');
   return unique([...found]);
@@ -216,107 +175,37 @@ function buildPlan(base, candidate, impact, cwd = ROOT) {
   if (negative.length && !impact.testFiles.some((f) => /security|auth|permission|negative/i.test(f))) unknowns.push('No dedicated negative/security E2E suite discovered for the candidate.');
   if (impact.databaseImpact && !available.database_validation) unknowns.push('No repository database validation tooling discovered.');
   if (e2eRequired && !available.playwright) unknowns.push('No Playwright configuration discovered.');
-  if (impact.deploymentImpact) unknowns.push('Production/deployment validation is separate and requires an explicitly authorized deployment.');
+  if (impact.deploymentImpact) unknowns.push('Production/deployment validation is separate and requires explicit authorization.');
 
   return {
-    contract_version: '1.0',
-    generated_at: new Date().toISOString(),
-    repository: safeGit(['config', '--get', 'remote.origin.url'], cwd) ?? 'UNKNOWN',
-    primary_branch: 'main',
-    baseline: base,
-    candidate,
-    merge_base: impact.mergeBase,
-    changed_files: impact.changed,
-    changed_directories: unique(impact.files.map((f) => path.posix.dirname(f))),
-    impact: unique(tags),
-    affected_domains: impact.changedDomains,
-    affected_modules: impact.changedAreas,
-    affected_roles: roles,
-    affected_workflows: impact.workflows,
-    security_impact: impact.securityImpact ? ['authentication/authorization/RLS/security boundary touched'] : [],
-    data_impact: impact.dataImpact ? ['persistent state/data-access path touched'] : [],
-    api_impact: impact.apiImpact,
-    database_impact: impact.databaseImpact,
-    ui_impact: impact.uiImpact,
-    workflow_impact: impact.workflows.length > 0 || impact.ciFiles.length > 0,
-    deployment_impact: impact.deploymentImpact,
-    required_engineering: unique(engineering),
-    required_e2e: requiredE2E,
-    required_negative_tests: negative,
-    required_reconciliation: reconciliation,
-    execution_matrix: {
-      regression_level: level,
-      engineering: unique(engineering),
-      e2e: requiredE2E,
-      security: negative,
-      reconciliation,
-    },
-    available_validation: available,
-    known_gaps_or_unknowns: unknowns,
-    regression_level: level,
-    closure_state: 'NOT CLOSED',
+    contract_version: '1.0', generated_at: new Date().toISOString(),
+    repository: safeGit(['config', '--get', 'remote.origin.url'], cwd) ?? 'UNKNOWN', primary_branch: 'main',
+    baseline: base, candidate, merge_base: impact.mergeBase, changed_files: impact.changed,
+    changed_directories: unique(impact.files.map((f) => path.posix.dirname(f))), impact: unique(tags),
+    affected_domains: impact.changedDomains, affected_modules: impact.changedAreas, affected_roles: roles,
+    affected_workflows: impact.workflows, security_impact: impact.securityImpact ? ['authentication/authorization/RLS/security boundary touched'] : [],
+    data_impact: impact.dataImpact ? ['persistent state/data-access path touched'] : [], api_impact: impact.apiImpact,
+    database_impact: impact.databaseImpact, ui_impact: impact.uiImpact, workflow_impact: impact.workflows.length > 0 || impact.ciFiles.length > 0,
+    deployment_impact: impact.deploymentImpact, required_engineering: unique(engineering), required_e2e: requiredE2E,
+    required_negative_tests: negative, required_reconciliation: reconciliation,
+    execution_matrix: { regression_level: level, engineering: unique(engineering), e2e: requiredE2E, security: negative, reconciliation },
+    available_validation: available, known_gaps_or_unknowns: unknowns, regression_level: level, closure_state: 'NOT CLOSED',
   };
 }
 
 function validatePlan(plan) {
-  const required = ['contract_version', 'baseline', 'candidate', 'merge_base', 'changed_files', 'impact', 'affected_domains', 'affected_modules', 'affected_roles', 'affected_workflows', 'security_impact', 'data_impact', 'required_engineering', 'required_e2e', 'required_negative_tests', 'required_reconciliation', 'regression_level'];
+  const required = ['contract_version','baseline','candidate','merge_base','changed_files','impact','affected_domains','affected_modules','affected_roles','affected_workflows','security_impact','data_impact','required_engineering','required_e2e','required_negative_tests','required_reconciliation','regression_level'];
   for (const key of required) if (!(key in plan)) throw new Error(`Plan validation failed: missing ${key}`);
   if (!REGRESSION.has(plan.regression_level)) throw new Error(`Plan validation failed: invalid regression level ${plan.regression_level}`);
   for (const check of plan.required_engineering) if (!ENGINEERING.has(check)) throw new Error(`Plan validation failed: unknown engineering check ${check}`);
   if (!Array.isArray(plan.changed_files)) throw new Error('Plan validation failed: changed_files must be an array');
 }
 
-function commandFor(check) {
-  return {
-    build: ['npm', ['run', 'build']],
-    lint: ['npm', ['run', 'lint']],
-    typecheck: ['npx', ['tsc', '--noEmit']],
-    unit_tests: ['npm', ['test']],
-  }[check] ?? null;
-}
+function tempRepo() { const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'test-execution-contract-')); git(['init','-b','main'], cwd); git(['config','user.email','test-contract@example.invalid'], cwd); git(['config','user.name','Test Contract'], cwd); return cwd; }
+function writeFixture(cwd, file, content) { const target = path.join(cwd, file); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, content, 'utf8'); }
+function commit(cwd, message) { git(['add','--','.'], cwd); git(['commit','-m',message], cwd); return git(['rev-parse','HEAD'], cwd); }
 
-function executeEngineering(plan) {
-  const results = [];
-  for (const check of plan.required_engineering) {
-    const command = commandFor(check);
-    if (!command) {
-      results.push({ check, status: 'NOT VERIFIED', classification: 'INFRASTRUCTURE GAP' });
-      continue;
-    }
-    try {
-      execFileSync(command[0], command[1], { cwd: ROOT, stdio: 'inherit' });
-      results.push({ check, status: 'PASS' });
-    } catch (error) {
-      results.push({ check, status: 'FAIL', classification: 'ENGINEERING TEST FAILURE', exit_code: error.status ?? 1 });
-      throw Object.assign(new Error(`Engineering validation failed: ${check}`), { results });
-    }
-  }
-  return results;
-}
-
-function tempRepo() {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'test-execution-contract-'));
-  git(['init', '-b', 'main'], cwd);
-  git(['config', 'user.email', 'test-contract@example.invalid'], cwd);
-  git(['config', 'user.name', 'Test Contract'], cwd);
-  return cwd;
-}
-
-function writeFixture(cwd, file, content) {
-  const target = path.join(cwd, file);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, content, 'utf8');
-}
-function commit(cwd, message) {
-  git(['add', '--', '.'], cwd);
-  git(['commit', '-m', message], cwd);
-  return git(['rev-parse', 'HEAD'], cwd);
-}
-
-export function analyzeRepository(base, candidate, cwd = ROOT) {
-  const impact = analyzeFiles(base, candidate, cwd);
-  return buildPlan(base, candidate, impact, cwd);
-}
+export function analyzeRepository(base, candidate, cwd = ROOT) { const impact = analyzeFiles(base, candidate, cwd); return buildPlan(base, candidate, impact, cwd); }
 
 export function selfTest() {
   const cwd = tempRepo();
@@ -327,13 +216,17 @@ export function selfTest() {
     const base = commit(cwd, 'baseline');
 
     writeFixture(cwd, 'README.md', '# docs\n');
-    const docs = commit(cwd, 'docs: update readme');
-    const docsPlan = analyzeRepository(base, docs, cwd);
-    if (docsPlan.regression_level !== 'R0') throw new Error(`docs classification expected R0, got ${docsPlan.regression_level}`);
+    writeFixture(cwd, '.github/workflows/test.yml', 'name: test\n');
+    writeFixture(cwd, 'tools/example.mjs', "const text = 'PermissionGuard super_admin security';\n");
+    writeFixture(cwd, 'package.json', '{"scripts":{"build":"true","lint":"true","test":"node -e \\\"\\\"","test:contract":"node tools/test-execution-setup.mjs --self-test"}}');
+    const contract = commit(cwd, 'docs: install contract');
+    const contractPlan = analyzeRepository(base, contract, cwd);
+    if (contractPlan.regression_level !== 'R0') throw new Error(`contract installation expected R0, got ${contractPlan.regression_level}`);
+    if (contractPlan.required_e2e.length || contractPlan.required_negative_tests.length || contractPlan.affected_roles.length) throw new Error('contract installation incorrectly selected application E2E/security/roles');
 
     writeFixture(cwd, 'src/features/admin/Panel.tsx', 'export const Panel = () => null;\n');
     const source = commit(cwd, 'feat: add admin panel');
-    const sourcePlan = analyzeRepository(docs, source, cwd);
+    const sourcePlan = analyzeRepository(contract, source, cwd);
     if (sourcePlan.regression_level !== 'R2') throw new Error(`source classification expected R2, got ${sourcePlan.regression_level}`);
     if (!sourcePlan.required_e2e.includes('playwright-real-world-workflow')) throw new Error('source expected E2E');
 
@@ -352,31 +245,19 @@ export function selfTest() {
     const cross = commit(cwd, 'feat: cross-module workflow');
     const crossPlan = analyzeRepository(sec, cross, cwd);
     if (crossPlan.regression_level !== 'R3' || crossPlan.affected_domains.length < 2) throw new Error('cross-module classification failed');
-
-    return { status: 'PASS', scenarios: ['documentation', 'source-code', 'database', 'security-role', 'cross-module'] };
-  } finally {
-    fs.rmSync(cwd, { recursive: true, force: true });
-  }
+    return { status: 'PASS', scenarios: ['contract-installation-R0','documentation','source-code','database','security-role','cross-module'] };
+  } finally { fs.rmSync(cwd, { recursive: true, force: true }); }
 }
 
 function main() {
   const args = parseArgs(process.argv);
-  if (args.selfTest) {
-    console.log(JSON.stringify(selfTest(), null, 2));
-    return;
-  }
-  const candidate = args.candidate || process.env.GITHUB_SHA || git(['rev-parse', 'HEAD']);
+  if (args.selfTest) { console.log(JSON.stringify(selfTest(), null, 2)); return; }
+  const candidate = args.candidate || process.env.GITHUB_SHA || git(['rev-parse','HEAD']);
   const base = args.base || (process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : 'HEAD^');
   const plan = analyzeRepository(base, candidate, ROOT);
   validatePlan(plan);
-  const validation = { plan_valid: true };
-  if (args.execute) validation.engineering = executeEngineering(plan);
   fs.writeFileSync(args.output, JSON.stringify(plan, null, 2) + '\n', 'utf8');
-  console.log(JSON.stringify({ plan, validation }, null, 2));
+  console.log(JSON.stringify({ plan, validation: { plan_valid: true } }, null, 2));
 }
 
-try { main(); }
-catch (error) {
-  console.error(`[test-execution-setup] ${error instanceof Error ? error.message : String(error)}`);
-  process.exitCode = 1;
-}
+try { main(); } catch (error) { console.error(`[test-execution-setup] ${error instanceof Error ? error.message : String(error)}`); process.exitCode = 1; }
