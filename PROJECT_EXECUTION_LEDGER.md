@@ -31,6 +31,7 @@ Chronological evidence record for the Master Test Execution Contract installatio
 Created:
 - `docs/testing/MASTER_TEST_EXECUTION_CONTRACT.md`
 - `tools/test-execution-setup.mjs`
+- `tools/test-execution-runner.mjs`
 - `.github/workflows/test-execution-contract.yml`
 - `PROJECT_EXECUTION_HANDOFF.md`
 - `PROJECT_EXECUTION_LEDGER.md`
@@ -40,18 +41,61 @@ Extended:
 
 No production data or production schema was modified.
 
-## 2026-09-10 — Self-validation model
+## 2026-09-10 — Initial CI finding
 
-The Decision Engine contains controlled temporary-Git-repository scenarios for:
+The first Contract workflow attempt used `npm ci` and failed before the engine ran because the repository baseline has `package.json` / `package-lock.json` synchronization drift; the CI log explicitly reported missing Playwright packages from the lock. This was classified as a **baseline dependency/CI infrastructure mismatch**, not as a candidate application failure.
 
-1. documentation-only change → R0
-2. source/UI change → R2 with E2E selection
-3. database migration change → R3 with database/migration validation selection
-4. security/role change → R3 with negative/security validation selection
-5. cross-module change → R3
+The workflow was corrected to reuse the repository's established `npm install` convention without changing dependency versions.
 
-The scenarios operate in a temporary repository and do not modify the target project.
+## 2026-09-10 — Decision Engine finding and correction
+
+The first generated plan incorrectly classified the contract installation as `R4` with role/security/E2E impact because the engine searched arbitrary changed-file contents, including its own documentation/tooling text.
+
+This was a real Decision Engine classification defect. The engine was corrected to scope executable-impact detection to actual application/database paths (`src/` and `supabase/`) and to derive contract-installation impact from changed paths rather than documentation prose.
+
+A dedicated self-test scenario was added that deliberately contains role/security vocabulary inside docs/tools/CI/package-script-only changes and requires correct `R0` classification.
+
+## 2026-09-10 — Self-validation
+
+The Decision Engine self-test passed all six controlled cases:
+
+1. contract-installation → R0
+2. documentation-only → R0
+3. source/UI → R2 with E2E selection
+4. database migration → R3 with database validation selection
+5. security/role → R3 with negative/security validation selection
+6. cross-module → R3
+
+The scenarios execute inside a temporary Git repository and do not mutate the target project's files or production data.
+
+## 2026-09-10 — CI final evidence
+
+Dedicated workflow: `Master Test Execution Contract`, run `34458380488`.
+
+Evidence from the final run:
+- dependencies installed successfully;
+- Decision Engine syntax validation passed;
+- execution plan generation passed;
+- execution plan schema validation passed;
+- contract self-test passed;
+- selected validation scope passed;
+- execution-plan artifact uploaded successfully.
+
+The generated plan artifact was independently inspected and classified the contract installation as:
+
+- regression: `R0`
+- affected domains: none
+- affected roles: none
+- security impact: none
+- E2E requirement: none
+- required engineering validation: `unit_tests`
+
+The selected Vitest suite completed with 5 test files and 23 tests passing.
+
+Existing Build Test workflow for the same branch head also passed build, TypeScript, and Vitest.
+
+**Classification:** CONFIRMED.
 
 ## Closure rule
 
-The installation remains `NOT CLOSED` until the dedicated GitHub Actions workflow successfully executes, the generated execution plan is validated, and self-test evidence is confirmed. Production deployment is not part of this installation unless explicitly authorized.
+This installation is eligible for merge because its own Decision Engine classification is R0 and all applicable CI validation is green. Application E2E, security negative E2E, database reconciliation, and production deployment are not required for this contract-only change by the generated plan. Those layers remain selectable for future changes when impact analysis requires them.
