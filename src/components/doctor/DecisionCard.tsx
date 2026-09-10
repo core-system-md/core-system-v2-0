@@ -52,7 +52,10 @@ const INDICATOR_FIELDS: Array<{ label: IndicatorKey; weight: string }> = [
 ];
 
 function normalizeIndicator(value: number | null | undefined): number | null {
-  return Number.isInteger(value) && value >= 0 && value <= 1000 ? value : null;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 1000) {
+    return null;
+  }
+  return value;
 }
 
 function getCompleteIndicators(indicators: IndicatorValues): Record<IndicatorKey, number> | null {
