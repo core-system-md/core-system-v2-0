@@ -27,3 +27,6 @@ ALTER TABLE public.pin_attempt_log
 
 ALTER TABLE public.pin_sessions
   ADD COLUMN IF NOT EXISTS deleted_at timestamptz NULL;
+
+ALTER TABLE public.patient_intake_responses
+  ADD COLUMN IF NOT EXISTS deleted_at timestamptz NULL;
