@@ -47,23 +47,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const state = getLiveAuthState();
       return (
         !!state.user &&
+        !!state.user.tenant_id &&
         typeof window !== 'undefined' &&
         !!window.sessionStorage.getItem('core-system-pin-session')
       );
     };
 
+    const preserveHydratedPinSession = () => {
+      const state = getLiveAuthState();
+      if (!hasPinSession()) return false;
+      state.setStatus('AUTHENTICATED');
+      return true;
+    };
+
     const initializeAuth = () => {
       hydrationReady = true;
       const liveState = getLiveAuthState();
+
+      // PIN authentication is intentionally independent from Supabase Auth.
+      // Once Zustand has hydrated and the scoped PIN session token exists,
+      // preserve the authenticated staff identity across hard navigation.
+      if (preserveHydratedPinSession()) return;
+
       liveState.startChecking();
 
       supabase.auth.getUser().then(({ data: { user }, error }) => {
         if (error || !user) {
           const state = getLiveAuthState();
-          if (hasPinSession()) {
-            state.setStatus('AUTHENTICATED');
-            return;
-          }
+          if (preserveHydratedPinSession()) return;
           if (state.tenant_id) {
             state.setStatus('UNAUTHENTICATED');
             return;
@@ -75,10 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.getSession().then(({ data: { session } }) => {
           const state = getLiveAuthState();
           if (!session) {
-            if (hasPinSession()) {
-              state.setStatus('AUTHENTICATED');
-              return;
-            }
+            if (preserveHydratedPinSession()) return;
             if (state.tenant_id) {
               state.setStatus('UNAUTHENTICATED');
               return;
@@ -97,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .single()
             .then(({ data: profile, error: profileError }) => {
               if (profileError || !profile) {
+                if (preserveHydratedPinSession()) return;
                 useAuthStore.getState().unauthenticate(profileError?.message || 'Profile not found');
                 return;
               }
@@ -135,10 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const state = getLiveAuthState();
       if (!session) {
-        if (hasPinSession()) {
-          state.setStatus('AUTHENTICATED');
-          return;
-        }
+        if (preserveHydratedPinSession()) return;
         if (state.tenant_id) {
           state.setStatus('UNAUTHENTICATED');
           return;
