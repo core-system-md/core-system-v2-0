@@ -23,9 +23,7 @@ export function useAuthContext() {
     logout: store.logout,
     clearError: store.clearError,
     validateLicense: async (_unusedKey?: string) => ({ success: true }),
-    loginWithPin: async (_unusedPin: string, _unusedRole?: string) => {
-      return { success: false, error: 'Use useAuth().loginWithPin() instead' };
-    },
+    loginWithPin: async (_unusedPin: string, _unusedRole?: string) => ({ success: false, error: 'Use useAuth().loginWithPin() instead' }),
   };
 }
 
@@ -33,9 +31,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const store = useAuthStore();
   const initialized = useRef(false);
 
-  // P35 FIX: Prevent stale persisted state from bypassing auth check.
-  // Zustand persist restores isAuthenticated=true before useEffect runs.
-  // RootRedirect reads this state and redirects before AuthProvider verifies.
   if (!initialized.current) {
     store.boot();
   }
@@ -44,32 +39,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (initialized.current) return;
     initialized.current = true;
 
-    // ─── STATE MACHINE: BOOTING → CHECKING_SESSION ────────
+    const hasPinSession = () =>
+      store.isPinAuthenticated &&
+      !!store.user &&
+      typeof window !== 'undefined' &&
+      !!window.sessionStorage.getItem('core-system-pin-session');
+
     store.startChecking();
 
-    // ─── Check existing session ───────────────────────────
     supabase.auth.getUser().then(({ data: { user }, error }) => {
       if (error || !user) {
-        // If tenant context exists (license validated), don't wipe tenant data
-        // Just mark auth as unauthenticated so PIN flow can proceed
+        if (hasPinSession()) {
+          store.setStatus('AUTHENTICATED');
+          return;
+        }
         if (store.tenant_id) {
           store.setStatus('UNAUTHENTICATED');
           return;
         }
-
-        // No tenant context — full unauthenticate
         store.unauthenticate(error?.message ?? null);
         return;
       }
 
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) {
-          // If tenant context exists, keep it for PIN flow
+          if (hasPinSession()) {
+            store.setStatus('AUTHENTICATED');
+            return;
+          }
           if (store.tenant_id) {
             store.setStatus('UNAUTHENTICATED');
             return;
           }
-
           store.unauthenticate();
           return;
         }
@@ -107,17 +108,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // ─── Listen for auth state changes ────────────────────
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        // If tenant context exists, keep it for re-auth
+        if (hasPinSession()) {
+          store.setStatus('AUTHENTICATED');
+          return;
+        }
         if (store.tenant_id) {
           store.setStatus('UNAUTHENTICATED');
           return;
         }
-
         store.unauthenticate();
         return;
       }
@@ -141,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: (profile.role as AuthUser['role']) || 'receptionist',
                 tenant_id: profile.tenant_id ?? '',
                 employee_code: profile.employee_code ?? null,
-                pin_code: profile.pin_code ?? null,
+                pin_code: null,
                 phone: profile.phone ?? null,
                 specialization: profile.specialization ?? null,
                 avatar_url: session.user.user_metadata?.avatar_url ?? null,
@@ -152,9 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [store]);
 
   return <>{children}</>;
