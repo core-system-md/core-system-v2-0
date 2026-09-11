@@ -28,12 +28,7 @@ export function useAuthContext() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const store = useAuthStore();
   const initialized = useRef(false);
-
-  if (!initialized.current) {
-    store.boot();
-  }
 
   useEffect(() => {
     if (initialized.current) return;
@@ -65,8 +60,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const liveState = getLiveAuthState();
 
       // PIN authentication is intentionally independent from Supabase Auth.
-      // Once Zustand has hydrated and the scoped PIN session token exists,
-      // preserve the authenticated staff identity across hard navigation.
+      // Do not write a transient BOOTING state before Zustand persistence has
+      // hydrated: doing so can overwrite the persisted authenticated state on
+      // hard navigation before the PIN session has been restored.
       if (preserveHydratedPinSession()) return;
 
       liveState.startChecking();
