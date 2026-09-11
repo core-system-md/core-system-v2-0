@@ -115,11 +115,24 @@ jobs:
       - name: Run selected validation scope
         env:
           TEST_EXECUTION_RUN_E2E: 'true'
-        run: node tools/test-execution-runner.mjs test-execution-plan.json
+        shell: bash
+        run: |
+          set +e
+          node tools/test-execution-runner.mjs test-execution-plan.json 2>&1 | tee master-test-output.log
+          status=${PIPESTATUS[0]}
+          exit "$status"
 
       - name: Stop isolated Supabase
         if: ${{ always() }}
         run: supabase stop
+
+      - name: Upload execution diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: master-test-diagnostics
+          path: master-test-output.log
+          if-no-files-found: warn
 
       - name: Upload execution plan
         if: ${{ always() && hashFiles('test-execution-plan.json') != '' }}
