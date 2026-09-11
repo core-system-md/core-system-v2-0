@@ -50,26 +50,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
     };
 
-    store.startChecking();
+    const initializeAuth = () => {
+      const liveState = getLiveAuthState();
+      liveState.startChecking();
 
-    supabase.auth.getUser().then(({ data: { user }, error }) => {
-      if (error || !user) {
-        const state = getLiveAuthState();
-        if (hasPinSession()) {
-          state.setStatus('AUTHENTICATED');
-          return;
-        }
-        if (state.tenant_id) {
-          state.setStatus('UNAUTHENTICATED');
-          return;
-        }
-        state.unauthenticate(error?.message ?? null);
-        return;
-      }
-
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        const state = getLiveAuthState();
-        if (!session) {
+      supabase.auth.getUser().then(({ data: { user }, error }) => {
+        if (error || !user) {
+          const state = getLiveAuthState();
           if (hasPinSession()) {
             state.setStatus('AUTHENTICATED');
             return;
@@ -78,42 +65,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             state.setStatus('UNAUTHENTICATED');
             return;
           }
-          state.unauthenticate();
+          state.unauthenticate(error?.message ?? null);
           return;
         }
 
-        state.setSession(session);
-        state.setSupabaseUser(user);
-
-        supabase
-          .from('clinic_users')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-          .then(({ data: profile, error: profileError }) => {
-            if (profileError || !profile) {
-              useAuthStore.getState().unauthenticate(profileError?.message || 'Profile not found');
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          const state = getLiveAuthState();
+          if (!session) {
+            if (hasPinSession()) {
+              state.setStatus('AUTHENTICATED');
               return;
             }
+            if (state.tenant_id) {
+              state.setStatus('UNAUTHENTICATED');
+              return;
+            }
+            state.unauthenticate();
+            return;
+          }
 
-            const authUser: AuthUser = {
-              id: profile.id,
-              email: user.email ?? null,
-              full_name: profile.full_name ?? '',
-              full_name_ar: profile.full_name_ar ?? null,
-              role: (profile.role as AuthUser['role']) || 'receptionist',
-              tenant_id: profile.tenant_id ?? '',
-              employee_code: profile.employee_code ?? null,
-              pin_code: profile.pin_code ?? null,
-              phone: profile.phone ?? null,
-              specialization: profile.specialization ?? null,
-              avatar_url: user.user_metadata?.avatar_url ?? null,
-            };
+          state.setSession(session);
+          state.setSupabaseUser(user);
 
-            useAuthStore.getState().authenticate(authUser, user, session);
-          });
+          supabase
+            .from('clinic_users')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+            .then(({ data: profile, error: profileError }) => {
+              if (profileError || !profile) {
+                useAuthStore.getState().unauthenticate(profileError?.message || 'Profile not found');
+                return;
+              }
+
+              const authUser: AuthUser = {
+                id: profile.id,
+                email: user.email ?? null,
+                full_name: profile.full_name ?? '',
+                full_name_ar: profile.full_name_ar ?? null,
+                role: (profile.role as AuthUser['role']) || 'receptionist',
+                tenant_id: profile.tenant_id ?? '',
+                employee_code: profile.employee_code ?? null,
+                pin_code: profile.pin_code ?? null,
+                phone: profile.phone ?? null,
+                specialization: profile.specialization ?? null,
+                avatar_url: user.user_metadata?.avatar_url ?? null,
+              };
+
+              useAuthStore.getState().authenticate(authUser, user, session);
+            });
+        });
       });
-    });
+    };
+
+    const persistApi = useAuthStore.persist;
+    if (persistApi.hasHydrated()) {
+      initializeAuth();
+    } else {
+      const unsubscribeHydration = persistApi.onFinishHydration(() => initializeAuth());
+      return () => unsubscribeHydration();
+    }
 
     const {
       data: { subscription },
