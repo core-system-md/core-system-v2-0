@@ -119,11 +119,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const persistApi = useAuthStore.persist;
+    let unsubscribeHydration: (() => void) | undefined;
     if (persistApi.hasHydrated()) {
       initializeAuth();
     } else {
-      const unsubscribeHydration = persistApi.onFinishHydration(() => initializeAuth());
-      return () => unsubscribeHydration();
+      unsubscribeHydration = persistApi.onFinishHydration(() => initializeAuth());
     }
 
     const {
@@ -173,7 +173,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      unsubscribeHydration?.();
+      subscription.unsubscribe();
+    };
   }, [store]);
 
   return <>{children}</>;
