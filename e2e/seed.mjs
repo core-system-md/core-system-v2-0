@@ -74,5 +74,20 @@ if (staffCount !== E2E_STAFF.length || patientCount !== E2E_PATIENTS.length || s
   throw new Error(`[E2E] seed verification mismatch: staff=${staffCount}, patients=${patientCount}, sessions=${sessionCount}`);
 }
 
+const publicSupabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.VITE_SUPABASE_ANON_KEY ?? '',
+  { auth: { autoRefreshToken: false, persistSession: false } },
+);
+const { data: pinProbe, error: pinProbeError } = await publicSupabase.rpc('create_pin_session', {
+  p_tenant_id: tenantId,
+  p_pin: E2E_STAFF[0].pin,
+});
+if (pinProbeError) throw new Error(`[E2E] PIN RPC probe failed: ${pinProbeError.message}`);
+if (!pinProbe?.success || pinProbe.role !== E2E_STAFF[0].role || pinProbe.employee_code !== E2E_STAFF[0].employee_code) {
+  throw new Error(`[E2E] PIN RPC probe rejected valid fixture: ${JSON.stringify(pinProbe)}`);
+}
+console.log(`[E2E] PIN RPC probe PASS — ${E2E_STAFF[0].role} fixture authenticated.`);
+
 console.log(`[E2E] Seed verified: ${patientCount} patients, ${sessionCount} sessions, ${staffCount} staff roles.`);
 console.log(`[E2E] Browser target: ${baseUrl}`);
