@@ -20,11 +20,32 @@ const deletedAt = new Date().toISOString();
 
 const { error: intakeError } = await supabase
   .from('patient_intake_responses')
-  .update({ deleted_at: deletedAt })
+  .update({
+    deleted_at: null,
+    completion_status: null,
+    visit_type_selection: null,
+    service_reason: null,
+    procedures_requested: null,
+    consent_accepted: false,
+    consent_timestamp: null,
+    service_interest: null,
+    visit_goal: null,
+    consideration_period: null,
+    readiness_level: null,
+    decision_factor: null,
+    referral_source: null,
+    followup_importance: null,
+    top_priorities: null,
+    main_concern: null,
+    openness_to_proceed: null,
+    digital_signature_svg: null,
+    signature_timestamp: null,
+    whatsapp_redirect_sent: false,
+    completed_at: null,
+  })
   .eq('tenant_id', tenantId)
-  .in('session_id', E2E_SESSION_IDS)
-  .is('deleted_at', null);
-if (intakeError) throw new Error(`[E2E] intake soft-reset failed: ${intakeError.message}`);
+  .in('session_id', E2E_SESSION_IDS);
+if (intakeError) throw new Error(`[E2E] intake reset failed: ${intakeError.message}`);
 
 const { error: sessionError } = await supabase
   .from('clinic_visit_sessions')
