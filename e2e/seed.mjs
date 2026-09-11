@@ -13,6 +13,9 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
   auth: { autoRefreshToken: false, persistSession: false },
 });
 const tenantId = process.env.E2E_TENANT_ID ?? E2E_TENANT_ID;
+const doctorIndex = E2E_STAFF.findIndex((staff) => staff.role === 'doctor');
+if (doctorIndex < 0) throw new Error('[E2E] Doctor fixture is required for doctor-owned session coverage.');
+const doctorId = `30000000-0000-4000-8000-${String(doctorIndex + 1).padStart(12, '0')}`;
 
 const { error: tenantError } = await supabase.from('master_tenants').upsert({
   id: tenantId,
@@ -55,8 +58,14 @@ const patients = E2E_PATIENTS.map((p) => ({
   date_of_birth: p.date_of_birth, gender: p.gender, allergies: p.allergies, is_active: true, deleted_at: null,
 }));
 const sessions = E2E_PATIENTS.map((p, i) => ({
-  id: E2E_SESSION_IDS[i], tenant_id: tenantId, patient_id: p.id, session_status: 'pending', payment_status: 'pending',
-  session_metadata: { e2e: true, e2e_case: p.n, urgency: p.urgency, visit_type: p.visit }, deleted_at: null,
+  id: E2E_SESSION_IDS[i],
+  tenant_id: tenantId,
+  patient_id: p.id,
+  session_status: 'pending',
+  payment_status: 'pending',
+  doctor_id: i === 0 ? doctorId : null,
+  session_metadata: { e2e: true, e2e_case: p.n, urgency: p.urgency, visit_type: p.visit },
+  deleted_at: null,
 }));
 
 const { error: patientError } = await supabase.from('clinic_patients').upsert(patients, { onConflict: 'id' });
@@ -88,6 +97,6 @@ if (!pinProbe?.success || pinProbe.role !== E2E_STAFF[0].role || pinProbe.employ
   throw new Error(`[E2E] PIN RPC probe rejected valid fixture: ${JSON.stringify(pinProbe)}`);
 }
 console.log(`[E2E] PIN RPC probe PASS — ${E2E_STAFF[0].role} fixture authenticated.`);
-
 console.log(`[E2E] Seed verified: ${patientCount} patients, ${sessionCount} sessions, ${staffCount} staff roles.`);
+console.log(`[E2E] Doctor session fixture: ${E2E_SESSION_IDS[0]} owned by ${doctorId}.`);
 console.log(`[E2E] Browser target: ${baseUrl}`);
