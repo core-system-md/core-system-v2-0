@@ -1,5 +1,6 @@
+import { createClient } from '@supabase/supabase-js';
 import { test, expect } from '@playwright/test';
-import { E2E_STAFF, E2E_LICENSE_KEY } from './fixtures/staff.mjs';
+import { E2E_STAFF, E2E_LICENSE_KEY, E2E_TENANT_ID } from './fixtures/staff.mjs';
 import { E2E_SESSION_IDS } from './fixtures/patients.mjs';
 
 const BASE_ROUTES = ['/admin', '/doctor', '/reception', '/super-admin'];
@@ -29,6 +30,24 @@ const expectedDefault = {
   receptionist: '/reception',
 };
 
+const adminSupabase = createClient(
+  process.env.SUPABASE_URL ?? '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+  { auth: { autoRefreshToken: false, persistSession: false } },
+);
+
+async function resetPinRateWindow() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('[E2E] Missing Supabase service-role environment for role-test isolation');
+  }
+  const agedAt = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+  const { error } = await adminSupabase
+    .from('pin_attempt_log')
+    .update({ created_at: agedAt })
+    .eq('tenant_id', E2E_TENANT_ID);
+  if (error) throw new Error(`[E2E] PIN rate-window reset failed: ${error.message}`);
+}
+
 async function clearBrowserAuth(page) {
   await page.goto('/login');
   await page.evaluate(() => {
@@ -39,6 +58,7 @@ async function clearBrowserAuth(page) {
 }
 
 async function loginAs(page, staff) {
+  await resetPinRateWindow();
   await clearBrowserAuth(page);
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
