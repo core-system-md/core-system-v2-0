@@ -2,7 +2,7 @@
 -- Evidence: the survey RPC originally relied on ON CONFLICT(session_id), but the
 -- canonical patient_intake_responses table does not define a unique constraint on
 -- session_id during the historical replay chain. The canonical runtime schema is
--- reconciled later and does not retain legacy form_type/form_version columns.
+-- reconciled later and does retain a unique session_id key.
 -- No RPC signature, table schema, RLS, or permission contract changes.
 
 CREATE OR REPLACE FUNCTION public.save_patient_intake_page(p_session_id uuid, p_page integer, p_payload jsonb)
@@ -45,10 +45,12 @@ BEGIN
     RAISE EXCEPTION 'INVALID_PAGE_ORDER: unknown page %', p_page;
   END IF;
 
+  -- Reuse the canonical one-row-per-session intake record even when a previous
+  -- attempt soft-deleted it. The unique session_id key remains in force, so
+  -- treating the soft-deleted row as absent would cause a duplicate-key failure.
   SELECT id, completion_status::text INTO v_intake_id, v_current_status
   FROM patient_intake_responses
   WHERE session_id = p_session_id
-    AND deleted_at IS NULL
   ORDER BY created_at DESC, id DESC
   LIMIT 1;
 
@@ -129,12 +131,13 @@ BEGIN
   END IF;
 
   IF v_intake_id IS NULL THEN
-    INSERT INTO patient_intake_responses (session_id, patient_id, tenant_id, completion_status)
-    VALUES (p_session_id, v_patient_id, v_tenant_id, v_new_status)
+    INSERT INTO patient_intake_responses (session_id, patient_id, tenant_id, completion_status, deleted_at)
+    VALUES (p_session_id, v_patient_id, v_tenant_id, v_new_status, NULL)
     RETURNING id INTO v_intake_id;
   ELSE
     UPDATE patient_intake_responses
     SET completion_status = v_new_status,
+        deleted_at = NULL,
         updated_at = NOW()
     WHERE id = v_intake_id;
   END IF;
