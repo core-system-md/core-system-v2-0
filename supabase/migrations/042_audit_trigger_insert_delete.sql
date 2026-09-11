@@ -1,4 +1,4 @@
-﻿-- 042_audit_trigger_insert_delete.sql
+-- 042_audit_trigger_insert_delete.sql
 -- P38-C: Extend fn_audit_sensitive_changes to cover INSERT and DELETE
 -- Existing UPDATE behavior is preserved. Existing triggers are NOT modified.
 
@@ -7,7 +7,7 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $\$
+AS $$
 DECLARE
   v_tenant_id UUID;
   v_record_id UUID;
@@ -36,12 +36,21 @@ BEGIN
 
   IF TG_OP = 'UPDATE' THEN
     INSERT INTO audit_trail (
-      tenant_id, actor_id, actor_role, action, table_name, record_id, old_values, new_values
+      tenant_id,
+      user_id,
+      actor_type,
+      actor_email,
+      action,
+      entity_type,
+      entity_id,
+      old_values,
+      new_values
     ) VALUES (
       v_tenant_id,
       auth.uid(),
-      (auth.jwt()->>'user_role')::TEXT,
-      'UPDATE',
+      'user',
+      NULLIF(auth.jwt()->>'email', ''),
+      'update',
       TG_TABLE_NAME,
       v_record_id,
       to_jsonb(OLD),
@@ -51,12 +60,21 @@ BEGIN
 
   ELSIF TG_OP = 'INSERT' THEN
     INSERT INTO audit_trail (
-      tenant_id, actor_id, actor_role, action, table_name, record_id, old_values, new_values
+      tenant_id,
+      user_id,
+      actor_type,
+      actor_email,
+      action,
+      entity_type,
+      entity_id,
+      old_values,
+      new_values
     ) VALUES (
       v_tenant_id,
       auth.uid(),
-      (auth.jwt()->>'user_role')::TEXT,
-      'INSERT',
+      'user',
+      NULLIF(auth.jwt()->>'email', ''),
+      'create',
       TG_TABLE_NAME,
       v_record_id,
       NULL,
@@ -66,12 +84,21 @@ BEGIN
 
   ELSIF TG_OP = 'DELETE' THEN
     INSERT INTO audit_trail (
-      tenant_id, actor_id, actor_role, action, table_name, record_id, old_values, new_values
+      tenant_id,
+      user_id,
+      actor_type,
+      actor_email,
+      action,
+      entity_type,
+      entity_id,
+      old_values,
+      new_values
     ) VALUES (
       v_tenant_id,
       auth.uid(),
-      (auth.jwt()->>'user_role')::TEXT,
-      'DELETE',
+      'user',
+      NULLIF(auth.jwt()->>'email', ''),
+      'delete',
       TG_TABLE_NAME,
       v_record_id,
       to_jsonb(OLD),
@@ -82,7 +109,7 @@ BEGIN
 
   RETURN NULL;
 END;
-$\$;
+$$;
 
 -- INSERT trigger for clinic_visit_sessions
 DROP TRIGGER IF EXISTS tr_audit_sessions_insert ON clinic_visit_sessions;

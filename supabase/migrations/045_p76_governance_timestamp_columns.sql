@@ -51,7 +51,7 @@ ALTER TABLE public.system_delivery_breaches ALTER COLUMN updated_at SET DEFAULT 
 ALTER TABLE public.system_delivery_breaches ALTER COLUMN updated_at SET NOT NULL;
 
 ALTER TABLE public.tenant_devices ADD COLUMN IF NOT EXISTS created_at timestamptz;
-UPDATE public.tenant_devices SET created_at = registered_at WHERE created_at IS NULL;
+-- tenant_devices already defines created_at in the base migration. Do not reference the removed legacy registered_at column.
 ALTER TABLE public.tenant_devices ALTER COLUMN created_at SET DEFAULT now();
 ALTER TABLE public.tenant_devices ALTER COLUMN created_at SET NOT NULL;
 ALTER TABLE public.tenant_devices ADD COLUMN IF NOT EXISTS updated_at timestamptz;

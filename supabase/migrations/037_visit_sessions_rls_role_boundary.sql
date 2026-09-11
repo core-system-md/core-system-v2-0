@@ -1,4 +1,4 @@
-﻿-- Migration 037: Add role boundary to clinic_visit_sessions UPDATE policy
+-- Migration 037: Add role boundary to clinic_visit_sessions UPDATE policy
 -- Date: 2026-07-27
 -- Scope: ONE TABLE + ONE POLICY + ONE MINIMAL BOUNDARY
 --

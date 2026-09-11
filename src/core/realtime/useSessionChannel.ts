@@ -8,19 +8,20 @@ export function useSessionChannel(tenantId: string, callback?: (payload: unknown
   useEffect(() => {
     if (!tenantId || !isAuthenticated) return;
 
+    const channelName = `sessions_${tenantId}_${crypto.randomUUID()}`;
     const channel = supabase
-      .channel(`sessions_${tenantId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'clinic_visit_sessions', filter: `tenant_id=eq.${tenantId}` },
         (payload) => {
-          if (callback) callback(payload);
+          callback?.(payload);
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [tenantId, isAuthenticated, callback]);
 }

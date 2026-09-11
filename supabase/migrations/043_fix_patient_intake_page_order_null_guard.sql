@@ -1,6 +1,8 @@
 -- P0-2: fix NULL-safe page-order enforcement for patient intake survey
--- Evidence: production save_patient_intake_page() could accept page 3/4/5 on a fresh session
--- because NOT(NULL) evaluates to NULL and PL/pgSQL IF does not execute on NULL.
+-- Evidence: the survey RPC originally relied on ON CONFLICT(session_id), but the
+-- canonical patient_intake_responses table does not define a unique constraint on
+-- session_id during the historical replay chain. The canonical runtime schema is
+-- reconciled later and does retain a unique session_id key.
 -- No RPC signature, table schema, RLS, or permission contract changes.
 
 CREATE OR REPLACE FUNCTION public.save_patient_intake_page(p_session_id uuid, p_page integer, p_payload jsonb)
@@ -32,7 +34,8 @@ DECLARE
 BEGIN
   SELECT s.patient_id, s.tenant_id INTO v_patient_id, v_tenant_id
   FROM clinic_visit_sessions s
-  WHERE s.id = p_session_id;
+  WHERE s.id = p_session_id
+    AND s.deleted_at IS NULL;
 
   IF v_patient_id IS NULL OR v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'SESSION_NOT_FOUND';
@@ -42,9 +45,14 @@ BEGIN
     RAISE EXCEPTION 'INVALID_PAGE_ORDER: unknown page %', p_page;
   END IF;
 
+  -- Reuse the canonical one-row-per-session intake record even when a previous
+  -- attempt soft-deleted it. The unique session_id key remains in force, so
+  -- treating the soft-deleted row as absent would cause a duplicate-key failure.
   SELECT id, completion_status::text INTO v_intake_id, v_current_status
   FROM patient_intake_responses
-  WHERE session_id = p_session_id;
+  WHERE session_id = p_session_id
+  ORDER BY created_at DESC, id DESC
+  LIMIT 1;
 
   IF v_current_status = 'completed' AND p_page < 5 THEN
     RAISE EXCEPTION 'SURVEY_ALREADY_COMPLETED';
@@ -68,6 +76,7 @@ BEGIN
 
   IF COALESCE(NOT (
        (v_current_status IS NULL AND v_expected_prior IS NULL)
+    OR (p_page = 1 AND v_current_status = 'incomplete')
     OR v_current_status = v_expected_prior
     OR v_current_status = v_new_status
   ), TRUE) THEN
@@ -114,14 +123,24 @@ BEGIN
     IF v_svg IS NULL THEN RAISE EXCEPTION 'VALIDATION_ERROR: digital_signature_svg is required'; END IF;
     v_sig_raw := NULLIF(trim(p_payload->>'signature_timestamp'), '');
     IF v_sig_raw IS NULL THEN RAISE EXCEPTION 'VALIDATION_ERROR: signature_timestamp is required'; END IF;
-    BEGIN v_sig_ts := v_sig_raw::timestamptz;
-    EXCEPTION WHEN OTHERS THEN RAISE EXCEPTION 'VALIDATION_ERROR: signature_timestamp must be a valid ISO 8601 timestamp'; END;
+    BEGIN
+      v_sig_ts := v_sig_raw::timestamptz;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE EXCEPTION 'VALIDATION_ERROR: signature_timestamp must be a valid ISO 8601 timestamp';
+    END;
   END IF;
 
-  INSERT INTO patient_intake_responses (session_id, patient_id, tenant_id, completion_status)
-  VALUES (p_session_id, v_patient_id, v_tenant_id, v_new_status)
-  ON CONFLICT (session_id) DO UPDATE SET completion_status = EXCLUDED.completion_status, updated_at = NOW()
-  RETURNING id INTO v_intake_id;
+  IF v_intake_id IS NULL THEN
+    INSERT INTO patient_intake_responses (session_id, patient_id, tenant_id, completion_status, deleted_at)
+    VALUES (p_session_id, v_patient_id, v_tenant_id, v_new_status, NULL)
+    RETURNING id INTO v_intake_id;
+  ELSE
+    UPDATE patient_intake_responses
+    SET completion_status = v_new_status,
+        deleted_at = NULL,
+        updated_at = NOW()
+    WHERE id = v_intake_id;
+  END IF;
 
   IF p_page = 1 THEN
     UPDATE patient_intake_responses SET visit_type_selection=v_visit_type, service_reason=v_service_reason, procedures_requested=v_procedures, consent_accepted=TRUE, consent_timestamp=NOW() WHERE id=v_intake_id;

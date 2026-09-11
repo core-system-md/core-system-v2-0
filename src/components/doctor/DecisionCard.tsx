@@ -26,6 +26,9 @@ interface LongitudinalData {
   historical_core_score_avg: number | null; last_visit_date: string | null;
 }
 interface DecisionCardProps { sessionId: string; }
+type IndicatorKey = 'APS' | 'DRI' | 'RVS' | 'URI' | 'TSI' | 'PQS';
+type IndicatorValues = Record<IndicatorKey, number | null>;
+const INDICATOR_KEYS: IndicatorKey[] = ['APS', 'DRI', 'RVS', 'URI', 'TSI', 'PQS'];
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -33,13 +36,39 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 const PAR_OPTIONS = [
-  { value: 'full_acceptance', label: 'قبول كامل', color: 'bg-green-500/20 text-green-400' },
-  { value: 'partial_acceptance', label: 'قبول جزئي', color: 'bg-blue-500/20 text-blue-400' },
-  { value: 'deferred', label: 'مؤجل', color: 'bg-yellow-500/20 text-yellow-400' },
-  { value: 'rejection', label: 'رفض', color: 'bg-red-500/20 text-red-400' },
+  { value: 'full_acceptance', label: 'قبول كامل', className: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' },
+  { value: 'partial_acceptance', label: 'قبول جزئي', className: 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100' },
+  { value: 'deferred', label: 'مؤجل', className: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' },
+  { value: 'rejection', label: 'رفض', className: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' },
 ] as const;
 
-const DEFAULT_INDICATORS = { APS: 850, DRI: 800, RVS: 750, URI: 700, TSI: 650, PQS: 300 };
+const INDICATOR_FIELDS: Array<{ label: IndicatorKey; weight: string }> = [
+  { label: 'APS', weight: '28%' },
+  { label: 'DRI', weight: '24%' },
+  { label: 'RVS', weight: '20%' },
+  { label: 'URI', weight: '15%' },
+  { label: 'TSI', weight: '13%' },
+  { label: 'PQS', weight: 'Penalty' },
+];
+
+function normalizeIndicator(value: number | null | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 1000) {
+    return null;
+  }
+  return value;
+}
+
+function getCompleteIndicators(indicators: IndicatorValues): Record<IndicatorKey, number> | null {
+  const complete = {} as Record<IndicatorKey, number>;
+  for (const key of INDICATOR_KEYS) {
+    const value = indicators[key];
+    if (value === null || !Number.isInteger(value) || value < 0 || value > 1000) {
+      return null;
+    }
+    complete[key] = value;
+  }
+  return complete;
+}
 
 export default function DecisionCard({ sessionId }: DecisionCardProps) {
   const navigate = useNavigate();
@@ -51,15 +80,14 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
   const [selectedPar, setSelectedPar] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [calculating, setCalculating] = useState(false);
-  const [indicators, setIndicators] = useState({
-    APS: DEFAULT_INDICATORS.APS, DRI: DEFAULT_INDICATORS.DRI, RVS: DEFAULT_INDICATORS.RVS,
-    URI: DEFAULT_INDICATORS.URI, TSI: DEFAULT_INDICATORS.TSI, PQS: DEFAULT_INDICATORS.PQS
-  });
+  const [indicators, setIndicators] = useState<IndicatorValues>({ APS: null, DRI: null, RVS: null, URI: null, TSI: null, PQS: null });
 
-  useEffect(() => { if (sessionId) fetchSessionData(); }, [sessionId]);
+  useEffect(() => {
+    if (sessionId) void fetchSessionData();
+  }, [sessionId]);
 
   if (!tenant_id) {
-    return <div className="p-8 text-center text-red-500" dir="rtl"><p>Tenant not initialized</p></div>;
+    return <div className="p-8 text-center text-red-600" dir="rtl"><p>لم تتم تهيئة العيادة بعد</p></div>;
   }
 
   const fetchSessionData = async () => {
@@ -68,18 +96,25 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
     setLoading(true);
     try {
       const { data: sessionData, error: sessionError } = await supabase
-        .from('clinic_visit_sessions').select('*').eq('id', sessionId).eq('tenant_id', tenant_id).is('deleted_at', null).single();
+        .from('clinic_visit_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .eq('tenant_id', tenant_id)
+        .is('deleted_at', null)
+        .single();
       if (sessionError) throw sessionError;
+
       setSession(sessionData);
       setSelectedPar(sessionData.par_result);
       setIndicators({
-        APS: sessionData.score_aps ?? DEFAULT_INDICATORS.APS,
-        DRI: sessionData.score_dri ?? DEFAULT_INDICATORS.DRI,
-        RVS: sessionData.score_rvs ?? DEFAULT_INDICATORS.RVS,
-        URI: sessionData.score_uri ?? DEFAULT_INDICATORS.URI,
-        TSI: sessionData.score_tsi ?? DEFAULT_INDICATORS.TSI,
-        PQS: sessionData.score_pqs ?? DEFAULT_INDICATORS.PQS
+        APS: normalizeIndicator(sessionData.score_aps),
+        DRI: normalizeIndicator(sessionData.score_dri),
+        RVS: normalizeIndicator(sessionData.score_rvs),
+        URI: normalizeIndicator(sessionData.score_uri),
+        TSI: normalizeIndicator(sessionData.score_tsi),
+        PQS: normalizeIndicator(sessionData.score_pqs),
       });
+
       const { data: patientData, error: patientError } = await supabase
         .from('clinic_patients')
         .select('id, first_name, last_name, phone_primary, date_of_birth, gender')
@@ -89,9 +124,14 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
         .single();
       if (patientError) throw patientError;
       setPatient(patientData);
+
       const { data: longData, error: longError } = await supabase
-        .from('patient_longitudinal_profiles').select('dominant_disc_profile, total_visits, total_revenue_subunits, loyalty_tier, historical_core_score_avg, last_visit_date')
-        .eq('patient_id', sessionData.patient_id!).eq('tenant_id', tenant_id).is('deleted_at', null).single();
+        .from('patient_longitudinal_profiles')
+        .select('dominant_disc_profile, total_visits, total_revenue_subunits, loyalty_tier, historical_core_score_avg, last_visit_date')
+        .eq('patient_id', sessionData.patient_id!)
+        .eq('tenant_id', tenant_id)
+        .is('deleted_at', null)
+        .single();
       if (longError && longError.code !== 'PGRST116') throw longError;
       setLongitudinal(longData);
     } catch (err: unknown) {
@@ -104,23 +144,30 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
     if (!sessionId) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('clinic_visit_sessions').update({
-        par_result: selectedPar, updated_at: new Date().toISOString()
-      }).eq('id', sessionId).eq('tenant_id', tenant_id).is('deleted_at', null);
+      const { error } = await supabase
+        .from('clinic_visit_sessions')
+        .update({ par_result: selectedPar, updated_at: new Date().toISOString() })
+        .eq('id', sessionId)
+        .eq('tenant_id', tenant_id)
+        .is('deleted_at', null);
       if (error) throw error;
-      toast.success('تم الحفظ');
-    } catch (err: unknown) { toast.error(getErrorMessage(err, 'فشل في الحفظ')); }
-    finally { setSaving(false); }
+      toast.success('تم حفظ قرار الجلسة');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'فشل في الحفظ'));
+    } finally { setSaving(false); }
   };
 
   const handleCalculateScore = async () => {
-    if (!sessionId || !session || !tenant_id) return;
+    if (!sessionId || !tenant_id || !session) return;
+    const completeIndicators = getCompleteIndicators(indicators);
+    if (!completeIndicators) {
+      toast.error('لا يمكن حساب CORE قبل توفر جميع المؤشرات الفعلية من 0 إلى 1000');
+      return;
+    }
+
     setCalculating(true);
     try {
-      const result = await CoreScoreEngine.calculate(indicators, {
-        sessionId,
-        tenantId: tenant_id,
-      });
+      const result = await CoreScoreEngine.calculate(completeIndicators, { sessionId, tenantId: tenant_id });
       toast.success(`تم حساب Core Score: ${result.display} (${result.patientClass})`);
       await fetchSessionData();
     } catch (err: unknown) {
@@ -129,111 +176,87 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
     } finally { setCalculating(false); }
   };
 
+  const updateIndicator = (key: IndicatorKey, value: string) => {
+    setIndicators((previous) => ({ ...previous, [key]: value === '' ? null : Number(value) }));
+  };
+
+  const completeIndicators = getCompleteIndicators(indicators);
+
   if (loading) {
     return (
-      <div className="p-6 space-y-4" dir="rtl">
-        <div className="h-8 bg-white/10 rounded w-1/3 animate-pulse" />
-        <div className="h-32 bg-white/10 rounded animate-pulse" />
-        <div className="h-48 bg-white/10 rounded animate-pulse" />
+      <div className="space-y-4 p-6" dir="rtl">
+        <div className="h-8 w-1/3 animate-pulse rounded bg-slate-200" />
+        <div className="h-32 animate-pulse rounded-xl bg-slate-200" />
+        <div className="h-48 animate-pulse rounded-xl bg-slate-200" />
       </div>
     );
   }
 
   if (!session || !patient) {
     return (
-      <div className="p-8 text-center text-white/50" dir="rtl">
+      <div className="p-8 text-center text-slate-500" dir="rtl">
         <p>لا توجد بيانات للجلسة</p>
-        <button onClick={() => navigate('/doctor')} className="mt-4 text-blue-400 hover:underline">العودة للقائمة</button>
+        <button onClick={() => navigate('/doctor')} className="mt-4 text-[#1B2A4A] hover:underline">العودة للقائمة</button>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto" dir="rtl">
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={() => navigate('/doctor')} className="flex items-center gap-2 text-white/50 hover:text-white transition-colors">
-          <ArrowRight className="w-5 h-5" /> <span>العودة للقائمة</span>
-        </button>
+    <div className="mx-auto max-w-4xl space-y-5 p-4 md:p-6" dir="rtl">
+      <div className="flex items-center justify-between gap-3">
+        <button onClick={() => navigate('/doctor')} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-[#1B2A4A] transition-colors"><ArrowRight className="h-4 w-4" />العودة للقائمة</button>
         <SlaTimer createdAt={session.created_at} />
       </div>
-      <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-        <div className="flex items-start justify-between">
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-2">{patient.first_name || ''} {patient.last_name || ''}</h1>
-            <div className="flex items-center gap-4 text-sm text-white/50">
+            <p className="text-xs font-semibold text-slate-400">ملف الجلسة</p>
+            <h1 className="mt-1 text-2xl font-bold text-[#1B2A4A]">{patient.first_name || ''} {patient.last_name || ''}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
               {patient.phone_primary && <span>{patient.phone_primary}</span>}
               {patient.gender && <span>{patient.gender === 'male' ? 'ذكر' : 'أنثى'}</span>}
-              {longitudinal && <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded">{longitudinal.loyalty_tier}</span>}
+              {longitudinal?.loyalty_tier && <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">{longitudinal.loyalty_tier}</span>}
             </div>
           </div>
-          <CoreScoreMeter backendScore={session.core_score_backend} size="lg" />
+          <div className="shrink-0"><CoreScoreMeter backendScore={session.core_score_backend} size="lg" /></div>
         </div>
-        {session.is_insured && (
-          <div className="mt-3 inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
-            <CheckCircle className="w-3 h-3" /> مؤمن
+        {session.is_insured && <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"><CheckCircle className="h-3.5 w-3.5" />مؤمن</div>}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800"><Calculator className="h-5 w-5 text-[#1B2A4A]" />مؤشرات Core Score</h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">الحساب النهائي يبقى عبر المسار المعتمد في CoreScoreEngine/Edge Function. لا توجد قيم افتراضية غير موثقة.</p>
           </div>
-        )}
-      </div>
-      <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-blue-400" /> حساب Core Score
-          </h2>
           <PermissionGuard required="edit_sessions">
-            <button onClick={handleCalculateScore} disabled={calculating}
-              className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 disabled:bg-white/5 text-blue-400 rounded-lg transition-colors flex items-center gap-2">
-              <RefreshCw className={`w-4 h-4 ${calculating ? 'animate-spin' : ''}`} />
-              {calculating ? 'جاري الحساب...' : 'حساب الدرجة'}
-            </button>
+            <button type="button" onClick={handleCalculateScore} disabled={calculating || completeIndicators === null} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1B2A4A] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#223A63] disabled:cursor-not-allowed disabled:opacity-40"><RefreshCw className={`h-4 w-4 ${calculating ? 'animate-spin' : ''}`} />{calculating ? 'جاري الحساب...' : 'حساب الدرجة'}</button>
           </PermissionGuard>
         </div>
-        <p className="text-white/50 text-sm mb-4">Constitution §4: Formula MUST be in Backend (Edge Function)</p>
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: 'APS', key: 'APS' as const, weight: '28%' },
-            { label: 'DRI', key: 'DRI' as const, weight: '24%' },
-            { label: 'RVS', key: 'RVS' as const, weight: '20%' },
-            { label: 'URI', key: 'URI' as const, weight: '15%' },
-            { label: 'TSI', key: 'TSI' as const, weight: '13%' },
-            { label: 'PQS', key: 'PQS' as const, weight: 'Penalty' },
-          ].map((indicator) => (
-            <div key={indicator.label} className="bg-white/5 rounded-lg p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-white/50 text-sm">{indicator.label}</span>
-                <span className="text-white/30 text-xs">{indicator.weight}</span>
-              </div>
-              <input type="number" min="0" max="1000"
-                value={indicators[indicator.key]}
-                onChange={(e) => setIndicators(prev => ({ ...prev, [indicator.key]: Number(e.target.value) }))}
-                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white text-center focus:outline-none focus:border-white/30"
-              />
-            </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {INDICATOR_FIELDS.map((indicator) => (
+            <label key={indicator.label} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <span className="flex items-center justify-between text-sm font-semibold text-slate-700"><span>{indicator.label}</span><span className="text-xs font-medium text-slate-400">{indicator.weight}</span></span>
+              <input type="number" min="0" max="1000" step="1" inputMode="numeric" value={indicators[indicator.label] ?? ''} onChange={(event) => updateIndicator(indicator.label, event.target.value)} placeholder="—" aria-label={`مؤشر ${indicator.label}`} className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-slate-800 outline-none transition focus:border-[#1B2A4A] focus:ring-2 focus:ring-slate-200" />
+            </label>
           ))}
         </div>
-        {session.core_score_backend && (
-          <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-            <p className="text-green-400 text-sm">
-              ✓ آخر درجة محسوبة: <strong>{session.core_score_display}</strong> ({session.patient_class})
-            </p>
-          </div>
-        )}
-      </div>
-      <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-        <h2 className="text-lg font-semibold text-white mb-4">قرار القبول (PAR)</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {PAR_OPTIONS.map((option) => (
-            <button key={option.value} onClick={() => setSelectedPar(option.value)}
-              className={`p-3 rounded-lg border transition-colors text-sm font-medium ${selectedPar === option.value ? `${option.color} border-white/30` : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}>
-              {option.label}
-            </button>
-          ))}
+
+        {completeIndicators === null && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">لا يمكن تشغيل الحساب قبل توفر المؤشرات الستة كاملةً. لم تتم إضافة قيم تقديرية تلقائيًا.</div>}
+        {session.core_score_backend !== null && <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3"><p className="text-sm text-emerald-800">✓ آخر درجة محسوبة: <strong>{session.core_score_display ?? '—'}</strong>{session.patient_class ? ` (${session.patient_class})` : ''}</p></div>}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <h2 className="text-lg font-bold text-slate-800">قرار القبول (PAR)</h2>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {PAR_OPTIONS.map((option) => <button key={option.value} type="button" onClick={() => setSelectedPar(option.value)} className={`rounded-xl border p-3 text-sm font-semibold transition-colors ${selectedPar === option.value ? option.className : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>{option.label}</button>)}
         </div>
-      </div>
+      </section>
+
       <PermissionGuard required="edit_sessions">
-        <button onClick={handleSave} disabled={saving}
-          className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-          <Save className="w-4 h-4" /> {saving ? 'جاري الحفظ...' : 'حفظ'}
-        </button>
+        <button type="button" onClick={handleSave} disabled={saving} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1B2A4A] py-3 text-sm font-bold text-white transition-colors hover:bg-[#223A63] disabled:opacity-50"><Save className="h-4 w-4" />{saving ? 'جاري الحفظ...' : 'حفظ قرار الجلسة'}</button>
       </PermissionGuard>
     </div>
   );
