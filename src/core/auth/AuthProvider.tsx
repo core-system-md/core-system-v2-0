@@ -39,44 +39,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (initialized.current) return;
     initialized.current = true;
 
-    const hasPinSession = () =>
-      store.isPinAuthenticated &&
-      !!store.user &&
-      typeof window !== 'undefined' &&
-      !!window.sessionStorage.getItem('core-system-pin-session');
+    const getLiveAuthState = () => useAuthStore.getState();
+    const hasPinSession = () => {
+      const state = getLiveAuthState();
+      return (
+        state.isPinAuthenticated &&
+        !!state.user &&
+        typeof window !== 'undefined' &&
+        !!window.sessionStorage.getItem('core-system-pin-session')
+      );
+    };
 
     store.startChecking();
 
     supabase.auth.getUser().then(({ data: { user }, error }) => {
       if (error || !user) {
+        const state = getLiveAuthState();
         if (hasPinSession()) {
-          store.setStatus('AUTHENTICATED');
+          state.setStatus('AUTHENTICATED');
           return;
         }
-        if (store.tenant_id) {
-          store.setStatus('UNAUTHENTICATED');
+        if (state.tenant_id) {
+          state.setStatus('UNAUTHENTICATED');
           return;
         }
-        store.unauthenticate(error?.message ?? null);
+        state.unauthenticate(error?.message ?? null);
         return;
       }
 
       supabase.auth.getSession().then(({ data: { session } }) => {
+        const state = getLiveAuthState();
         if (!session) {
           if (hasPinSession()) {
-            store.setStatus('AUTHENTICATED');
+            state.setStatus('AUTHENTICATED');
             return;
           }
-          if (store.tenant_id) {
-            store.setStatus('UNAUTHENTICATED');
+          if (state.tenant_id) {
+            state.setStatus('UNAUTHENTICATED');
             return;
           }
-          store.unauthenticate();
+          state.unauthenticate();
           return;
         }
 
-        store.setSession(session);
-        store.setSupabaseUser(user);
+        state.setSession(session);
+        state.setSupabaseUser(user);
 
         supabase
           .from('clinic_users')
@@ -85,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single()
           .then(({ data: profile, error: profileError }) => {
             if (profileError || !profile) {
-              store.unauthenticate(profileError?.message || 'Profile not found');
+              useAuthStore.getState().unauthenticate(profileError?.message || 'Profile not found');
               return;
             }
 
@@ -103,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               avatar_url: user.user_metadata?.avatar_url ?? null,
             };
 
-            store.authenticate(authUser, user, session);
+            useAuthStore.getState().authenticate(authUser, user, session);
           });
       });
     });
@@ -111,23 +118,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      const state = getLiveAuthState();
       if (!session) {
         if (hasPinSession()) {
-          store.setStatus('AUTHENTICATED');
+          state.setStatus('AUTHENTICATED');
           return;
         }
-        if (store.tenant_id) {
-          store.setStatus('UNAUTHENTICATED');
+        if (state.tenant_id) {
+          state.setStatus('UNAUTHENTICATED');
           return;
         }
-        store.unauthenticate();
+        state.unauthenticate();
         return;
       }
 
-      store.setSession(session);
-      store.setSupabaseUser(session.user);
+      state.setSession(session);
+      state.setSupabaseUser(session.user);
 
-      if (!store.user) {
+      if (!state.user) {
         supabase
           .from('clinic_users')
           .select('*')
@@ -148,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 specialization: profile.specialization ?? null,
                 avatar_url: session.user.user_metadata?.avatar_url ?? null,
               };
-              store.authenticate(authUser, session.user, session);
+              useAuthStore.getState().authenticate(authUser, session.user, session);
             }
           });
       }
