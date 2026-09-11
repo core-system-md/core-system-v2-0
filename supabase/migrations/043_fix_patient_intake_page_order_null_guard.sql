@@ -68,6 +68,7 @@ BEGIN
 
   IF COALESCE(NOT (
        (v_current_status IS NULL AND v_expected_prior IS NULL)
+    OR (p_page = 1 AND v_current_status = 'incomplete')
     OR v_current_status = v_expected_prior
     OR v_current_status = v_new_status
   ), TRUE) THEN
