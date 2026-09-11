@@ -1,8 +1,8 @@
 -- P0-2: fix NULL-safe page-order enforcement for patient intake survey
 -- Evidence: the survey RPC originally relied on ON CONFLICT(session_id), but the
 -- canonical patient_intake_responses table does not define a unique constraint on
--- session_id. Valid page-1 saves must create a row with the canonical required
--- form_type value; returning visits map to follow_up and first visits to new_patient.
+-- session_id during the historical replay chain. The canonical runtime schema is
+-- reconciled later and does not retain legacy form_type/form_version columns.
 -- No RPC signature, table schema, RLS, or permission contract changes.
 
 CREATE OR REPLACE FUNCTION public.save_patient_intake_page(p_session_id uuid, p_page integer, p_payload jsonb)
@@ -20,7 +20,6 @@ DECLARE
   v_new_status text;
   v_visit_type text;
   v_service_reason text;
-  v_form_type text;
   v_procedures text[];
   v_consent boolean;
   v_num_a integer;
@@ -86,17 +85,12 @@ BEGIN
   IF p_page = 1 THEN
     v_visit_type := p_payload->>'visit_type_selection';
     v_service_reason := NULLIF(trim(p_payload->>'service_reason'), '');
-    v_form_type := CASE v_visit_type
-      WHEN 'first_time' THEN 'new_patient'
-      WHEN 'returning' THEN 'follow_up'
-      ELSE NULL
-    END;
     v_consent := (p_payload->>'consent_accepted')::boolean;
     IF jsonb_typeof(COALESCE(p_payload->'procedures_requested', '[]'::jsonb)) <> 'array' THEN
       RAISE EXCEPTION 'VALIDATION_ERROR: procedures_requested must be an array';
     END IF;
     v_procedures := ARRAY(SELECT jsonb_array_elements_text(p_payload->'procedures_requested'));
-    IF v_visit_type IS NULL OR v_visit_type = '' OR v_form_type IS NULL THEN RAISE EXCEPTION 'VALIDATION_ERROR: visit_type_selection is required'; END IF;
+    IF v_visit_type IS NULL OR v_visit_type = '' THEN RAISE EXCEPTION 'VALIDATION_ERROR: visit_type_selection is required'; END IF;
     IF v_service_reason IS NULL THEN RAISE EXCEPTION 'VALIDATION_ERROR: service_reason is required'; END IF;
     IF array_length(v_procedures, 1) IS NULL THEN RAISE EXCEPTION 'VALIDATION_ERROR: at least one procedure is required'; END IF;
     IF v_consent IS DISTINCT FROM TRUE THEN RAISE EXCEPTION 'VALIDATION_ERROR: consent_accepted must be true'; END IF;
@@ -135,8 +129,8 @@ BEGIN
   END IF;
 
   IF v_intake_id IS NULL THEN
-    INSERT INTO patient_intake_responses (session_id, patient_id, tenant_id, form_type, completion_status)
-    VALUES (p_session_id, v_patient_id, v_tenant_id, COALESCE(v_form_type, 'new_patient'), v_new_status)
+    INSERT INTO patient_intake_responses (session_id, patient_id, tenant_id, completion_status)
+    VALUES (p_session_id, v_patient_id, v_tenant_id, v_new_status)
     RETURNING id INTO v_intake_id;
   ELSE
     UPDATE patient_intake_responses
