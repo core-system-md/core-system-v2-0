@@ -31,6 +31,13 @@ INSERT INTO currency_reference (code, name, name_ar, subunit, symbol, decimal_pl
 ('YER', 'Yemeni Rial', 'الريال اليمني', 100, 'ر.ي', 2, ARRAY['YE']),
 ('SYP', 'Syrian Pound', 'الليرة السورية', 100, 'ل.س', 2, ARRAY['SY']),
 ('SDG', 'Sudanese Pound', 'الجنيه السوداني', 100, 'ج.س', 2, ARRAY['SD']);
+
+-- Migration 016 expects a currency field on master_tenants, but the original
+-- tenants migration did not create it. Add it here so a clean migration replay
+-- is structurally consistent with the existing production schema contract.
+ALTER TABLE master_tenants
+    ADD COLUMN IF NOT EXISTS currency VARCHAR(3);
+
 ALTER TABLE master_tenants
     ALTER COLUMN currency TYPE VARCHAR(3),
     ADD CONSTRAINT fk_tenant_currency

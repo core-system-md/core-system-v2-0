@@ -1,6 +1,23 @@
 -- 021_triggers_governance.sql
 -- Financial Governance Triggers for CORE SYSTEM v2.1
 
+-- The base session migration predates the CORE score columns. Keep the
+-- migration chain self-contained without rewriting the historical 006 migration.
+ALTER TABLE clinic_visit_sessions
+  ADD COLUMN IF NOT EXISTS score_aps INTEGER,
+  ADD COLUMN IF NOT EXISTS score_dri INTEGER,
+  ADD COLUMN IF NOT EXISTS score_tsi INTEGER,
+  ADD COLUMN IF NOT EXISTS score_uri INTEGER,
+  ADD COLUMN IF NOT EXISTS score_pqs INTEGER,
+  ADD COLUMN IF NOT EXISTS score_rvs INTEGER;
+
+-- The original financial migration predates the triangulation fields.
+-- Add them here for a clean migration replay without changing existing schemas.
+ALTER TABLE clinic_invoices
+  ADD COLUMN IF NOT EXISTS doctor_par_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS collected_reception BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS match_triangulation BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- TRIGGER 1: Consultation Fee Gate
 -- Prevents starting consultation without paid invoice
 CREATE OR REPLACE FUNCTION check_consultation_fee_gate()
@@ -50,7 +67,7 @@ CREATE OR REPLACE FUNCTION fn_set_auto_close()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.visit_closed_at IS NOT NULL 
-     AND OLD.visit_closed_at IS NULL 
+     AND OLD.visit_closed_at IS NULL
      AND NEW.session_status = 'pending_close' THEN
     NEW.auto_close_at := NEW.visit_closed_at + INTERVAL '60 minutes';
   END IF;
@@ -93,7 +110,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_ghost_evaluation_guard ON clinic_visit_sessions;
 CREATE TRIGGER tr_ghost_evaluation_guard
-BEFORE UPDATE OF score_aps, score_dri, score_tsi, score_uri, score_pqs, score_rvs 
+BEFORE UPDATE OF score_aps, score_dri, score_tsi, score_uri, score_pqs, score_rvs
 ON clinic_visit_sessions
 FOR EACH ROW EXECUTE FUNCTION fn_detect_ghost_evaluation();
 
@@ -134,7 +151,7 @@ RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.doctor_par_confirmed = true
      AND NEW.collected_reception = true
-     AND NEW.amount_paid_subunits >= (NEW.total_subunits * 0.80) THEN
+     AND NEW.paid_subunits >= (NEW.total_subunits * 0.80) THEN
     NEW.match_triangulation := true;
   ELSE
     NEW.match_triangulation := false;
@@ -145,6 +162,6 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_verify_triangulation ON clinic_invoices;
 CREATE TRIGGER tr_verify_triangulation
-BEFORE UPDATE OF doctor_par_confirmed, collected_reception, amount_paid_subunits 
+BEFORE UPDATE OF doctor_par_confirmed, collected_reception, paid_subunits
 ON clinic_invoices
 FOR EACH ROW EXECUTE FUNCTION fn_verify_triangulation();

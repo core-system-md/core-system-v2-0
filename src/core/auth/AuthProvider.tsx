@@ -23,109 +23,136 @@ export function useAuthContext() {
     logout: store.logout,
     clearError: store.clearError,
     validateLicense: async (_unusedKey?: string) => ({ success: true }),
-    loginWithPin: async (_unusedPin: string, _unusedRole?: string) => {
-      return { success: false, error: 'Use useAuth().loginWithPin() instead' };
-    },
+    loginWithPin: async (_unusedPin: string, _unusedRole?: string) => ({ success: false, error: 'Use useAuth().loginWithPin() instead' }),
   };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const store = useAuthStore();
   const initialized = useRef(false);
-
-  // P35 FIX: Prevent stale persisted state from bypassing auth check.
-  // Zustand persist restores isAuthenticated=true before useEffect runs.
-  // RootRedirect reads this state and redirects before AuthProvider verifies.
-  if (!initialized.current) {
-    store.boot();
-  }
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
 
-    // ─── STATE MACHINE: BOOTING → CHECKING_SESSION ────────
-    store.startChecking();
+    const getLiveAuthState = () => useAuthStore.getState();
+    const persistApi = useAuthStore.persist;
+    let hydrationReady = persistApi.hasHydrated();
 
-    // ─── Check existing session ───────────────────────────
-    supabase.auth.getUser().then(({ data: { user }, error }) => {
-      if (error || !user) {
-        // If tenant context exists (license validated), don't wipe tenant data
-        // Just mark auth as unauthenticated so PIN flow can proceed
-        if (store.tenant_id) {
-          store.setStatus('UNAUTHENTICATED');
+    const hasPinSession = () => {
+      const state = getLiveAuthState();
+      return (
+        !!state.user &&
+        !!state.user.tenant_id &&
+        typeof window !== 'undefined' &&
+        !!window.sessionStorage.getItem('core-system-pin-session')
+      );
+    };
+
+    const preserveHydratedPinSession = () => {
+      const state = getLiveAuthState();
+      if (!hasPinSession()) return false;
+      state.setStatus('AUTHENTICATED');
+      return true;
+    };
+
+    const initializeAuth = () => {
+      hydrationReady = true;
+      const liveState = getLiveAuthState();
+
+      // PIN authentication is intentionally independent from Supabase Auth.
+      // Do not write a transient BOOTING state before Zustand persistence has
+      // hydrated: doing so can overwrite the persisted authenticated state on
+      // hard navigation before the PIN session has been restored.
+      if (preserveHydratedPinSession()) return;
+
+      liveState.startChecking();
+
+      supabase.auth.getUser().then(({ data: { user }, error }) => {
+        if (error || !user) {
+          const state = getLiveAuthState();
+          if (preserveHydratedPinSession()) return;
+          if (state.tenant_id) {
+            state.setStatus('UNAUTHENTICATED');
+            return;
+          }
+          state.unauthenticate(error?.message ?? null);
           return;
         }
 
-        // No tenant context — full unauthenticate
-        store.unauthenticate(error?.message ?? null);
-        return;
-      }
-
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) {
-          // If tenant context exists, keep it for PIN flow
-          if (store.tenant_id) {
-            store.setStatus('UNAUTHENTICATED');
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          const state = getLiveAuthState();
+          if (!session) {
+            if (preserveHydratedPinSession()) return;
+            if (state.tenant_id) {
+              state.setStatus('UNAUTHENTICATED');
+              return;
+            }
+            state.unauthenticate();
             return;
           }
 
-          store.unauthenticate();
-          return;
-        }
+          state.setSession(session);
+          state.setSupabaseUser(user);
 
-        store.setSession(session);
-        store.setSupabaseUser(user);
+          supabase
+            .from('clinic_users')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+            .then(({ data: profile, error: profileError }) => {
+              if (profileError || !profile) {
+                if (preserveHydratedPinSession()) return;
+                useAuthStore.getState().unauthenticate(profileError?.message || 'Profile not found');
+                return;
+              }
 
-        supabase
-          .from('clinic_users')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-          .then(({ data: profile, error: profileError }) => {
-            if (profileError || !profile) {
-              store.unauthenticate(profileError?.message || 'Profile not found');
-              return;
-            }
+              const authUser: AuthUser = {
+                id: profile.id,
+                email: user.email ?? null,
+                full_name: profile.full_name ?? '',
+                full_name_ar: profile.full_name_ar ?? null,
+                role: (profile.role as AuthUser['role']) || 'receptionist',
+                tenant_id: profile.tenant_id ?? '',
+                employee_code: profile.employee_code ?? null,
+                pin_code: profile.pin_code ?? null,
+                phone: profile.phone ?? null,
+                specialization: profile.specialization ?? null,
+                avatar_url: user.user_metadata?.avatar_url ?? null,
+              };
 
-            const authUser: AuthUser = {
-              id: profile.id,
-              email: user.email ?? null,
-              full_name: profile.full_name ?? '',
-              full_name_ar: profile.full_name_ar ?? null,
-              role: (profile.role as AuthUser['role']) || 'receptionist',
-              tenant_id: profile.tenant_id ?? '',
-              employee_code: profile.employee_code ?? null,
-              pin_code: profile.pin_code ?? null,
-              phone: profile.phone ?? null,
-              specialization: profile.specialization ?? null,
-              avatar_url: user.user_metadata?.avatar_url ?? null,
-            };
-
-            store.authenticate(authUser, user, session);
-          });
+              useAuthStore.getState().authenticate(authUser, user, session);
+            });
+        });
       });
-    });
+    };
 
-    // ─── Listen for auth state changes ────────────────────
+    let unsubscribeHydration: (() => void) | undefined;
+    if (persistApi.hasHydrated()) {
+      initializeAuth();
+    } else {
+      unsubscribeHydration = persistApi.onFinishHydration(() => initializeAuth());
+    }
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!hydrationReady) return;
+
+      const state = getLiveAuthState();
       if (!session) {
-        // If tenant context exists, keep it for re-auth
-        if (store.tenant_id) {
-          store.setStatus('UNAUTHENTICATED');
+        if (preserveHydratedPinSession()) return;
+        if (state.tenant_id) {
+          state.setStatus('UNAUTHENTICATED');
           return;
         }
-
-        store.unauthenticate();
+        state.unauthenticate();
         return;
       }
 
-      store.setSession(session);
-      store.setSupabaseUser(session.user);
+      state.setSession(session);
+      state.setSupabaseUser(session.user);
 
-      if (!store.user) {
+      if (!state.user) {
         supabase
           .from('clinic_users')
           .select('*')
@@ -141,21 +168,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: (profile.role as AuthUser['role']) || 'receptionist',
                 tenant_id: profile.tenant_id ?? '',
                 employee_code: profile.employee_code ?? null,
-                pin_code: profile.pin_code ?? null,
+                pin_code: null,
                 phone: profile.phone ?? null,
                 specialization: profile.specialization ?? null,
                 avatar_url: session.user.user_metadata?.avatar_url ?? null,
               };
-              store.authenticate(authUser, session.user, session);
+              useAuthStore.getState().authenticate(authUser, session.user, session);
             }
           });
       }
     });
 
     return () => {
+      unsubscribeHydration?.();
       subscription.unsubscribe();
     };
-  }, [store]);
+  }, []);
 
   return <>{children}</>;
 }

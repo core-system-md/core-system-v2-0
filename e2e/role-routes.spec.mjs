@@ -1,5 +1,6 @@
+import { createClient } from '@supabase/supabase-js';
 import { test, expect } from '@playwright/test';
-import { E2E_STAFF, E2E_LICENSE_KEY } from './fixtures/staff.mjs';
+import { E2E_STAFF, E2E_LICENSE_KEY, E2E_TENANT_ID } from './fixtures/staff.mjs';
 import { E2E_SESSION_IDS } from './fixtures/patients.mjs';
 
 const BASE_ROUTES = ['/admin', '/doctor', '/reception', '/super-admin'];
@@ -29,6 +30,24 @@ const expectedDefault = {
   receptionist: '/reception',
 };
 
+const adminSupabase = createClient(
+  process.env.SUPABASE_URL ?? '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+  { auth: { autoRefreshToken: false, persistSession: false } },
+);
+
+async function resetPinRateWindow() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('[E2E] Missing Supabase service-role environment for role-test isolation');
+  }
+  const agedAt = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+  const { error } = await adminSupabase
+    .from('pin_attempt_log')
+    .update({ created_at: agedAt })
+    .eq('tenant_id', E2E_TENANT_ID);
+  if (error) throw new Error(`[E2E] PIN rate-window reset failed: ${error.message}`);
+}
+
 async function clearBrowserAuth(page) {
   await page.goto('/login');
   await page.evaluate(() => {
@@ -39,21 +58,40 @@ async function clearBrowserAuth(page) {
 }
 
 async function loginAs(page, staff) {
+  await resetPinRateWindow();
   await clearBrowserAuth(page);
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
   await expect(page.getByLabel('رمز PIN (4 أرقام)')).toBeVisible();
   await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
   await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
-  await expect(page).toHaveURL(new RegExp(`${expectedDefault[staff.role].replace('/', '\\/')}$`));
+  try {
+    await expect(page).toHaveURL(new RegExp(`${expectedDefault[staff.role].replace('/', '\\/')}$`));
+  } catch (error) {
+    const alertText = await page.getByRole('alert').allTextContents().catch(() => []);
+    const storedAuth = await page.evaluate(() => ({
+      authStore: localStorage.getItem('auth-store'),
+      pinSession: sessionStorage.getItem('core-system-pin-session'),
+    }));
+    throw new Error(`${error.message}\n[E2E] ${staff.role} login diagnostics: alerts=${JSON.stringify(alertText)}, authStore=${storedAuth.authStore}, pinSession=${storedAuth.pinSession ? 'present' : 'missing'}`);
+  }
 }
 
 test.describe('role and screen coverage', () => {
   for (const staff of E2E_STAFF) {
     test(`${staff.role}: default route and every permitted screen`, async ({ page }) => {
       const browserErrors = [];
+      const badResponses = [];
       page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()); });
       page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}`));
+      page.on('response', async (response) => {
+        if (response.status() < 400 || response.status() >= 500) return;
+        const url = response.url();
+        if (!url.includes('/rest/v1/') && !url.includes('/auth/')) return;
+        let body = '';
+        try { body = (await response.text()).slice(0, 800); } catch { /* response may already be unavailable */ }
+        badResponses.push({ route: page.url(), status: response.status(), url, body });
+      });
 
       await loginAs(page, staff);
       for (const route of roleAccess[staff.role]) {
@@ -61,7 +99,7 @@ test.describe('role and screen coverage', () => {
         await page.waitForLoadState('domcontentloaded');
         await expect(page.locator('body')).toContainText(/./);
       }
-      expect(browserErrors, `${staff.role} produced unexpected browser errors`).toEqual([]);
+      expect(browserErrors, `${staff.role} produced unexpected browser errors: ${JSON.stringify(badResponses, null, 2)}`).toEqual([]);
     });
   }
 

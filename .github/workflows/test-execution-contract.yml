@@ -20,6 +20,7 @@ permissions:
 jobs:
   execution-contract:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout full history
         uses: actions/checkout@v4
@@ -35,21 +36,28 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.20.12
 
       - name: Install dependencies
         run: npm install
 
+      - name: Prepare isolated migration replay
+        run: node tools/prepare-local-migrations.mjs
+
       - name: Start isolated Supabase
-        run: supabase start
+        shell: bash
+        run: timeout 10m supabase start -x vector,studio,imgproxy,mailpit,logflare,storage-api,edge-runtime,postgres-meta,supavisor
 
       - name: Export isolated Supabase environment
         shell: bash
         run: |
           supabase status -o env > .supabase.env
-          api_url=$(grep '^API_URL=' .supabase.env | cut -d= -f2-)
-          anon_key=$(grep '^ANON_KEY=' .supabase.env | cut -d= -f2-)
-          service_role_key=$(grep '^SERVICE_ROLE_KEY=' .supabase.env | cut -d= -f2-)
+          strip_wrapping_quotes() {
+            printf '%s' "$1" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"
+          }
+          api_url=$(strip_wrapping_quotes "$(grep '^API_URL=' .supabase.env | cut -d= -f2-)")
+          anon_key=$(strip_wrapping_quotes "$(grep '^ANON_KEY=' .supabase.env | cut -d= -f2-)")
+          service_role_key=$(strip_wrapping_quotes "$(grep '^SERVICE_ROLE_KEY=' .supabase.env | cut -d= -f2-)")
           printf 'VITE_SUPABASE_URL=%s\n' "$api_url" >> "$GITHUB_ENV"
           printf 'VITE_SUPABASE_ANON_KEY=%s\n' "$anon_key" >> "$GITHUB_ENV"
           printf 'SUPABASE_URL=%s\n' "$api_url" >> "$GITHUB_ENV"
@@ -81,6 +89,7 @@ jobs:
           node --check tools/test-execution-setup.mjs
           node --check tools/test-execution-runner.mjs
           node --check tools/migration-validation.mjs
+          node --check tools/prepare-local-migrations.mjs
           node --check e2e/run-full.mjs
           node --check e2e/reconcile.mjs
           node --check e2e/role-routes.spec.mjs
@@ -106,11 +115,24 @@ jobs:
       - name: Run selected validation scope
         env:
           TEST_EXECUTION_RUN_E2E: 'true'
-        run: node tools/test-execution-runner.mjs test-execution-plan.json
+        shell: bash
+        run: |
+          set +e
+          node tools/test-execution-runner.mjs test-execution-plan.json 2>&1 | tee master-test-output.log
+          status=${PIPESTATUS[0]}
+          exit "$status"
 
       - name: Stop isolated Supabase
         if: ${{ always() }}
         run: supabase stop
+
+      - name: Upload execution diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: master-test-diagnostics
+          path: master-test-output.log
+          if-no-files-found: warn
 
       - name: Upload execution plan
         if: ${{ always() && hashFiles('test-execution-plan.json') != '' }}
