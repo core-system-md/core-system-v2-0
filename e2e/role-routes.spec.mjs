@@ -81,8 +81,17 @@ test.describe('role and screen coverage', () => {
   for (const staff of E2E_STAFF) {
     test(`${staff.role}: default route and every permitted screen`, async ({ page }) => {
       const browserErrors = [];
+      const badResponses = [];
       page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()); });
       page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}`));
+      page.on('response', async (response) => {
+        if (response.status() < 400 || response.status() >= 500) return;
+        const url = response.url();
+        if (!url.includes('/rest/v1/') && !url.includes('/auth/')) return;
+        let body = '';
+        try { body = (await response.text()).slice(0, 800); } catch { /* response may already be unavailable */ }
+        badResponses.push({ route: page.url(), status: response.status(), url, body });
+      });
 
       await loginAs(page, staff);
       for (const route of roleAccess[staff.role]) {
@@ -90,7 +99,7 @@ test.describe('role and screen coverage', () => {
         await page.waitForLoadState('domcontentloaded');
         await expect(page.locator('body')).toContainText(/./);
       }
-      expect(browserErrors, `${staff.role} produced unexpected browser errors`).toEqual([]);
+      expect(browserErrors, `${staff.role} produced unexpected browser errors: ${JSON.stringify(badResponses, null, 2)}`).toEqual([]);
     });
   }
 
