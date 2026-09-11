@@ -40,6 +40,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initialized.current = true;
 
     const getLiveAuthState = () => useAuthStore.getState();
+    const persistApi = useAuthStore.persist;
+    let hydrationReady = persistApi.hasHydrated();
+
     const hasPinSession = () => {
       const state = getLiveAuthState();
       return (
@@ -51,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const initializeAuth = () => {
+      hydrationReady = true;
       const liveState = getLiveAuthState();
       liveState.startChecking();
 
@@ -118,7 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     };
 
-    const persistApi = useAuthStore.persist;
     let unsubscribeHydration: (() => void) | undefined;
     if (persistApi.hasHydrated()) {
       initializeAuth();
@@ -129,6 +132,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!hydrationReady) return;
+
       const state = getLiveAuthState();
       if (!session) {
         if (hasPinSession()) {
