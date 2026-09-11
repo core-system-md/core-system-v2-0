@@ -46,7 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const hasPinSession = () => {
       const state = getLiveAuthState();
       return (
-        state.isPinAuthenticated &&
         !!state.user &&
         typeof window !== 'undefined' &&
         !!window.sessionStorage.getItem('core-system-pin-session')
@@ -182,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubscribeHydration?.();
       subscription.unsubscribe();
     };
-  }, [store]);
+  }, []);
 
   return <>{children}</>;
 }
