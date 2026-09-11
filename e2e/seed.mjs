@@ -56,7 +56,7 @@ const patients = E2E_PATIENTS.map((p) => ({
 }));
 const sessions = E2E_PATIENTS.map((p, i) => ({
   id: E2E_SESSION_IDS[i], tenant_id: tenantId, patient_id: p.id, session_status: 'pending', payment_status: 'pending',
-  total_charge_fils: 0, session_metadata: { e2e: true, e2e_case: p.n, urgency: p.urgency, visit_type: p.visit }, deleted_at: null,
+  session_metadata: { e2e: true, e2e_case: p.n, urgency: p.urgency, visit_type: p.visit }, deleted_at: null,
 }));
 
 const { error: patientError } = await supabase.from('clinic_patients').upsert(patients, { onConflict: 'id' });
