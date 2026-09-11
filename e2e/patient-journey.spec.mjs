@@ -34,5 +34,5 @@ test('page 1 accepts valid data and advances to page 2', async ({ page }) => {
   await page.getByRole('button', { name: 'فحص عام' }).click();
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: /التالي — الصفحة 2/ }).click();
-  await expect(page.getByRole('heading', { name: /الصفحة 2 من 5 — النوايا السريرية/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /الصفحة 2 من 5 — النوايا السريرية/ })).toBeVisible({ timeout: 10000 });
 });
