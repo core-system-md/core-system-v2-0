@@ -21,3 +21,5 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- Compatibility guard: this migration is intentionally idempotent on local chains.
