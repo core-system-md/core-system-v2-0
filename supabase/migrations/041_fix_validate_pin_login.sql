@@ -1,4 +1,4 @@
-﻿-- 041_fix_validate_pin_login.sql
+-- 041_fix_validate_pin_login.sql
 -- P0 REGRESSION FIX: Remove G30 check from validate_pin
 -- validate_pin is an AUTHENTICATION function -- auth.uid() is null during login
 -- Rate limiting and logging from P38-B2 are PRESERVED
@@ -11,7 +11,7 @@ RETURNS SETOF clinic_users
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $\$
+AS $$
 DECLARE
   v_match_count INT;
 BEGIN
@@ -44,4 +44,4 @@ BEGIN
     AND is_active = true
     AND deleted_at IS NULL;
 END;
-$\$;
+$$;
