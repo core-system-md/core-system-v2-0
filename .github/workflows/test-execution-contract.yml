@@ -40,7 +40,19 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Start isolated Supabase
+      - name: Start isolated Supabase database
+        run: supabase db start
+
+      - name: Prepare local auth schema compatibility for historical migrations
+        shell: bash
+        run: |
+          db_container="$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)"
+          test -n "$db_container"
+          docker exec "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 \
+            -c "GRANT CREATE ON SCHEMA auth TO postgres;"
+          supabase migration up
+
+      - name: Start isolated Supabase services
         run: supabase start
 
       - name: Export isolated Supabase environment
