@@ -40,7 +40,30 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Start isolated Supabase
+      - name: Start isolated Supabase database without migrations
+        shell: bash
+        run: |
+          migration_dir="supabase/migrations"
+          migration_backup="supabase/migrations.ci-backup"
+          mv "$migration_dir" "$migration_backup"
+          cleanup() {
+            if [ -d "$migration_backup" ] && [ ! -d "$migration_dir" ]; then
+              mv "$migration_backup" "$migration_dir"
+            fi
+          }
+          trap cleanup EXIT
+          supabase db start
+          db_container="$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)"
+          test -n "$db_container"
+          docker exec "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 \
+            -c "GRANT USAGE, CREATE ON SCHEMA auth TO postgres;"
+          mv "$migration_backup" "$migration_dir"
+          trap - EXIT
+
+      - name: Apply complete migration chain
+        run: supabase migration up --local
+
+      - name: Start isolated Supabase services
         run: supabase start
 
       - name: Export isolated Supabase environment

@@ -32,6 +32,8 @@ INSERT INTO currency_reference (code, name, name_ar, subunit, symbol, decimal_pl
 ('SYP', 'Syrian Pound', 'الليرة السورية', 100, 'ل.س', 2, ARRAY['SY']),
 ('SDG', 'Sudanese Pound', 'الجنيه السوداني', 100, 'ج.س', 2, ARRAY['SD']);
 ALTER TABLE master_tenants
+    ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'JOD';
+ALTER TABLE master_tenants
     ALTER COLUMN currency TYPE VARCHAR(3),
     ADD CONSTRAINT fk_tenant_currency
         FOREIGN KEY (currency) REFERENCES currency_reference(code);

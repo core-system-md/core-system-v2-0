@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 048: Remove Legacy validate_license JSONB Overload
+-- Migration 04810000000000: Remove Legacy validate_license JSONB Overload
 -- ============================================================
 -- The canonical application contract is:
 --   validate_license(p_license_key TEXT)
