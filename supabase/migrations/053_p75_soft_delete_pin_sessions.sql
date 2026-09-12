@@ -1,1 +1,0 @@
--- P75 migration moved to 054_p75_soft_delete_pin_sessions.sql to keep unique migration versioning.
