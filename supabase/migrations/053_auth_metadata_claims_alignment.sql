@@ -1,6 +1,13 @@
 -- P0 security alignment: JWT authorization claims must come from app_metadata.
 -- Backfill existing clinic staff, then make tenant/role helpers read server-managed claims.
 
+-- Evidence-backed compatibility repair:
+-- migration 002 creates clinic_users without deleted_at, while the canonical
+-- Blueprint and later repository migrations already require deleted_at for
+-- soft-delete filtering. Add the canonical column before it is referenced below.
+ALTER TABLE public.clinic_users
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
 UPDATE auth.users u
 SET raw_app_meta_data = COALESCE(u.raw_app_meta_data, '{}'::jsonb) || jsonb_build_object(
   'tenant_id', cu.tenant_id::text,
