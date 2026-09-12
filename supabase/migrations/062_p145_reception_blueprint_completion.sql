@@ -2,7 +2,8 @@
 -- Queue order + secure PIN-session mutations for lock, hot-swap suggestion, and invoice collection.
 
 ALTER TABLE public.clinic_visit_sessions
-  ADD COLUMN IF NOT EXISTS queue_position integer;
+  ADD COLUMN IF NOT EXISTS queue_position integer,
+  ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 
 CREATE INDEX IF NOT EXISTS idx_clinic_visit_sessions_queue_order
   ON public.clinic_visit_sessions (tenant_id, queue_position, created_at)
