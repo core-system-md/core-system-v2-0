@@ -8,6 +8,14 @@
 ALTER TABLE public.clinic_users
   ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
+-- Evidence-backed compatibility repair:
+-- the canonical Blueprint and active auth/session code require employee_code,
+-- but migration 002 does not create it. Keep it nullable here because older
+-- rows can predate the employee-code contract; later application flows can
+-- populate it without making this historical migration destructive.
+ALTER TABLE public.clinic_users
+  ADD COLUMN IF NOT EXISTS employee_code TEXT;
+
 UPDATE auth.users u
 SET raw_app_meta_data = COALESCE(u.raw_app_meta_data, '{}'::jsonb) || jsonb_build_object(
   'tenant_id', cu.tenant_id::text,
