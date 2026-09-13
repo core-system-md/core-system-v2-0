@@ -26,8 +26,37 @@ async function loginAs(page, staff) {
   await reset(page);
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
+  await expect(page.getByLabel('رمز PIN (4 أرقام)')).toBeVisible();
   await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
+
+  const createPinResponse = page.waitForResponse(
+    (response) => response.url().includes('/rest/v1/rpc/create_pin_session'),
+    { timeout: 5000 },
+  );
   await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
+
+  let response;
+  try {
+    response = await createPinResponse;
+  } catch (error) {
+    const alert = page.getByRole('alert');
+    const alertText = await alert.innerText().catch(() => '');
+    throw new Error(`create_pin_session produced no browser response for ${staff.role} within 5s${alertText ? `; UI: ${alertText}` : ''}; ${error.message}`);
+  }
+
+  const body = await response.text();
+  if (response.status() >= 400) {
+    throw new Error(`create_pin_session HTTP ${response.status()} for ${staff.role}: ${body}`);
+  }
+  if (body.includes('"success":false')) {
+    throw new Error(`create_pin_session rejected ${staff.role}: ${body}`);
+  }
+
+  const alert = page.getByRole('alert');
+  if (await alert.isVisible().catch(() => false)) {
+    throw new Error(`Auth UI error for ${staff.role}: ${await alert.innerText()}; create_pin_session=${body}`);
+  }
+
   await expect(page).toHaveURL(new RegExp(`${defaultRoute[staff.role].replace('/', '\\/')}$`));
 }
 
