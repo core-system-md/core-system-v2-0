@@ -46,19 +46,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (initialized.current) return;
     initialized.current = true;
 
-    // ─── STATE MACHINE: BOOTING → CHECKING_SESSION ────────
-    store.startChecking();
+    const getStore = useAuthStore.getState;
 
-    const hasPinSession = () =>
-      window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) !== null &&
-      store.isPinAuthenticated &&
-      !!store.user;
+    // ─── STATE MACHINE: BOOTING → CHECKING_SESSION ────────
+    getStore().startChecking();
+
+    const hasPinSession = () => {
+      const current = getStore();
+      return window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) !== null &&
+        current.isPinAuthenticated &&
+        !!current.user;
+    };
 
     const restorePinSession = async (): Promise<boolean> => {
+      const current = getStore();
       const token = window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
-      const persistedUser = store.user;
+      const persistedUser = current.user;
 
-      if (!token || !persistedUser || !store.isPinAuthenticated) return false;
+      if (!token || !persistedUser || !current.isPinAuthenticated) return false;
 
       const rpc = supabase.rpc as unknown as (
         fn: string,
@@ -71,13 +76,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        store.unauthenticate(error.message);
+        getStore().unauthenticate(error.message);
         return true;
       }
 
       // PIN auth is intentionally independent from Supabase Auth JWTs.
       // The existing server-verified PIN session token remains the source of truth.
-      store.authenticate(persistedUser, null, null);
+      getStore().authenticate(persistedUser, null, null);
       return true;
     };
 
@@ -88,49 +93,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       void restorePinSession();
     } else {
       supabase.auth.getUser().then(async ({ data: { user }, error }) => {
+        const current = getStore();
+
         if (error || !user) {
           if (await restorePinSession()) return;
 
+          const latest = getStore();
           // If tenant context exists (license validated), don't wipe tenant data
           // Just mark auth as unauthenticated so PIN flow can proceed
-          if (store.tenant_id) {
-            store.setStatus('UNAUTHENTICATED');
+          if (latest.tenant_id) {
+            latest.setStatus('UNAUTHENTICATED');
             return;
           }
 
           // No tenant context — full unauthenticate
-          store.unauthenticate(error?.message ?? null);
+          latest.unauthenticate(error?.message ?? null);
           return;
         }
 
         // Do not allow a legacy Supabase Auth session to take precedence over a PIN session
         // that may have been established while this provider was already mounted.
-        if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && store.isPinAuthenticated) {
+        if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && getStore().isPinAuthenticated) {
           return;
         }
 
         supabase.auth.getSession().then(({ data: { session } }) => {
+          const latest = getStore();
+
           if (!session) {
-            if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && store.isPinAuthenticated) {
+            if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && latest.isPinAuthenticated) {
               return;
             }
 
             // If tenant context exists, keep it for PIN flow
-            if (store.tenant_id) {
-              store.setStatus('UNAUTHENTICATED');
+            if (latest.tenant_id) {
+              latest.setStatus('UNAUTHENTICATED');
               return;
             }
 
-            store.unauthenticate();
+            latest.unauthenticate();
             return;
           }
 
-          if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && store.isPinAuthenticated) {
+          if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && latest.isPinAuthenticated) {
             return;
           }
 
-          store.setSession(session);
-          store.setSupabaseUser(user);
+          latest.setSession(session);
+          latest.setSupabaseUser(user);
 
           supabase
             .from('clinic_users')
@@ -138,12 +148,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('id', user.id)
             .single()
             .then(({ data: profile, error: profileError }) => {
-              if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && store.isPinAuthenticated) {
+              const currentProfileState = getStore();
+              if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && currentProfileState.isPinAuthenticated) {
                 return;
               }
 
               if (profileError || !profile) {
-                store.unauthenticate(profileError?.message || 'Profile not found');
+                currentProfileState.unauthenticate(profileError?.message || 'Profile not found');
                 return;
               }
 
@@ -161,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 avatar_url: user.user_metadata?.avatar_url ?? null,
               };
 
-              store.authenticate(authUser, user, session);
+              getStore().authenticate(authUser, user, session);
             });
         });
       });
@@ -171,34 +182,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      const current = getStore();
+
       // PIN authentication is intentionally independent from Supabase Auth.
       // Once a verified PIN session exists, Supabase Auth events must not replace
       // the role/user established by create_pin_session.
-      if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && store.isPinAuthenticated) {
+      if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && current.isPinAuthenticated) {
         return;
       }
 
       if (!session) {
-        if (store.tenant_id) {
-          store.setStatus('UNAUTHENTICATED');
+        if (current.tenant_id) {
+          current.setStatus('UNAUTHENTICATED');
           return;
         }
 
-        store.unauthenticate();
+        current.unauthenticate();
         return;
       }
 
-      store.setSession(session);
-      store.setSupabaseUser(session.user);
+      current.setSession(session);
+      current.setSupabaseUser(session.user);
 
-      if (!store.user) {
+      if (!current.user) {
         supabase
           .from('clinic_users')
           .select('*')
           .eq('id', session.user.id)
           .single()
           .then(({ data: profile }) => {
-            if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && store.isPinAuthenticated) {
+            const latest = getStore();
+            if (window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY) && latest.isPinAuthenticated) {
               return;
             }
 
@@ -216,7 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 specialization: profile.specialization ?? null,
                 avatar_url: session.user.user_metadata?.avatar_url ?? null,
               };
-              store.authenticate(authUser, session.user, session);
+              latest.authenticate(authUser, session.user, session);
             }
           });
       }
@@ -225,7 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [store]);
+  }, []);
 
   return <>{children}</>;
 }
