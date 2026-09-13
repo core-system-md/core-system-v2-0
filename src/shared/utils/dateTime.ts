@@ -19,12 +19,20 @@ function toValidDate(date: Date | string | null): Date | null {
 export function formatDate(date: Date | string | null): string {
   const d = toValidDate(date);
   if (!d) return '';
-  return d.toLocaleDateString('en-JO', {
+
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).split('/').reverse().join('-');
+  }).formatToParts(d);
+
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+
+  if (!year || !month || !day) return '';
+  return `${year}-${month}-${day}`;
 }
 
 /**
