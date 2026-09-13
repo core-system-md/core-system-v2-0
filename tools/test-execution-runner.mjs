@@ -26,6 +26,8 @@ const engineeringCommands = {
   database_validation: ['node', ['tools/migration-validation.mjs', '--apply']],
 };
 
+const runsFullE2EAsEngineering = plan.required_engineering.includes('integration_tests');
+
 for (const check of plan.required_engineering) {
   const command = engineeringCommands[check];
   if (!command) {
@@ -34,11 +36,23 @@ for (const check of plan.required_engineering) {
   run(command[0], command[1]);
 }
 
-if (plan.required_e2e.length > 0 || plan.required_negative_tests.length > 0 || plan.required_reconciliation.length > 0) {
+const browserValidationRequired =
+  plan.required_e2e.length > 0 ||
+  plan.required_negative_tests.length > 0 ||
+  plan.required_reconciliation.length > 0;
+
+if (browserValidationRequired) {
   if (process.env.TEST_EXECUTION_RUN_E2E !== 'true') {
     throw new Error('NOT VERIFIED: browser validation is required by the Decision Engine. Set TEST_EXECUTION_RUN_E2E=true in an explicitly provisioned isolated environment.');
   }
-  run('npm', ['run', 'e2e:full']);
+
+  // integration_tests is repository-mapped to the complete Playwright workflow.
+  // Do not execute the mutating E2E suite a second time in the same isolated run:
+  // doing so duplicates seed/login/data mutations and can turn a valid first PASS
+  // into a state-dependent failure.
+  if (!runsFullE2EAsEngineering) {
+    run('npm', ['run', 'e2e:full']);
+  }
 }
 
 if (plan.required_negative_tests.length > 0 && !fs.existsSync(path.join(ROOT, 'e2e/security-negative.spec.mjs'))) {
