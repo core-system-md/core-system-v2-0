@@ -77,12 +77,18 @@ jobs:
           status_exit=$?
           set -e
           test -s .supabase.env
-          api_url=$(grep '^API_URL=' .supabase.env | cut -d= -f2-)
-          anon_key=$(grep '^ANON_KEY=' .supabase.env | cut -d= -f2-)
-          service_role_key=$(grep '^SERVICE_ROLE_KEY=' .supabase.env | cut -d= -f2-)
+          api_url=$(grep '^API_URL=' .supabase.env | cut -d= -f2- | tr -d '\r')
+          anon_key=$(grep '^ANON_KEY=' .supabase.env | cut -d= -f2- | tr -d '\r')
+          service_role_key=$(grep '^SERVICE_ROLE_KEY=' .supabase.env | cut -d= -f2- | tr -d '\r')
+          api_url=$(printf '%s' "$api_url" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+          service_role_key=$(printf '%s' "$service_role_key" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
           test -n "$api_url"
           test -n "$anon_key"
           test -n "$service_role_key"
+          case "$api_url" in
+            http://*|https://*) ;;
+            *) echo "Invalid API_URL exported by Supabase CLI: '$api_url'"; exit 1 ;;
+          esac
           if [ "$status_exit" -ne 0 ]; then
             echo "supabase status exited $status_exit despite a complete environment export; validated values will still be used."
           fi
