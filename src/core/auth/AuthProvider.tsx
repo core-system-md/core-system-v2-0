@@ -3,6 +3,8 @@ import { useAuthStore } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
 import type { AuthUser } from '@/shared/store/authStore';
 
+const PIN_SESSION_STORAGE_KEY = 'core-system-pin-session';
+
 export { useAuth } from './useAuth';
 
 export function useAuthContext() {
@@ -47,9 +49,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ─── STATE MACHINE: BOOTING → CHECKING_SESSION ────────
     store.startChecking();
 
+    const restorePinSession = async (): Promise<boolean> => {
+      const token = window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
+      const persistedUser = store.user;
+
+      if (!token || !persistedUser || !store.isPinAuthenticated) return false;
+
+      const rpc = supabase.rpc as unknown as (
+        fn: string,
+        args: { p_tenant_id: string; p_session_token: string },
+      ) => Promise<{ data: unknown; error: { message: string } | null }>;
+
+      const { error } = await rpc('get_queue_for_pin_session', {
+        p_tenant_id: persistedUser.tenant_id,
+        p_session_token: token,
+      });
+
+      if (error) {
+        store.unauthenticate(error.message);
+        return true;
+      }
+
+      // PIN auth is intentionally independent from Supabase Auth JWTs.
+      // The existing server-verified PIN session token remains the source of truth.
+      store.authenticate(persistedUser, null, null);
+      return true;
+    };
+
     // ─── Check existing session ───────────────────────────
-    supabase.auth.getUser().then(({ data: { user }, error }) => {
+    supabase.auth.getUser().then(async ({ data: { user }, error }) => {
       if (error || !user) {
+        if (await restorePinSession()) return;
+
         // If tenant context exists (license validated), don't wipe tenant data
         // Just mark auth as unauthenticated so PIN flow can proceed
         if (store.tenant_id) {
@@ -112,6 +143,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
+        // PIN authentication is independent from Supabase Auth.
+        // A missing Supabase session must not invalidate a valid PIN session.
+        if (store.isPinAuthenticated && window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY)) {
+          return;
+        }
+
         // If tenant context exists, keep it for re-auth
         if (store.tenant_id) {
           store.setStatus('UNAUTHENTICATED');
