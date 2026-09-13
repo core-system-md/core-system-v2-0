@@ -19,7 +19,10 @@ export function useAuth() {
     const licenseKey = key?.trim();
     if (!licenseKey) { store.setError('LICENSE_REQUIRED'); return { success: false, error: 'LICENSE_REQUIRED' }; }
     try {
-      const { data, error: rpcError } = await supabase.rpc('validate_license', { p_license_key: licenseKey });
+      const { data, error: rpcError } = await supabase.rpc('validate_license', {
+        p_license_key: licenseKey,
+        p_device_fingerprint: null,
+      });
       if (rpcError) { store.setError(rpcError.message); return { success: false, error: rpcError.message }; }
       const tenantRows = Array.isArray(data) ? data : [data];
       const tenant = tenantRows[0] as RpcResult;
