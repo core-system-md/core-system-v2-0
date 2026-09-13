@@ -15,7 +15,7 @@ const roleAccess = {
   ],
   clinic_admin: [
     '/admin', '/admin/revenue', '/admin/staff', '/admin/schedule', '/admin/patients',
-    '/admin/inventory', '/admin/audit', '/admin/billing',
+    '/admin/inventory', '/admin/audit', '/admin/breaches', '/admin/billing',
     '/doctor', `/doctor/session/${E2E_SESSION_IDS[0]}`,
     '/reception', '/reception/inquiries', '/reception/invoices',
   ],
