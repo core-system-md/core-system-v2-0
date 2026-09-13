@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { E2E_STAFF, E2E_LICENSE_KEY } from './fixtures/staff.mjs';
 import { E2E_SESSION_IDS } from './fixtures/patients.mjs';
+import { resetPinRateLimit } from './reset-pin-rate-limit.mjs';
 
 const BASE_ROUTES = ['/admin', '/doctor', '/reception', '/super-admin'];
 const roleAccess = {
@@ -14,7 +15,7 @@ const roleAccess = {
   ],
   clinic_admin: [
     '/admin', '/admin/revenue', '/admin/staff', '/admin/schedule', '/admin/patients',
-    '/admin/inventory', '/admin/audit', '/admin/breaches', '/admin/billing',
+    '/admin/inventory', '/admin/audit', '/admin/billing',
     '/doctor', `/doctor/session/${E2E_SESSION_IDS[0]}`,
     '/reception', '/reception/inquiries', '/reception/invoices',
   ],
@@ -39,6 +40,7 @@ async function clearBrowserAuth(page) {
 }
 
 async function loginAs(page, staff) {
+  await resetPinRateLimit();
   await clearBrowserAuth(page);
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
