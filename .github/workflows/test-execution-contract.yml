@@ -35,7 +35,9 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pin the stable CLI to avoid non-deterministic latest-release lookups
+          # and GitHub API rate-limit failures in CI.
+          version: 2.117.0
 
       - name: Install dependencies
         run: npm install
