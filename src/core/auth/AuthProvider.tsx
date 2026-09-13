@@ -93,8 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       void restorePinSession();
     } else {
       supabase.auth.getUser().then(async ({ data: { user }, error }) => {
-        const current = getStore();
-
         if (error || !user) {
           if (await restorePinSession()) return;
 
