@@ -39,12 +39,32 @@ async function clearBrowserAuth(page) {
 }
 
 async function loginAs(page, staff) {
+  const rpcFailures = [];
+  const rpcResults = [];
+  page.on('response', async (response) => {
+    const url = response.url();
+    if (!url.includes('/rest/v1/rpc/validate_license') && !url.includes('/rest/v1/rpc/create_pin_session')) return;
+    const body = await response.text();
+    if (response.status() >= 400) rpcFailures.push(`${url.split('/rpc/')[1]} HTTP ${response.status()}: ${body}`);
+    else if (url.includes('/create_pin_session')) rpcResults.push(body);
+  });
+
   await clearBrowserAuth(page);
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
   await expect(page.getByLabel('رمز PIN (4 أرقام)')).toBeVisible();
   await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
   await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
+
+  if (rpcFailures.length) throw new Error(`Auth RPC failure for ${staff.role}: ${rpcFailures.join(' | ')}`);
+  const alert = page.getByRole('alert');
+  if (await alert.isVisible().catch(() => false)) {
+    throw new Error(`Auth UI error for ${staff.role}: ${await alert.innerText()}; create_pin_session=${rpcResults.join(' | ')}`);
+  }
+  if (!rpcResults.length) throw new Error(`create_pin_session produced no browser response for ${staff.role}`);
+  if (rpcResults.some((body) => body.includes('"success":false'))) {
+    throw new Error(`create_pin_session rejected ${staff.role}: ${rpcResults.join(' | ')}`);
+  }
   await expect(page).toHaveURL(new RegExp(`${expectedDefault[staff.role].replace('/', '\\/')}$`));
 }
 
