@@ -28,27 +28,35 @@ test('page 1 blocks incomplete submission', async ({ page }) => {
 });
 
 test('page 1 accepts valid data and advances to page 2', async ({ page }) => {
-  const rpcFailures = [];
-  page.on('response', async (response) => {
-    if (!response.url().includes('/rest/v1/rpc/save_patient_intake_page')) return;
-    if (response.status() >= 400) {
-      rpcFailures.push(`HTTP ${response.status()}: ${await response.text()}`);
-    }
-  });
-
   await page.goto(`/survey/${E2E_SESSION_IDS[1]}`);
   await page.getByRole('button', { name: 'زيارة متابعة' }).click();
   await page.getByPlaceholder('اشرح سبب زيارتك باختصار...').fill('متابعة حالة سابقة');
   await page.getByRole('button', { name: 'فحص عام' }).click();
   await page.getByRole('checkbox').check();
+
+  const saveResponsePromise = page.waitForResponse(
+    (response) => response.url().includes('/rest/v1/rpc/save_patient_intake_page'),
+    { timeout: 5000 },
+  );
   await page.getByRole('button', { name: /التالي — الصفحة 2/ }).click();
 
-  if (rpcFailures.length) {
-    throw new Error(`save_patient_intake_page RPC failed: ${rpcFailures.join(' | ')}`);
+  let response;
+  try {
+    response = await saveResponsePromise;
+  } catch (error) {
+    const alert = page.getByRole('alert');
+    const alertText = await alert.innerText().catch(() => '');
+    throw new Error(`save_patient_intake_page produced no browser response within 5s${alertText ? `; UI: ${alertText}` : ''}; ${error.message}`);
   }
+
+  const body = await response.text();
+  if (response.status() >= 400) {
+    throw new Error(`save_patient_intake_page HTTP ${response.status()}: ${body}`);
+  }
+
   const alert = page.getByRole('alert');
   if (await alert.isVisible().catch(() => false)) {
-    throw new Error(`Survey save error: ${await alert.innerText()}`);
+    throw new Error(`Survey save error: ${await alert.innerText()}; RPC=${body}`);
   }
   await expect(page.getByRole('heading', { name: /الصفحة 2 من 5/ })).toBeVisible();
 });
