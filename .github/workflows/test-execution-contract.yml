@@ -151,7 +151,10 @@ jobs:
       - name: Run selected validation scope
         env:
           TEST_EXECUTION_RUN_E2E: 'true'
-        run: node tools/test-execution-runner.mjs test-execution-plan.json
+        shell: bash
+        run: |
+          set -o pipefail
+          node tools/test-execution-runner.mjs test-execution-plan.json 2>&1 | tee e2e-validation.log
 
       - name: Stop isolated Supabase
         if: ${{ always() }}
@@ -163,4 +166,12 @@ jobs:
         with:
           name: test-execution-plan
           path: test-execution-plan.json
+          if-no-files-found: error
+
+      - name: Upload E2E validation log
+        if: ${{ always() && hashFiles('e2e-validation.log') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-validation-log
+          path: e2e-validation.log
           if-no-files-found: error
