@@ -69,6 +69,7 @@ jobs:
       - name: Export isolated Supabase environment
         shell: bash
         run: |
+          # Tolerate the Supabase CLI status exit code when it still emits a complete env file.
           set +e
           supabase status -o env > .supabase.env
           status_exit=$?
