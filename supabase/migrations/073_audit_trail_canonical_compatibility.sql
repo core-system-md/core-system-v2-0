@@ -18,7 +18,7 @@ ALTER TABLE public.audit_trail
 
 ALTER TABLE public.audit_trail
   ADD CONSTRAINT audit_trail_action_check
-  CHECK (LOWER(action) IN ('create', 'update', 'delete', 'login', 'logout', 'export', 'import', 'view', 'other'));
+  CHECK (LOWER(action) IN ('create', 'insert', 'update', 'delete', 'login', 'logout', 'export', 'import', 'view', 'other'));
 
 CREATE INDEX IF NOT EXISTS idx_audit_trail_actor_id
   ON public.audit_trail(actor_id, created_at DESC);
