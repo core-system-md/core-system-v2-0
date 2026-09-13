@@ -33,6 +33,16 @@ const { error: tenantError } = await supabase.from('master_tenants').upsert({
 }, { onConflict: 'id' });
 if (tenantError) throw new Error(`[E2E] master_tenants seed failed: ${tenantError.message}`);
 
+// Each Playwright suite starts a fresh test window against the same isolated tenant.
+// Move prior attempts outside the 15-minute enforcement window instead of deleting
+// audit/rate-limit records or changing the production rate-limit contract.
+const rateLimitResetAt = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+const { error: rateLimitResetError } = await supabase
+  .from('pin_attempt_log')
+  .update({ created_at: rateLimitResetAt, updated_at: rateLimitResetAt })
+  .eq('tenant_id', tenantId);
+if (rateLimitResetError) throw new Error(`[E2E] PIN rate-limit reset failed: ${rateLimitResetError.message}`);
+
 const staffRows = E2E_STAFF.map((staff, index) => ({
   id: `30000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
   tenant_id: tenantId,
