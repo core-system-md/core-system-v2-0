@@ -20,6 +20,7 @@ const engineeringCommands = {
   lint: ['npm', ['run', 'lint']],
   typecheck: ['npx', ['tsc', '--noEmit']],
   unit_tests: ['npm', ['test']],
+  integration_tests: ['npm', ['run', 'e2e:full']],
   api_tests: ['node', ['tools/api-validation.mjs']],
   migration_validation: ['node', ['tools/migration-validation.mjs', '--apply']],
   database_validation: ['node', ['tools/migration-validation.mjs', '--apply']],
@@ -28,7 +29,6 @@ const engineeringCommands = {
 for (const check of plan.required_engineering) {
   const command = engineeringCommands[check];
   if (!command) {
-    if (check === 'integration_tests') throw new Error('NOT VERIFIED: integration_tests is required but no dedicated repository-native integration runner exists.');
     throw new Error(`NOT VERIFIED: required engineering validation '${check}' has no executable repository-native runner.`);
   }
   run(command[0], command[1]);
