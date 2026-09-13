@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { E2E_STAFF, E2E_LICENSE_KEY } from './fixtures/staff.mjs';
+import { resetPinRateLimit } from './reset-pin-rate-limit.mjs';
 
 const protectedRoutes = ['/admin', '/doctor', '/reception', '/super-admin'];
 const defaultRoute = {
@@ -21,6 +22,7 @@ async function reset(page) {
 }
 
 async function loginAs(page, staff) {
+  await resetPinRateLimit();
   await reset(page);
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
