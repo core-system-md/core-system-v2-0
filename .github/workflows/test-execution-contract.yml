@@ -63,17 +63,20 @@ jobs:
       - name: Apply complete migration chain
         run: supabase migration up --local
 
+      - name: Stop database-only Supabase instance before full stack startup
+        run: supabase stop
+
       - name: Start isolated Supabase services
         run: supabase start
 
       - name: Export isolated Supabase environment
         shell: bash
         run: |
-          # Tolerate the Supabase CLI status exit code when it still emits a complete env file.
           set +e
           supabase status -o env > .supabase.env
           status_exit=$?
           set -e
+          test -s .supabase.env
           api_url=$(grep '^API_URL=' .supabase.env | cut -d= -f2-)
           anon_key=$(grep '^ANON_KEY=' .supabase.env | cut -d= -f2-)
           service_role_key=$(grep '^SERVICE_ROLE_KEY=' .supabase.env | cut -d= -f2-)
@@ -81,7 +84,7 @@ jobs:
           test -n "$anon_key"
           test -n "$service_role_key"
           if [ "$status_exit" -ne 0 ]; then
-            echo "supabase status exited $status_exit after exporting a complete environment; continuing with validated values."
+            echo "supabase status exited $status_exit despite a complete environment export; validated values will still be used."
           fi
           printf 'VITE_SUPABASE_URL=%s\n' "$api_url" >> "$GITHUB_ENV"
           printf 'VITE_SUPABASE_ANON_KEY=%s\n' "$anon_key" >> "$GITHUB_ENV"
