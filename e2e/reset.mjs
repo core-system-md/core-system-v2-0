@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { E2E_PREFIX, E2E_PATIENTS } from './fixtures/patients.mjs';
+import { E2E_PREFIX, E2E_PATIENTS, E2E_SESSION_IDS } from './fixtures/patients.mjs';
 import { E2E_STAFF, E2E_TENANT_ID } from './fixtures/staff.mjs';
 
 for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
@@ -26,7 +26,7 @@ const { error: sessionError } = await supabase
   .from('clinic_visit_sessions')
   .update({ deleted_at: deletedAt })
   .eq('tenant_id', tenantId)
-  .in('id', (await import('./fixtures/patients.mjs')).E2E_SESSION_IDS)
+  .in('id', E2E_SESSION_IDS)
   .is('deleted_at', null);
 if (sessionError) throw new Error(`[E2E] session soft-reset failed: ${sessionError.message}`);
 
