@@ -2,15 +2,9 @@ import { useEffect, useState } from 'react';
 import { History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { ROLE_LABELS_AR } from '@/shared/constants/labels';
 
 const PAGE_SIZE = 25;
-
-const ROLE_LABELS_AR: Record<string, string> = {
-  doctor: 'طبيب',
-  receptionist: 'موظف الاستقبال',
-  clinic_admin: 'مدير العيادة',
-  super_admin: 'مشرف عام',
-};
 
 type AuditEvent = {
   id: string;
