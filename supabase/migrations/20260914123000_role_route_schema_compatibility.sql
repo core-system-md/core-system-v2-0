@@ -1,19 +1,21 @@
 -- CORE SYSTEM v2.1 — role-route schema compatibility
 -- Evidence-first repair for Master Test HTTP 400 responses.
--- Purpose: make a fresh migration replay expose the same canonical columns
--- already present in the verified production schema, without destructive
--- changes or changes to auth/RLS contracts.
+-- Purpose: make a fresh migration replay expose the same canonical runtime
+-- columns required by the active role-route UI/RPC contracts.
 
 BEGIN;
 
 ALTER TABLE public.clinic_patients
   ADD COLUMN IF NOT EXISTS phone_primary TEXT,
-  ADD COLUMN IF NOT EXISTS patient_status VARCHAR(50);
+  ADD COLUMN IF NOT EXISTS patient_status VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS core_score_display NUMERIC(5,1),
+  ADD COLUMN IF NOT EXISTS dominant_disc_profile VARCHAR(20);
 
 ALTER TABLE public.clinic_rooms
   ADD COLUMN IF NOT EXISTS room_name VARCHAR(100),
   ADD COLUMN IF NOT EXISTS room_type VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS floor_number SMALLINT;
+  ADD COLUMN IF NOT EXISTS floor_number SMALLINT,
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 ALTER TABLE public.clinic_invoices
   ADD COLUMN IF NOT EXISTS invoice_date DATE,
@@ -24,20 +26,24 @@ ALTER TABLE public.clinic_invoices
   ADD COLUMN IF NOT EXISTS total_subunits INTEGER,
   ADD COLUMN IF NOT EXISTS amount_paid_subunits INTEGER,
   ADD COLUMN IF NOT EXISTS amount_due_subunits INTEGER,
-  ADD COLUMN IF NOT EXISTS collected_reception BOOLEAN;
+  ADD COLUMN IF NOT EXISTS collected_reception BOOLEAN,
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 ALTER TABLE public.patient_longitudinal_profiles
   ADD COLUMN IF NOT EXISTS total_visits INTEGER,
   ADD COLUMN IF NOT EXISTS total_completed_visits INTEGER,
   ADD COLUMN IF NOT EXISTS total_revenue_subunits BIGINT,
   ADD COLUMN IF NOT EXISTS last_visit_date DATE,
-  ADD COLUMN IF NOT EXISTS loyalty_tier VARCHAR(50);
+  ADD COLUMN IF NOT EXISTS loyalty_tier VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS dominant_disc_profile VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 ALTER TABLE public.inventory_ledger
   ADD COLUMN IF NOT EXISTS material_name VARCHAR(255),
   ADD COLUMN IF NOT EXISTS quantity_consumed NUMERIC,
   ADD COLUMN IF NOT EXISTS consumption_type VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS logged_by UUID;
+  ADD COLUMN IF NOT EXISTS logged_by UUID,
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 ALTER TABLE public.tenant_health_scores
   ADD COLUMN IF NOT EXISTS score_date DATE,
@@ -45,14 +51,16 @@ ALTER TABLE public.tenant_health_scores
   ADD COLUMN IF NOT EXISTS activity_score SMALLINT,
   ADD COLUMN IF NOT EXISTS patient_growth_score SMALLINT,
   ADD COLUMN IF NOT EXISTS feature_adoption_score SMALLINT,
-  ADD COLUMN IF NOT EXISTS revenue_trend_score SMALLINT;
+  ADD COLUMN IF NOT EXISTS revenue_trend_score SMALLINT,
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 ALTER TABLE public.feature_flags
   ADD COLUMN IF NOT EXISTS tenant_id UUID,
   ADD COLUMN IF NOT EXISTS flag_key VARCHAR(255),
   ADD COLUMN IF NOT EXISTS flag_name VARCHAR(255),
   ADD COLUMN IF NOT EXISTS allowed_tiers TEXT[],
-  ADD COLUMN IF NOT EXISTS config_json JSONB;
+  ADD COLUMN IF NOT EXISTS config_json JSONB,
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 ALTER TABLE public.core_rules_config
   ADD COLUMN IF NOT EXISTS tenant_id UUID,
@@ -60,7 +68,8 @@ ALTER TABLE public.core_rules_config
   ADD COLUMN IF NOT EXISTS rule_key VARCHAR(255),
   ADD COLUMN IF NOT EXISTS rule_name VARCHAR(255),
   ADD COLUMN IF NOT EXISTS rule_value JSONB,
-  ADD COLUMN IF NOT EXISTS config_json JSONB;
+  ADD COLUMN IF NOT EXISTS config_json JSONB,
+  ADD COLUMN IF NOT EXISTS is_overridable BOOLEAN DEFAULT false;
 
 ALTER TABLE public.system_delivery_breaches
   ADD COLUMN IF NOT EXISTS related_session_id UUID,
@@ -69,10 +78,15 @@ ALTER TABLE public.system_delivery_breaches
   ADD COLUMN IF NOT EXISTS breach_details JSONB,
   ADD COLUMN IF NOT EXISTS resolved BOOLEAN,
   ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS resolution_notes TEXT;
+  ADD COLUMN IF NOT EXISTS resolution_notes TEXT,
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 ALTER TABLE public.clinic_visit_sessions
   ADD COLUMN IF NOT EXISTS waiting_time_minutes SMALLINT;
+
+ALTER TABLE public.clinic_inquiries
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS temp_patient_name VARCHAR(255);
 
 UPDATE public.clinic_patients
 SET phone_primary = COALESCE(phone_primary, phone)
@@ -102,6 +116,10 @@ WHERE score_date IS NULL
    OR feature_adoption_score IS NULL
    OR revenue_trend_score IS NULL;
 
+UPDATE public.core_rules_config
+SET is_overridable = COALESCE(is_overridable, false)
+WHERE is_overridable IS NULL;
+
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='clinic_invoices' AND column_name='issued_at') THEN
@@ -127,6 +145,10 @@ BEGIN
   END IF;
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='core_rules_config' AND column_name='value') THEN
     EXECUTE 'UPDATE public.core_rules_config SET rule_value = COALESCE(rule_value, value), config_json = COALESCE(config_json, value) WHERE rule_value IS NULL OR config_json IS NULL';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='clinic_patients' AND column_name='core_score_backend')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='clinic_patients' AND column_name='core_score_display') THEN
+    EXECUTE 'UPDATE public.clinic_patients SET core_score_display = COALESCE(core_score_display, core_score_backend / 10.0) WHERE core_score_display IS NULL AND core_score_backend IS NOT NULL';
   END IF;
 END;
 $$;
