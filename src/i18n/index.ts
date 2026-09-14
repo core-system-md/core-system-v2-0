@@ -7,6 +7,7 @@ import arAuth from '@/locales/ar/auth.json';
 import arDoctor from '@/locales/ar/doctor.json';
 import enCommon from '@/locales/en/common.json';
 import enAuth from '@/locales/en/auth.json';
+import enDoctor from '@/locales/en/doctor.json';
 
 export const SUPPORTED_LANGUAGES = ['ar', 'en'] as const;
 export type AppLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -37,6 +38,7 @@ void i18next
       en: {
         common: enCommon,
         auth: enAuth,
+        doctor: enDoctor,
       },
     },
     lng: 'ar',
