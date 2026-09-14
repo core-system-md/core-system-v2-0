@@ -1,0 +1,26 @@
+{
+  "language": "العربية",
+  "switchToEnglish": "English",
+  "roles": {
+    "doctor": "طبيب",
+    "receptionist": "موظف الاستقبال",
+    "clinic_admin": "مدير العيادة",
+    "super_admin": "مشرف عام"
+  },
+  "tiers": {
+    "trial": "تجريبي",
+    "essential": "أساسي",
+    "professional": "احترافي",
+    "enterprise": "مؤسسي",
+    "suspended": "موقوف"
+  },
+  "severity": {
+    "critical": "حرج",
+    "warning": "تحذير",
+    "info": "معلومة"
+  },
+  "actions": {
+    "reload": "إعادة التحميل",
+    "changeLanguage": "تغيير اللغة"
+  }
+}
