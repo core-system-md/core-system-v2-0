@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { Building2, Calendar, Users, Smartphone, Shield, Eye } from 'lucide-react';
 import TenantDetailPanel, { type Tenant } from './TenantDetailPanel';
+import { TIER_LABELS } from '@/shared/constants/labels';
 
 const TIER_COLORS: Record<string, string> = {
   trial: 'bg-gray-100 text-gray-800 border-gray-300',
@@ -16,14 +17,6 @@ const TIER_COLORS: Record<string, string> = {
   professional: 'bg-purple-100 text-purple-800 border-purple-300',
   enterprise: 'bg-amber-100 text-amber-800 border-amber-300',
   suspended: 'bg-red-100 text-red-800 border-red-300',
-};
-
-const TIER_LABELS: Record<string, string> = {
-  trial: 'تجريبي',
-  essential: 'أساسي',
-  professional: 'احترافي',
-  enterprise: 'مؤسسي',
-  suspended: 'موقوف',
 };
 
 export default function TenantRegistry() {
