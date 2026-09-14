@@ -6,18 +6,15 @@
 
 BEGIN;
 
--- Patient canonical columns used by Reception/Admin/Doctor queries.
 ALTER TABLE public.clinic_patients
   ADD COLUMN IF NOT EXISTS phone_primary TEXT,
   ADD COLUMN IF NOT EXISTS patient_status VARCHAR(50);
 
--- Room canonical columns used by schedule/admin views.
 ALTER TABLE public.clinic_rooms
   ADD COLUMN IF NOT EXISTS room_name VARCHAR(100),
   ADD COLUMN IF NOT EXISTS room_type VARCHAR(50),
   ADD COLUMN IF NOT EXISTS floor_number SMALLINT;
 
--- Invoice canonical columns used by admin/reception routes.
 ALTER TABLE public.clinic_invoices
   ADD COLUMN IF NOT EXISTS invoice_date DATE,
   ADD COLUMN IF NOT EXISTS invoice_status VARCHAR(30),
@@ -29,7 +26,6 @@ ALTER TABLE public.clinic_invoices
   ADD COLUMN IF NOT EXISTS amount_due_subunits INTEGER,
   ADD COLUMN IF NOT EXISTS collected_reception BOOLEAN;
 
--- Patient longitudinal metrics used by the Admin patient directory.
 ALTER TABLE public.patient_longitudinal_profiles
   ADD COLUMN IF NOT EXISTS total_visits INTEGER,
   ADD COLUMN IF NOT EXISTS total_completed_visits INTEGER,
@@ -37,14 +33,12 @@ ALTER TABLE public.patient_longitudinal_profiles
   ADD COLUMN IF NOT EXISTS last_visit_date DATE,
   ADD COLUMN IF NOT EXISTS loyalty_tier VARCHAR(50);
 
--- Inventory canonical names used by the Admin inventory screen.
 ALTER TABLE public.inventory_ledger
   ADD COLUMN IF NOT EXISTS material_name VARCHAR(255),
   ADD COLUMN IF NOT EXISTS quantity_consumed NUMERIC,
   ADD COLUMN IF NOT EXISTS consumption_type VARCHAR(50),
   ADD COLUMN IF NOT EXISTS logged_by UUID;
 
--- Health score snapshot columns used by Super Admin.
 ALTER TABLE public.tenant_health_scores
   ADD COLUMN IF NOT EXISTS score_date DATE,
   ADD COLUMN IF NOT EXISTS login_frequency_score SMALLINT,
@@ -53,7 +47,6 @@ ALTER TABLE public.tenant_health_scores
   ADD COLUMN IF NOT EXISTS feature_adoption_score SMALLINT,
   ADD COLUMN IF NOT EXISTS revenue_trend_score SMALLINT;
 
--- Feature flag canonical contract used by Super Admin.
 ALTER TABLE public.feature_flags
   ADD COLUMN IF NOT EXISTS tenant_id UUID,
   ADD COLUMN IF NOT EXISTS flag_key VARCHAR(255),
@@ -61,7 +54,6 @@ ALTER TABLE public.feature_flags
   ADD COLUMN IF NOT EXISTS allowed_tiers TEXT[],
   ADD COLUMN IF NOT EXISTS config_json JSONB;
 
--- Core rules canonical contract used by Super Admin.
 ALTER TABLE public.core_rules_config
   ADD COLUMN IF NOT EXISTS tenant_id UUID,
   ADD COLUMN IF NOT EXISTS rule_category VARCHAR(100),
@@ -70,7 +62,6 @@ ALTER TABLE public.core_rules_config
   ADD COLUMN IF NOT EXISTS rule_value JSONB,
   ADD COLUMN IF NOT EXISTS config_json JSONB;
 
--- Breach columns used by Admin/Super Admin consoles.
 ALTER TABLE public.system_delivery_breaches
   ADD COLUMN IF NOT EXISTS related_session_id UUID,
   ADD COLUMN IF NOT EXISTS related_user_id UUID,
@@ -80,11 +71,9 @@ ALTER TABLE public.system_delivery_breaches
   ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS resolution_notes TEXT;
 
--- Session canonical columns used by queue screens.
 ALTER TABLE public.clinic_visit_sessions
   ADD COLUMN IF NOT EXISTS waiting_time_minutes SMALLINT;
 
--- Backfill only when the older canonical source column is available.
 UPDATE public.clinic_patients
 SET phone_primary = COALESCE(phone_primary, phone)
 WHERE phone_primary IS NULL;
@@ -92,11 +81,6 @@ WHERE phone_primary IS NULL;
 UPDATE public.clinic_rooms
 SET room_name = COALESCE(room_name, name)
 WHERE room_name IS NULL;
-
-UPDATE public.clinic_invoices
-SET invoice_date = COALESCE(invoice_date, issued_at::date),
-    invoice_status = COALESCE(invoice_status, status)
-WHERE invoice_date IS NULL OR invoice_status IS NULL;
 
 UPDATE public.patient_longitudinal_profiles
 SET total_visits = COALESCE(total_visits, 0),
@@ -118,22 +102,33 @@ WHERE score_date IS NULL
    OR feature_adoption_score IS NULL
    OR revenue_trend_score IS NULL;
 
-UPDATE public.feature_flags
-SET flag_key = COALESCE(flag_key, key),
-    flag_name = COALESCE(flag_name, name),
-    config_json = COALESCE(config_json, conditions)
-WHERE flag_key IS NULL OR flag_name IS NULL OR config_json IS NULL;
-
-UPDATE public.core_rules_config
-SET rule_category = COALESCE(rule_category, category),
-    rule_key = COALESCE(rule_key, key),
-    rule_name = COALESCE(rule_name, key),
-    rule_value = COALESCE(rule_value, value),
-    config_json = COALESCE(config_json, value)
-WHERE rule_category IS NULL
-   OR rule_key IS NULL
-   OR rule_name IS NULL
-   OR rule_value IS NULL
-   OR config_json IS NULL;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='clinic_invoices' AND column_name='issued_at') THEN
+    EXECUTE 'UPDATE public.clinic_invoices SET invoice_date = COALESCE(invoice_date, issued_at::date) WHERE invoice_date IS NULL';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='clinic_invoices' AND column_name='status') THEN
+    EXECUTE 'UPDATE public.clinic_invoices SET invoice_status = COALESCE(invoice_status, status) WHERE invoice_status IS NULL';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='feature_flags' AND column_name='key') THEN
+    EXECUTE 'UPDATE public.feature_flags SET flag_key = COALESCE(flag_key, key) WHERE flag_key IS NULL';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='feature_flags' AND column_name='name') THEN
+    EXECUTE 'UPDATE public.feature_flags SET flag_name = COALESCE(flag_name, name) WHERE flag_name IS NULL';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='feature_flags' AND column_name='conditions') THEN
+    EXECUTE 'UPDATE public.feature_flags SET config_json = COALESCE(config_json, conditions) WHERE config_json IS NULL';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='core_rules_config' AND column_name='key') THEN
+    EXECUTE 'UPDATE public.core_rules_config SET rule_key = COALESCE(rule_key, key), rule_name = COALESCE(rule_name, key) WHERE rule_key IS NULL OR rule_name IS NULL';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='core_rules_config' AND column_name='category') THEN
+    EXECUTE 'UPDATE public.core_rules_config SET rule_category = COALESCE(rule_category, category) WHERE rule_category IS NULL';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='core_rules_config' AND column_name='value') THEN
+    EXECUTE 'UPDATE public.core_rules_config SET rule_value = COALESCE(rule_value, value), config_json = COALESCE(config_json, value) WHERE rule_value IS NULL OR config_json IS NULL';
+  END IF;
+END;
+$$;
 
 COMMIT;
