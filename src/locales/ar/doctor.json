@@ -12,5 +12,14 @@
   "closeInProgress": "جاري الإغلاق...",
   "confirmClose": "نعم، إغلاق الجلسة",
   "cancel": "إلغاء",
-  "closeSession": "إغلاق الجلسة"
+  "closeSession": "إغلاق الجلسة",
+  "noPatientsToday": "لا يوجد مرضى اليوم",
+  "noPatientsWaiting": "لم يتم تسجيل أي مرضى في قائمة الانتظار",
+  "waiting": "انتظار: {{minutes}} د",
+  "openSession": "فتح الجلسة",
+  "allergyAlertTitle": "تنبيه الحساسية",
+  "allergyAlertDescription": "يجب مراجعة بيانات الحساسية قبل متابعة الجلسة السريرية",
+  "recordedAllergy": "الحساسية المسجلة:",
+  "confirmAllergyReview": "أؤكد أنني راجعت الحساسية",
+  "clinicalActionsBlocked": "الإجراءات السريرية غير متاحة حتى التأكيد"
 }
