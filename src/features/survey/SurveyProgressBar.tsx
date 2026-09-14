@@ -6,7 +6,7 @@ const STEPS = [1, 2, 3, 4, 5] as const;
 
 export default function SurveyProgressBar({ currentPage }: SurveyProgressBarProps) {
   return (
-    <div className="max-w-2xl mx-auto px-4 md:px-6 pt-2 pb-4" dir="rtl" aria-label="تقدم الاستبيان">
+    <div className="max-w-2xl mx-auto px-4 md:px-6 pt-2 pb-4" aria-label="تقدم الاستبيان">
       <div className="flex items-center gap-1.5" role="list">
         {STEPS.map((step, index) => {
           const completed = step < currentPage;
