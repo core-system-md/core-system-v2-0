@@ -1,5 +1,16 @@
 {
   "title": "شاشة الطبيب",
   "patients": "مرضى اليوم",
-  "session": "الجلسة السريرية"
+  "session": "الجلسة السريرية",
+  "tenantNotInitialized": "لم تتم تهيئة العيادة",
+  "closePermissionDenied": "ليس لديك صلاحية إغلاق الجلسة",
+  "closeError": "خطأ في الإغلاق: {{message}}",
+  "closedSuccessfully": "تم إغلاق الجلسة بنجاح",
+  "unexpectedError": "حدث خطأ",
+  "confirmCloseTitle": "تأكيد إغلاق الجلسة",
+  "confirmCloseMessage": "هل أنت متأكد من إغلاق هذه الجلسة؟ لا يمكن التراجع عن هذا الإجراء بعد الإغلاق.",
+  "closeInProgress": "جاري الإغلاق...",
+  "confirmClose": "نعم، إغلاق الجلسة",
+  "cancel": "إلغاء",
+  "closeSession": "إغلاق الجلسة"
 }
