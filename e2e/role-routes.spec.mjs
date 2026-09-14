@@ -86,9 +86,15 @@ test.describe('role and screen coverage', () => {
       const failedResponses = [];
       page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(`CONSOLE: ${message.text()}`); });
       page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}\n${error.stack ?? 'NO_STACK'}`));
-      page.on('response', (response) => {
+      page.on('response', async (response) => {
         if (response.status() >= 400) {
-          failedResponses.push(`${response.status()} ${response.request().method()} ${response.url()}`);
+          let body = '';
+          try {
+            body = await response.text();
+          } catch (error) {
+            body = `<<unable to read response body: ${error instanceof Error ? error.message : String(error)}>>`;
+          }
+          failedResponses.push(`${response.status()} ${response.request().method()} ${response.url()}\nBODY: ${body}`);
         }
       });
 
