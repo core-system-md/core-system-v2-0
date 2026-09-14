@@ -21,7 +21,7 @@ export function CloseSession({ sessionId, onClose }: CloseSessionProps) {
 
   if (!tenantId) {
     return (
-      <div className="p-6 text-center text-red-500" dir="rtl">
+      <div className="p-6 text-center text-red-500">
         Tenant not initialized
       </div>
     );
@@ -71,7 +71,7 @@ export function CloseSession({ sessionId, onClose }: CloseSessionProps) {
   return (
     <PermissionGuard required="edit_sessions">
       {showConfirm ? (
-        <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-lg border-2 border-red-200" dir="rtl">
+        <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-lg border-2 border-red-200">
           <div className="flex items-center gap-3 mb-4">
             <AlertTriangle className="w-8 h-8 text-red-500" />
             <h3 className="text-lg font-bold text-red-600">تأكيد إغلاق الجلسة</h3>
@@ -98,7 +98,7 @@ export function CloseSession({ sessionId, onClose }: CloseSessionProps) {
           </div>
         </div>
       ) : (
-        <div className="max-w-md mx-auto" dir="rtl">
+        <div className="max-w-md mx-auto">
           <button
             onClick={() => setShowConfirm(true)}
             className="w-full py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center justify-center gap-2"
