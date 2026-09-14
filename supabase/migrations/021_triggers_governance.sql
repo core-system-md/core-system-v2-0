@@ -14,7 +14,7 @@ BEGIN
       WHERE session_id = NEW.id
         AND invoice_status = 'paid'
     ) INTO v_invoice_exists;
-    
+
     IF NOT v_invoice_exists THEN
       RAISE EXCEPTION 'GATE_VIOLATION: Cannot transition to in_consultation without paid invoice';
     END IF;
@@ -29,12 +29,41 @@ BEFORE UPDATE ON clinic_visit_sessions
 FOR EACH ROW EXECUTE FUNCTION check_consultation_fee_gate();
 
 -- TRIGGER 2: Session Buffer Window (5 minutes pending_close)
+-- Some historical replay schemas do not yet expose the buffer columns.
+-- Detect those fields through JSON so migration replay remains schema-tolerant.
 CREATE OR REPLACE FUNCTION fn_set_session_buffer()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_new JSONB := to_jsonb(NEW);
+  v_old JSONB := to_jsonb(OLD);
+  v_session_ended_at TIMESTAMPTZ;
+  v_old_session_ended_at TIMESTAMPTZ;
 BEGIN
-  IF NEW.session_ended_at IS NOT NULL AND OLD.session_ended_at IS NULL THEN
-    NEW.session_status := 'pending_close';
-    NEW.buffer_window_expires_at := NEW.session_ended_at + INTERVAL '5 minutes';
+  IF NOT (v_new ? 'session_ended_at') THEN
+    RETURN NEW;
+  END IF;
+
+  v_session_ended_at := NULLIF(v_new->>'session_ended_at', '')::TIMESTAMPTZ;
+  v_old_session_ended_at := NULLIF(v_old->>'session_ended_at', '')::TIMESTAMPTZ;
+
+  IF v_session_ended_at IS NOT NULL AND v_old_session_ended_at IS NULL THEN
+    IF v_new ? 'session_status' THEN
+      NEW := jsonb_populate_record(
+        NEW,
+        jsonb_build_object('session_status', 'pending_close')
+      );
+      v_new := to_jsonb(NEW);
+    END IF;
+
+    IF v_new ? 'buffer_window_expires_at' THEN
+      NEW := jsonb_populate_record(
+        NEW,
+        jsonb_build_object(
+          'buffer_window_expires_at',
+          to_jsonb(v_session_ended_at + INTERVAL '5 minutes')
+        )
+      );
+    END IF;
   END IF;
   RETURN NEW;
 END;
@@ -46,13 +75,33 @@ BEFORE UPDATE ON clinic_visit_sessions
 FOR EACH ROW EXECUTE FUNCTION fn_set_session_buffer();
 
 -- TRIGGER 3: Auto-Close Timer (60 minutes)
+-- Historical replay schemas may lack these timer columns.
 CREATE OR REPLACE FUNCTION fn_set_auto_close()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_new JSONB := to_jsonb(NEW);
+  v_old JSONB := to_jsonb(OLD);
+  v_visit_closed_at TIMESTAMPTZ;
+  v_old_visit_closed_at TIMESTAMPTZ;
 BEGIN
-  IF NEW.visit_closed_at IS NOT NULL 
-     AND OLD.visit_closed_at IS NULL 
-     AND NEW.session_status = 'pending_close' THEN
-    NEW.auto_close_at := NEW.visit_closed_at + INTERVAL '60 minutes';
+  IF NOT (v_new ? 'visit_closed_at') THEN
+    RETURN NEW;
+  END IF;
+
+  v_visit_closed_at := NULLIF(v_new->>'visit_closed_at', '')::TIMESTAMPTZ;
+  v_old_visit_closed_at := NULLIF(v_old->>'visit_closed_at', '')::TIMESTAMPTZ;
+
+  IF v_visit_closed_at IS NOT NULL
+     AND v_old_visit_closed_at IS NULL
+     AND v_new->>'session_status' = 'pending_close'
+     AND v_new ? 'auto_close_at' THEN
+    NEW := jsonb_populate_record(
+      NEW,
+      jsonb_build_object(
+        'auto_close_at',
+        to_jsonb(v_visit_closed_at + INTERVAL '60 minutes')
+      )
+    );
   END IF;
   RETURN NEW;
 END;
@@ -93,9 +142,12 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  SELECT visit_closed_at INTO v_closed_at
-  FROM clinic_visit_sessions WHERE id = NEW.id;
-  
+  IF NOT (v_new ? 'visit_closed_at') THEN
+    RETURN NEW;
+  END IF;
+
+  v_closed_at := NULLIF(v_new->>'visit_closed_at', '')::TIMESTAMPTZ;
+
   IF v_closed_at IS NOT NULL THEN
     v_ghost_window := v_closed_at + INTERVAL '10 minutes';
     IF NOW() > v_ghost_window THEN
@@ -167,6 +219,6 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_verify_triangulation ON clinic_invoices;
 CREATE TRIGGER tr_verify_triangulation
-BEFORE UPDATE OF doctor_par_confirmed, collected_reception, amount_paid_subunits 
+BEFORE UPDATE OF doctor_par_confirmed, collected_reception, amount_paid_subunits
 ON clinic_invoices
 FOR EACH ROW EXECUTE FUNCTION fn_verify_triangulation();
