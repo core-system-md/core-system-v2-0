@@ -9,6 +9,7 @@ import { useAuth } from '@/core/auth/useAuth';
 import { useAuthStore, selectUserRole } from '@/shared/store/authStore';
 import { useEffect } from 'react';
 import { LayoutDashboard, TrendingUp, Users, History, AlertTriangle, CreditCard, CalendarDays, Package } from 'lucide-react';
+import { ROLE_LABELS_AR } from '@/shared/constants/labels';
 
 type TabId = 'overview' | 'revenue' | 'staff' | 'schedule' | 'patients' | 'inventory' | 'audit' | 'breaches' | 'billing';
 const tabs: { id: TabId; label: string; icon: typeof LayoutDashboard; path: string }[] = [
@@ -22,7 +23,6 @@ const tabs: { id: TabId; label: string; icon: typeof LayoutDashboard; path: stri
   { id: 'breaches', label: 'التجاوزات', icon: AlertTriangle, path: '/admin/breaches' },
   { id: 'billing', label: 'الاشتراك', icon: CreditCard, path: '/admin/billing' },
 ];
-const ROLE_LABELS_AR = { clinic_admin: 'مدير العيادة', super_admin: 'مشرف عام' } as const;
 
 export default function AdminLayout() {
   const { isAuthenticated, user } = useAuth(); const role = useAuthStore(selectUserRole); const navigate = useNavigate(); const location = useLocation();
