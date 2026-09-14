@@ -2,5 +2,13 @@
   "title": "Survey",
   "next": "Next",
   "back": "Back",
-  "complete": "Complete survey"
+  "complete": "Complete survey",
+  "progress": {
+    "label": "Survey progress",
+    "pageOf": "Page {{current}} of {{total}}",
+    "current": "current",
+    "completed": "completed",
+    "last": "Last",
+    "continue": "Continue to complete the survey"
+  }
 }
