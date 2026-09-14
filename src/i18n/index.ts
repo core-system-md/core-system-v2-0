@@ -5,9 +5,17 @@ import { initReactI18next } from 'react-i18next';
 import arCommon from '@/locales/ar/common.json';
 import arAuth from '@/locales/ar/auth.json';
 import arDoctor from '@/locales/ar/doctor.json';
+import arReception from '@/locales/ar/reception.json';
+import arClinicAdmin from '@/locales/ar/clinic-admin.json';
+import arSuperAdmin from '@/locales/ar/super-admin.json';
+import arSurvey from '@/locales/ar/survey.json';
 import enCommon from '@/locales/en/common.json';
 import enAuth from '@/locales/en/auth.json';
 import enDoctor from '@/locales/en/doctor.json';
+import enReception from '@/locales/en/reception.json';
+import enClinicAdmin from '@/locales/en/clinic-admin.json';
+import enSuperAdmin from '@/locales/en/super-admin.json';
+import enSurvey from '@/locales/en/survey.json';
 
 export const SUPPORTED_LANGUAGES = ['ar', 'en'] as const;
 export type AppLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -34,18 +42,26 @@ void i18next
         common: arCommon,
         auth: arAuth,
         doctor: arDoctor,
+        reception: arReception,
+        'clinic-admin': arClinicAdmin,
+        'super-admin': arSuperAdmin,
+        survey: arSurvey,
       },
       en: {
         common: enCommon,
         auth: enAuth,
         doctor: enDoctor,
+        reception: enReception,
+        'clinic-admin': enClinicAdmin,
+        'super-admin': enSuperAdmin,
+        survey: enSurvey,
       },
     },
     fallbackLng: 'ar',
     supportedLngs: [...SUPPORTED_LANGUAGES],
     load: 'languageOnly',
     defaultNS: 'common',
-    ns: ['common', 'auth', 'doctor'],
+    ns: ['common', 'auth', 'doctor', 'reception', 'clinic-admin', 'super-admin', 'survey'],
     interpolation: {
       escapeValue: false,
     },
