@@ -18,7 +18,7 @@ export function usePinAuth() {
       store.setError(null);
 
       try {
-        const rpc = supabase.rpc as unknown as (
+        const rpc = supabase.rpc.bind(supabase) as unknown as (
           fn: string,
           args: { p_tenant_id: string; p_employee_code: string; p_pin: string },
         ) => Promise<{ data: unknown; error: { message: string } | null }>;
