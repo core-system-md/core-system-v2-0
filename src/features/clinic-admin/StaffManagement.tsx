@@ -119,7 +119,7 @@ export default function StaffManagement() {
                 <td className="px-4 py-3"><div className="flex items-center gap-2"><button type="button" disabled={saving} onClick={() => void saveEdit()} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-white disabled:opacity-50"><Save className="h-4 w-4" />حفظ</button><button type="button" disabled={saving} onClick={cancelEdit} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-slate-700"><X className="h-4 w-4" />إلغاء</button></div></td>
               </> : <>
                 <td className="px-4 py-3 font-medium text-slate-900">{displayName}</td><td className="px-4 py-3 text-slate-600">{member.employee_code || '—'}</td><td className="px-4 py-3 text-slate-600">{member.phone || '—'}</td><td className="px-4 py-3 text-slate-600">{member.specialization || '—'}</td><td className="px-4 py-3 text-slate-600">{roleLabel}</td><td className="px-4 py-3 text-slate-600">{member.is_active ? 'نشط' : 'معطل'}</td><td className="px-4 py-3"><button type="button" onClick={() => startEdit(member)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-slate-700 hover:bg-muted"><Pencil className="h-4 w-4" />تعديل</button></td>
-              </tr>;
+              </>}</tr>;
             })}
           </tbody></table></div>
         )}
