@@ -4,7 +4,7 @@ import { Building2, CreditCard, Shield, Globe } from "lucide-react";
 export default function SuperAdminDashboard() {
   const { fullName } = useAuth();
   return (
-    <div className="p-6 max-w-6xl mx-auto" dir="rtl">
+    <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold text-white mb-2">لوحة تحكم النظام</h1>
       <p className="text-white/60 mb-8">مرحباً {fullName || "مدير النظام"}</p>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
