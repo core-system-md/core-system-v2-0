@@ -2,5 +2,15 @@
   "title": "إدارة العيادة",
   "staff": "الموظفون",
   "schedule": "الجدول",
-  "billing": "الفوترة"
+  "billing": "الفوترة",
+  "analytics": {
+    "error": "تعذر تحميل مؤشرات التحليلات: {{message}}",
+    "totalPatients": "إجمالي المرضى",
+    "visitsToday": "الزيارات اليوم",
+    "revenueToday": "الإيرادات اليوم",
+    "avgWait": "متوسط وقت الانتظار",
+    "minutes": "دقيقة",
+    "slaBreaches": "تجاوزات SLA",
+    "hotLeads": "عملاء محتملون ساخنون"
+  }
 }
