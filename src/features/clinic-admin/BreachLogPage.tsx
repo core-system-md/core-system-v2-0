@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { SEVERITY_LABELS } from '@/shared/constants/labels';
 
 type Breach = {
   id: string;
@@ -15,12 +16,6 @@ type Breach = {
   resolved_at: string | null;
   resolution_notes: string | null;
   created_at: string;
-};
-
-const SEVERITY_LABELS: Record<string, string> = {
-  critical: 'حرج',
-  warning: 'تحذير',
-  info: 'معلومة',
 };
 
 function severityClass(severity: string) {
