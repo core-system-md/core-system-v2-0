@@ -41,7 +41,6 @@ void i18next
         doctor: enDoctor,
       },
     },
-    lng: 'ar',
     fallbackLng: 'ar',
     supportedLngs: [...SUPPORTED_LANGUAGES],
     load: 'languageOnly',
@@ -51,7 +50,7 @@ void i18next
       escapeValue: false,
     },
     detection: {
-      order: ['localStorage', 'navigator', 'htmlTag'],
+      order: ['localStorage', 'htmlTag'],
       lookupLocalStorage: 'core-system-language',
       caches: ['localStorage'],
     },
