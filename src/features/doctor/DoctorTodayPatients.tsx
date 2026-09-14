@@ -100,7 +100,7 @@ export default function DoctorTodayPatients() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 space-y-4" dir="rtl">
+      <div className="max-w-4xl mx-auto p-6 space-y-4">
         <div className="h-20 w-full rounded-xl bg-slate-200 animate-pulse" />
         <div className="h-20 w-full rounded-xl bg-slate-200 animate-pulse" />
         <div className="h-20 w-full rounded-xl bg-slate-200 animate-pulse" />
@@ -110,7 +110,7 @@ export default function DoctorTodayPatients() {
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto p-6" dir="rtl">
+      <div className="max-w-4xl mx-auto p-6">
         <Card className="border-red-200 bg-red-50">
           <CardContent className="flex items-center gap-3 pt-6">
             <AlertCircle className="h-6 w-6 text-red-600" />
@@ -122,13 +122,13 @@ export default function DoctorTodayPatients() {
   }
 
   const content = patients.length === 0 ? (
-    <div className="max-w-4xl mx-auto p-6 text-center" dir="rtl">
+    <div className="max-w-4xl mx-auto p-6 text-center">
       <User className="h-16 w-16 text-slate-300 mx-auto mb-4" />
       <h2 className="text-xl font-bold text-slate-700">لا يوجد مرضى اليوم</h2>
       <p className="text-slate-500 mt-2">لم يتم تسجيل أي مرضى في قائمة الانتظار</p>
     </div>
   ) : (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4" dir="rtl">
+    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4">
       <h1 className="text-2xl font-bold text-slate-900 mb-6">مرضى اليوم</h1>
 
       {patients.map((patient) => (
