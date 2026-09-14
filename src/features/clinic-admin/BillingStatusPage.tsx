@@ -3,16 +3,9 @@ import { CalendarClock, CreditCard, Smartphone } from 'lucide-react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuthStore } from '@/shared/store/authStore';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { TIER_LABELS } from '@/shared/constants/labels';
 
 const TRIAL_DAYS = 14;
-
-const TIER_LABELS: Record<string, string> = {
-  trial: 'تجريبي',
-  essential: 'أساسي',
-  professional: 'احترافي',
-  enterprise: 'مؤسسي',
-  suspended: 'موقوف',
-};
 
 function formatDate(value: string | null) {
   if (!value) return 'غير محدد';
