@@ -4,6 +4,7 @@ import { useAuthStore } from '@/shared/store/authStore';
 
 export function useSessionChannel(tenantId: string, callback?: (payload: unknown) => void) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const session = useAuthStore((s) => s.session);
   const callbackRef = useRef(callback);
   const channelIdRef = useRef<string | null>(null);
 
@@ -18,7 +19,9 @@ export function useSessionChannel(tenantId: string, callback?: (payload: unknown
   }, [callback]);
 
   useEffect(() => {
-    if (!tenantId || !isAuthenticated) return;
+    // PIN-authenticated users do not have a Supabase Auth session/JWT.
+    // Do not open a postgres_changes subscription without that session context.
+    if (!tenantId || !isAuthenticated || !session) return;
 
     const channel = supabase
       .channel(`sessions_${tenantId}_${channelIdRef.current}`)
@@ -35,5 +38,5 @@ export function useSessionChannel(tenantId: string, callback?: (payload: unknown
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [tenantId, isAuthenticated]);
+  }, [tenantId, isAuthenticated, session]);
 }
