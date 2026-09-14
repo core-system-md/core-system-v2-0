@@ -10,6 +10,7 @@ import {
     Users, Smartphone, Palette, Settings, Clock, Shield, FileText, Tag,
 } from 'lucide-react';
 import { TIER_LABELS } from '@/shared/constants/labels';
+import { formatDateLocale, formatDateTimeLocale } from '@/shared/utils/locale';
 
 export interface Tenant {
     id: string; name: string; slug: string; clinic_name: string | null; clinic_name_ar: string | null;
@@ -38,10 +39,10 @@ export default function TenantDetailPanel({ tenant, isOpen, onClose }: TenantDet
         { id: 'limits' as const, label: 'الحدود', icon: Shield }, { id: 'branding' as const, label: 'التصميم', icon: Palette },
         { id: 'system' as const, label: 'النظام', icon: Settings },
     ];
-    function formatDate(dateStr: string | null) { if (!dateStr) return '—'; return new Date(dateStr).toLocaleDateString('ar-JO', { year: 'numeric', month: 'long', day: 'numeric' }); }
-    function formatDateTime(dateStr: string | null) { if (!dateStr) return '—'; return new Date(dateStr).toLocaleString('ar-JO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+    function formatDate(dateStr: string | null) { if (!dateStr) return '—'; return formatDateLocale(dateStr, { year: 'numeric', month: 'long', day: 'numeric' }); }
+    function formatDateTime(dateStr: string | null) { if (!dateStr) return '—'; return formatDateTimeLocale(dateStr, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" dir="rtl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden m-4 flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-muted">
