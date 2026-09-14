@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { User, Calendar, Clock, AlertCircle } from 'lucide-react';
 import { addMinutes, formatDate, formatTime, parseDate } from '@/shared/utils/dateTime';
 import { useSessionChannel } from '@/core/realtime/useSessionChannel';
+import { useTranslation } from 'react-i18next';
 
 interface Patient {
   id: string;
@@ -21,6 +22,7 @@ interface Patient {
 }
 
 export default function DoctorTodayPatients() {
+  const { t } = useTranslation('doctor');
   const navigate = useNavigate();
   const tenantId = useAuthStore((state) => state.tenant_id);
   const user = useAuthStore((state) => state.user);
@@ -124,12 +126,12 @@ export default function DoctorTodayPatients() {
   const content = patients.length === 0 ? (
     <div className="max-w-4xl mx-auto p-6 text-center">
       <User className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-      <h2 className="text-xl font-bold text-slate-700">لا يوجد مرضى اليوم</h2>
-      <p className="text-slate-500 mt-2">لم يتم تسجيل أي مرضى في قائمة الانتظار</p>
+      <h2 className="text-xl font-bold text-slate-700">{t('noPatientsToday')}</h2>
+      <p className="text-slate-500 mt-2">{t('noPatientsWaiting')}</p>
     </div>
   ) : (
     <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4">
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">مرضى اليوم</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-6">{t('patients')}</h1>
 
       {patients.map((patient) => (
         <Card
@@ -158,14 +160,14 @@ export default function DoctorTodayPatients() {
                   </span>
                   {patient.waiting_time_minutes !== null && (
                     <span className="text-amber-600 font-medium">
-                      انتظار: {patient.waiting_time_minutes} د
+                      {t('waiting', { minutes: patient.waiting_time_minutes ?? 0 })}
                     </span>
                   )}
                 </div>
               </div>
 
               <Button variant="outline" className="shrink-0">
-                فتح الجلسة
+                {t('openSession')}
               </Button>
             </div>
           </CardContent>
