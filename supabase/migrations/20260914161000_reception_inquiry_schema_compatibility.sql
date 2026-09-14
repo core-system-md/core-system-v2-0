@@ -10,6 +10,7 @@ ALTER TABLE public.clinic_inquiries
   ADD COLUMN IF NOT EXISTS inquiry_reason VARCHAR,
   ADD COLUMN IF NOT EXISTS procedures_requested TEXT[],
   ADD COLUMN IF NOT EXISTS initial_disc_guess TEXT,
-  ADD COLUMN IF NOT EXISTS expected_objection TEXT;
+  ADD COLUMN IF NOT EXISTS expected_objection TEXT,
+  ADD COLUMN IF NOT EXISTS handled_by UUID;
 
 COMMIT;
