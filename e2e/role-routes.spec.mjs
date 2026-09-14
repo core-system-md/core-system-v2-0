@@ -41,42 +41,34 @@ async function clearBrowserAuth(page) {
 
 async function loginAs(page, staff) {
   await clearBrowserAuth(page);
+  await resetPinRateLimit();
 
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
+  await expect(page.getByLabel('رمز PIN (4 أرقام)')).toBeVisible();
+  await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
 
-  if (staff.role === 'receptionist') {
-    await resetPinRateLimit();
-    await expect(page.getByLabel('رمز PIN (4 أرقام)')).toBeVisible();
-    await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
+  const createPinResponse = page.waitForResponse(
+    (response) => response.url().includes('/rest/v1/rpc/create_pin_session'),
+    { timeout: 5000 },
+  );
+  await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
 
-    const createPinResponse = page.waitForResponse(
-      (response) => response.url().includes('/rest/v1/rpc/create_pin_session'),
-      { timeout: 5000 },
-    );
-    await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
+  let response;
+  try {
+    response = await createPinResponse;
+  } catch (error) {
+    const alert = page.getByRole('alert');
+    const alertText = await alert.innerText().catch(() => '');
+    throw new Error(`create_pin_session produced no browser response for ${staff.role} within 5s${alertText ? `; UI: ${alertText}` : ''}; ${error.message}`);
+  }
 
-    let response;
-    try {
-      response = await createPinResponse;
-    } catch (error) {
-      const alert = page.getByRole('alert');
-      const alertText = await alert.innerText().catch(() => '');
-      throw new Error(`create_pin_session produced no browser response for ${staff.role} within 5s${alertText ? `; UI: ${alertText}` : ''}; ${error.message}`);
-    }
-
-    const body = await response.text();
-    if (response.status() >= 400) {
-      throw new Error(`create_pin_session HTTP ${response.status()} for ${staff.role}: ${body}`);
-    }
-    if (body.includes('"success":false')) {
-      throw new Error(`create_pin_session rejected ${staff.role}: ${body}`);
-    }
-  } else {
-    await page.getByRole('button', { name: 'تسجيل باستخدام البريد' }).click();
-    await page.getByLabel('البريد الإلكتروني').fill(staff.email);
-    await page.getByLabel('كلمة المرور').fill(staff.password);
-    await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
+  const body = await response.text();
+  if (response.status() >= 400) {
+    throw new Error(`create_pin_session HTTP ${response.status()} for ${staff.role}: ${body}`);
+  }
+  if (body.includes('"success":false')) {
+    throw new Error(`create_pin_session rejected ${staff.role}: ${body}`);
   }
 
   const alert = page.getByRole('alert');
@@ -91,8 +83,14 @@ test.describe('role and screen coverage', () => {
   for (const staff of E2E_STAFF) {
     test(`${staff.role}: default route and every permitted screen`, async ({ page }) => {
       const browserErrors = [];
+      const failedResponses = [];
       page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(`CONSOLE: ${message.text()}`); });
       page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}\n${error.stack ?? 'NO_STACK'}`));
+      page.on('response', (response) => {
+        if (response.status() >= 400) {
+          failedResponses.push(`${response.status()} ${response.request().method()} ${response.url()}`);
+        }
+      });
 
       await loginAs(page, staff);
       for (const route of roleAccess[staff.role]) {
@@ -100,6 +98,7 @@ test.describe('role and screen coverage', () => {
         await page.waitForLoadState('domcontentloaded');
         await expect(page.locator('body')).toContainText(/./);
       }
+      expect(failedResponses, `${staff.role} produced HTTP failures\n${failedResponses.join('\n')}`).toEqual([]);
       expect(browserErrors, `${staff.role} produced unexpected browser errors\n${browserErrors.join('\n')}`).toEqual([]);
     });
   }
