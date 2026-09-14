@@ -7,8 +7,8 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { IdleWatcher } from '@/shared/components/IdleWatcher';
 import { useAuthStore } from '@/shared/store/authStore';
 import { useEffect } from 'react';
+import { ROLE_LABELS_AR } from '@/shared/constants/labels';
 
-const ROLE_LABELS_AR = { doctor: 'طبيب', clinic_admin: 'مدير العيادة', super_admin: 'مشرف عام', receptionist: 'موظف الاستقبال' } as const;
 export default function DoctorLayout() {
   const role = useAuthStore((state) => state.user?.role) ?? 'doctor';
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
