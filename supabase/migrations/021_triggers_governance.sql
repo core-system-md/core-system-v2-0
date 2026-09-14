@@ -2,7 +2,8 @@
 -- Financial Governance Triggers for CORE SYSTEM v2.1
 
 -- TRIGGER 1: Consultation Fee Gate
--- Prevents starting consultation without paid invoice
+-- Prevents starting consultation without paid invoice.
+-- Historical invoice schemas use either invoice_status or status, so detect both.
 CREATE OR REPLACE FUNCTION check_consultation_fee_gate()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -10,9 +11,10 @@ DECLARE
 BEGIN
   IF NEW.session_status = 'in_consultation' AND OLD.session_status = 'waiting' THEN
     SELECT EXISTS (
-      SELECT 1 FROM clinic_invoices
+      SELECT 1
+      FROM clinic_invoices
       WHERE session_id = NEW.id
-        AND invoice_status = 'paid'
+        AND COALESCE(to_jsonb(clinic_invoices)->>'invoice_status', to_jsonb(clinic_invoices)->>'status') = 'paid'
     ) INTO v_invoice_exists;
 
     IF NOT v_invoice_exists THEN
@@ -29,8 +31,7 @@ BEFORE UPDATE ON clinic_visit_sessions
 FOR EACH ROW EXECUTE FUNCTION check_consultation_fee_gate();
 
 -- TRIGGER 2: Session Buffer Window (5 minutes pending_close)
--- Some historical replay schemas do not yet expose the buffer columns.
--- Detect those fields through JSON so migration replay remains schema-tolerant.
+-- Historical replay schemas may not expose the buffer columns.
 CREATE OR REPLACE FUNCTION fn_set_session_buffer()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -75,7 +76,6 @@ BEFORE UPDATE ON clinic_visit_sessions
 FOR EACH ROW EXECUTE FUNCTION fn_set_session_buffer();
 
 -- TRIGGER 3: Auto-Close Timer (60 minutes)
--- Historical replay schemas may lack these timer columns.
 CREATE OR REPLACE FUNCTION fn_set_auto_close()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -113,10 +113,8 @@ BEFORE UPDATE ON clinic_visit_sessions
 FOR EACH ROW EXECUTE FUNCTION fn_set_auto_close();
 
 -- TRIGGER 4: Ghost Evaluation Honeypot
--- The trigger cannot use UPDATE OF score_* directly because older replay schemas
--- may not expose those columns yet. The function therefore detects score changes
--- through row JSON only when the score keys exist, preserving behavior on schemas
--- that already contain the score indicators.
+-- Score columns are detected dynamically to keep migration replay compatible
+-- with historical schemas while preserving the guard on schemas that have them.
 CREATE OR REPLACE FUNCTION fn_detect_ghost_evaluation()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -159,7 +157,7 @@ BEGIN
         NEW.id, auth.uid(),
         jsonb_build_object('attempted_at', NOW())
       );
-      RETURN OLD; -- Honeypot: silently reject
+      RETURN OLD;
     END IF;
   END IF;
   RETURN NEW;
@@ -203,22 +201,40 @@ AFTER UPDATE ON clinic_invoices
 FOR EACH ROW EXECUTE FUNCTION fn_audit_sensitive_changes();
 
 -- TRIGGER 6: Triangulation Verification
+-- Historical invoice schemas may not expose triangulation columns yet.
 CREATE OR REPLACE FUNCTION fn_verify_triangulation()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_new JSONB := to_jsonb(NEW);
+  v_doctor_confirmed BOOLEAN;
+  v_collected_reception BOOLEAN;
+  v_amount_paid NUMERIC;
+  v_total NUMERIC;
 BEGIN
-  IF NEW.doctor_par_confirmed = true
-     AND NEW.collected_reception = true
-     AND NEW.amount_paid_subunits >= (NEW.total_subunits * 0.80) THEN
-    NEW.match_triangulation := true;
-  ELSE
-    NEW.match_triangulation := false;
+  IF NOT (v_new ?& ARRAY['doctor_par_confirmed', 'collected_reception', 'amount_paid_subunits', 'total_subunits']) THEN
+    RETURN NEW;
   END IF;
+
+  v_doctor_confirmed := COALESCE((v_new->>'doctor_par_confirmed')::BOOLEAN, false);
+  v_collected_reception := COALESCE((v_new->>'collected_reception')::BOOLEAN, false);
+  v_amount_paid := COALESCE(NULLIF(v_new->>'amount_paid_subunits', '')::NUMERIC, 0);
+  v_total := COALESCE(NULLIF(v_new->>'total_subunits', '')::NUMERIC, 0);
+
+  IF v_new ? 'match_triangulation' THEN
+    NEW := jsonb_populate_record(
+      NEW,
+      jsonb_build_object(
+        'match_triangulation',
+        v_doctor_confirmed AND v_collected_reception AND v_amount_paid >= (v_total * 0.80)
+      )
+    );
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_verify_triangulation ON clinic_invoices;
 CREATE TRIGGER tr_verify_triangulation
-BEFORE UPDATE OF doctor_par_confirmed, collected_reception, amount_paid_subunits
-ON clinic_invoices
+BEFORE UPDATE ON clinic_invoices
 FOR EACH ROW EXECUTE FUNCTION fn_verify_triangulation();
