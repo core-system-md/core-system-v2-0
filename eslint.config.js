@@ -14,6 +14,7 @@ export default tseslint.config(
       'rules_backup/**',
       'scoring_duplicates/**',
       'sessions_backup/**',
+      'src/components/ui/*.tsx',
       'src/types/lucide-react.d.ts',
     ],
   },
