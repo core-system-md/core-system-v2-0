@@ -3,7 +3,10 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 
 import arCommon from '@/locales/ar/common.json';
+import arAuth from '@/locales/ar/auth.json';
+import arDoctor from '@/locales/ar/doctor.json';
 import enCommon from '@/locales/en/common.json';
+import enAuth from '@/locales/en/auth.json';
 
 export const SUPPORTED_LANGUAGES = ['ar', 'en'] as const;
 export type AppLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -26,15 +29,22 @@ void i18next
   .use(initReactI18next)
   .init({
     resources: {
-      ar: { common: arCommon },
-      en: { common: enCommon },
+      ar: {
+        common: arCommon,
+        auth: arAuth,
+        doctor: arDoctor,
+      },
+      en: {
+        common: enCommon,
+        auth: enAuth,
+      },
     },
     lng: 'ar',
     fallbackLng: 'ar',
     supportedLngs: [...SUPPORTED_LANGUAGES],
     load: 'languageOnly',
     defaultNS: 'common',
-    ns: ['common'],
+    ns: ['common', 'auth', 'doctor'],
     interpolation: {
       escapeValue: false,
     },
