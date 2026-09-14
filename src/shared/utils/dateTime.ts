@@ -5,6 +5,8 @@
 // FIXED: 2026-06-25 — Removed unused constants
 // ============================================================
 
+import { getAppLocale } from '@/i18n';
+
 const TIMEZONE = 'Asia/Amman';
 
 /**
@@ -84,12 +86,13 @@ export function isToday(date: Date | string): boolean {
 }
 
 /**
- * Format for display in Arabic locale
+ * Format for display using the currently selected application language.
+ * The function name is retained for backwards compatibility with existing callers.
  */
 export function formatDateArabic(date: Date | string | null): string {
   if (!date) return '';
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('ar-JO', {
+  return d.toLocaleDateString(getAppLocale(), {
     timeZone: TIMEZONE,
     year: 'numeric',
     month: 'long',
