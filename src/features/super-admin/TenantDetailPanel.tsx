@@ -9,6 +9,7 @@ import {
     Building2, X, Phone, MapPin, Globe, CreditCard, Calendar,
     Users, Smartphone, Palette, Settings, Clock, Shield, FileText, Tag,
 } from 'lucide-react';
+import { TIER_LABELS } from '@/shared/constants/labels';
 
 export interface Tenant {
     id: string; name: string; slug: string; clinic_name: string | null; clinic_name_ar: string | null;
@@ -23,9 +24,6 @@ export interface Tenant {
 
 interface TenantDetailPanelProps { tenant: Tenant; isOpen: boolean; onClose: () => void; }
 
-const TIER_LABELS: Record<string, string> = {
-    trial: 'تجريبي', essential: 'أساسي', professional: 'احترافي', enterprise: 'مؤسسي', suspended: 'موقوف',
-};
 const TIER_COLORS: Record<string, string> = {
     trial: 'bg-gray-100 text-gray-800 border-gray-300', essential: 'bg-blue-100 text-blue-800 border-blue-300',
     professional: 'bg-purple-100 text-purple-800 border-purple-300', enterprise: 'bg-amber-100 text-amber-800 border-amber-300',
