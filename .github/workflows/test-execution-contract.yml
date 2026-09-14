@@ -35,8 +35,6 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          # Pin the stable CLI to avoid non-deterministic latest-release lookups
-          # and GitHub API rate-limit failures in CI.
           version: 2.117.0
 
       - name: Install dependencies
@@ -175,3 +173,11 @@ jobs:
           name: e2e-validation-log
           path: e2e-validation.log
           if-no-files-found: error
+
+      - name: Print E2E failure tail for CI diagnosis
+        if: ${{ failure() && hashFiles('e2e-validation.log') != '' }}
+        shell: bash
+        run: |
+          echo '===== MASTER TEST FAILURE TAIL ====='
+          tail -n 250 e2e-validation.log
+          echo '===== END MASTER TEST FAILURE TAIL ====='
