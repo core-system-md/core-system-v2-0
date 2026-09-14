@@ -4,9 +4,12 @@ import { useAuthStore } from '@/shared/store/authStore';
 
 export function useAlertChannel(tenantId: string, callback?: (payload: unknown) => void) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const session = useAuthStore((s) => s.session);
 
   useEffect(() => {
-    if (!tenantId || !isAuthenticated) return;
+    // PIN sessions are application-authenticated but intentionally have no
+    // Supabase Auth JWT. postgres_changes requires a real Supabase session.
+    if (!tenantId || !isAuthenticated || !session) return;
 
     const channel = supabase
       .channel(`alerts_${tenantId}`)
@@ -20,7 +23,7 @@ export function useAlertChannel(tenantId: string, callback?: (payload: unknown) 
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
-  }, [tenantId, isAuthenticated, callback]);
+  }, [tenantId, isAuthenticated, session, callback]);
 }
