@@ -2,5 +2,15 @@
   "title": "Clinic administration",
   "staff": "Staff",
   "schedule": "Schedule",
-  "billing": "Billing"
+  "billing": "Billing",
+  "analytics": {
+    "error": "Unable to load analytics indicators: {{message}}",
+    "totalPatients": "Total patients",
+    "visitsToday": "Visits today",
+    "revenueToday": "Revenue today",
+    "avgWait": "Average wait time",
+    "minutes": "minutes",
+    "slaBreaches": "SLA breaches",
+    "hotLeads": "Hot leads"
+  }
 }
