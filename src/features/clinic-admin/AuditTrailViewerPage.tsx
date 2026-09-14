@@ -3,6 +3,7 @@ import { History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { ROLE_LABELS_AR } from '@/shared/constants/labels';
+import { formatDateTimeLocale } from '@/shared/utils/locale';
 
 const PAGE_SIZE = 25;
 
@@ -67,13 +68,13 @@ export default function AuditTrailViewerPage() {
 
   return (
     <PermissionGuard required="view_audit">
-      <section className="space-y-4" dir="rtl">
+      <section className="space-y-4">
         <div className="flex items-center gap-3">
           <History className="h-6 w-6 text-primary" />
           <div>
             <h2 className="text-xl font-bold text-slate-900">سجل التدقيق</h2>
             <p className="text-sm text-slate-500">سجل تغييرات العيادة حسب الصلاحيات الحالية.</p>
-          </div>
+        </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -100,7 +101,7 @@ export default function AuditTrailViewerPage() {
                   {events.map((event) => (
                     <tr key={event.id} className="align-top">
                       <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                        {new Date(event.created_at).toLocaleString('ar-JO')}
+                        {formatDateTimeLocale(event.created_at)}
                       </td>
                       <td className="px-4 py-3 font-medium text-slate-900">{event.action}</td>
                       <td className="px-4 py-3 text-slate-700">{event.table_name}</td>
