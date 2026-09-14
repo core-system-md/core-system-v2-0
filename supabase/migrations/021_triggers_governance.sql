@@ -64,12 +64,35 @@ BEFORE UPDATE ON clinic_visit_sessions
 FOR EACH ROW EXECUTE FUNCTION fn_set_auto_close();
 
 -- TRIGGER 4: Ghost Evaluation Honeypot
+-- The trigger cannot use UPDATE OF score_* directly because older replay schemas
+-- may not expose those columns yet. The function therefore detects score changes
+-- through row JSON only when the score keys exist, preserving behavior on schemas
+-- that already contain the score indicators.
 CREATE OR REPLACE FUNCTION fn_detect_ghost_evaluation()
 RETURNS TRIGGER AS $$
 DECLARE
   v_closed_at TIMESTAMPTZ;
   v_ghost_window TIMESTAMPTZ;
+  v_new JSONB := to_jsonb(NEW);
+  v_old JSONB := to_jsonb(OLD);
+  v_score_change BOOLEAN := false;
 BEGIN
+  IF NOT (v_new ?| ARRAY['score_aps', 'score_dri', 'score_tsi', 'score_uri', 'score_pqs', 'score_rvs']) THEN
+    RETURN NEW;
+  END IF;
+
+  v_score_change :=
+    (v_new->'score_aps') IS DISTINCT FROM (v_old->'score_aps') OR
+    (v_new->'score_dri') IS DISTINCT FROM (v_old->'score_dri') OR
+    (v_new->'score_tsi') IS DISTINCT FROM (v_old->'score_tsi') OR
+    (v_new->'score_uri') IS DISTINCT FROM (v_old->'score_uri') OR
+    (v_new->'score_pqs') IS DISTINCT FROM (v_old->'score_pqs') OR
+    (v_new->'score_rvs') IS DISTINCT FROM (v_old->'score_rvs');
+
+  IF NOT v_score_change THEN
+    RETURN NEW;
+  END IF;
+
   SELECT visit_closed_at INTO v_closed_at
   FROM clinic_visit_sessions WHERE id = NEW.id;
   
@@ -93,8 +116,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_ghost_evaluation_guard ON clinic_visit_sessions;
 CREATE TRIGGER tr_ghost_evaluation_guard
-BEFORE UPDATE OF score_aps, score_dri, score_tsi, score_uri, score_pqs, score_rvs 
-ON clinic_visit_sessions
+BEFORE UPDATE ON clinic_visit_sessions
 FOR EACH ROW EXECUTE FUNCTION fn_detect_ghost_evaluation();
 
 -- TRIGGER 5: Audit Trail
