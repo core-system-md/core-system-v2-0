@@ -3,6 +3,7 @@ import { useTenantStore } from '@/shared/store/tenantStore';
 import { supabase } from '@/infrastructure/supabase/client';
 import { Users, TrendingUp, Clock, AlertTriangle, DollarSign, Activity } from 'lucide-react';
 import { subunitsToDisplay } from '@/shared/utils/currency';
+import { formatNumber } from '@/shared/utils/locale';
 
 interface DashboardKPI {
   totalPatients: number;
@@ -72,7 +73,7 @@ export default function AnalyticsOverview() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4" dir="rtl">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="bg-white rounded-lg shadow-sm border border-border p-6 animate-pulse">
             <div className="h-4 bg-muted rounded w-1/2 mb-4" />
@@ -85,7 +86,7 @@ export default function AnalyticsOverview() {
 
   if (error) {
     return (
-      <div className="p-4" dir="rtl">
+      <div className="p-4">
         <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6 text-sm text-red-700">
           تعذر تحميل مؤشرات التحليلات: {error}
         </div>
@@ -98,14 +99,14 @@ export default function AnalyticsOverview() {
   const cards = [
     {
       title: 'إجمالي المرضى',
-      value: kpi.totalPatients.toLocaleString('ar-JO'),
+      value: formatNumber(kpi.totalPatients),
       icon: Users,
       color: 'text-primary',
       bg: 'bg-accent',
     },
     {
       title: 'الزيارات اليوم',
-      value: kpi.totalVisitsToday.toLocaleString('ar-JO'),
+      value: formatNumber(kpi.totalVisitsToday),
       icon: Activity,
       color: 'text-green-600',
       bg: 'bg-green-50',
@@ -126,14 +127,14 @@ export default function AnalyticsOverview() {
     },
     {
       title: 'تجاوزات SLA',
-      value: kpi.slaBreaches.toLocaleString('ar-JO'),
+      value: formatNumber(kpi.slaBreaches),
       icon: AlertTriangle,
       color: kpi.slaBreaches > 0 ? 'text-red-600' : 'text-muted-foreground',
       bg: kpi.slaBreaches > 0 ? 'bg-red-50' : 'bg-muted',
     },
     {
       title: 'Hot Leads',
-      value: kpi.hotLeads.toLocaleString('ar-JO'),
+      value: formatNumber(kpi.hotLeads),
       icon: TrendingUp,
       color: 'text-purple-600',
       bg: 'bg-purple-50',
@@ -141,7 +142,7 @@ export default function AnalyticsOverview() {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4" dir="rtl">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
       {cards.map((card) => (
         <div key={card.title} className="bg-white rounded-lg shadow-sm border border-border p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
