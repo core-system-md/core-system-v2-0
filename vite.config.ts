@@ -13,9 +13,9 @@ export default defineConfig({
     // workbox: {
     // globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
     // }
-    // })
+    // }) 
   ],
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: { '@': path.resolve(import.meta.dirname, './src') },
   },
 })
