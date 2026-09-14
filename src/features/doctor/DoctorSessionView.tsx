@@ -54,14 +54,14 @@ export default function DoctorSessionView() {
     if (!['doctor', 'clinic_admin', 'super_admin'].includes(role)) { setError('Access denied'); setLoading(false); return; }
     setLoading(true); setError(null);
 
-    let query = supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, session_metadata, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId).is('deleted_at', null).is('clinic_patients.deleted_at', null);
+    let query = supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, session_metadata, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId).is('deleted_at', null).is('clinic_patients.deleted_at', null).limit(1);
     if (role === 'doctor') {
       query = query.eq('doctor_id', user.id);
     }
 
-    const { data, error: dbError } = await query.single();
-    if (dbError || !data) { setError(dbError?.message || 'Session not found or access denied'); setLoading(false); return; }
-    const row = data as unknown as SessionQueryResult;
+    const { data, error: dbError } = await query;
+    const row = (Array.isArray(data) ? data[0] : data) as SessionQueryResult | null;
+    if (dbError || !row) { setError(dbError?.message || 'Session not found or access denied'); setLoading(false); return; }
     const patient = row.clinic_patients;
     const displayName = patient?.first_name_ar && patient?.last_name_ar ? `${patient.first_name_ar} ${patient.last_name_ar}` : `${patient?.first_name || ''} ${patient?.last_name || ''}`.trim() || 'Unknown';
     setSession({ id: row.id, patient_id: row.patient_id, patient_name: displayName, patient_name_ar: patient?.first_name_ar || null, session_status: row.session_status, created_at: row.created_at, waiting_time_minutes: row.waiting_time_minutes, session_duration_minutes: row.session_duration_minutes, is_insured: row.is_insured, core_score_display: row.core_score_display, core_score_backend: row.core_score_backend, patient_class: row.patient_class, doctor_notes: row.doctor_notes, par_result: row.par_result, room_id: row.room_id, agenda_event_id: row.agenda_event_id, dominant_disc_profile: patient?.dominant_disc_profile || null, allergies: patient?.allergies || null });

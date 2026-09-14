@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { E2E_STAFF, E2E_LICENSE_KEY } from './fixtures/staff.mjs';
 import { E2E_SESSION_IDS } from './fixtures/patients.mjs';
+import { resetPinRateLimit } from './reset-pin-rate-limit.mjs';
 
 const BASE_ROUTES = ['/admin', '/doctor', '/reception', '/super-admin'];
 const roleAccess = {
@@ -40,11 +41,41 @@ async function clearBrowserAuth(page) {
 
 async function loginAs(page, staff) {
   await clearBrowserAuth(page);
+  await resetPinRateLimit();
+
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
   await expect(page.getByLabel('رمز PIN (4 أرقام)')).toBeVisible();
   await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
+
+  const createPinResponse = page.waitForResponse(
+    (response) => response.url().includes('/rest/v1/rpc/create_pin_session'),
+    { timeout: 5000 },
+  );
   await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
+
+  let response;
+  try {
+    response = await createPinResponse;
+  } catch (error) {
+    const alert = page.getByRole('alert');
+    const alertText = await alert.innerText().catch(() => '');
+    throw new Error(`create_pin_session produced no browser response for ${staff.role} within 5s${alertText ? `; UI: ${alertText}` : ''}; ${error.message}`);
+  }
+
+  const body = await response.text();
+  if (response.status() >= 400) {
+    throw new Error(`create_pin_session HTTP ${response.status()} for ${staff.role}: ${body}`);
+  }
+  if (body.includes('"success":false')) {
+    throw new Error(`create_pin_session rejected ${staff.role}: ${body}`);
+  }
+
+  const alert = page.getByRole('alert');
+  if (await alert.isVisible().catch(() => false)) {
+    throw new Error(`Auth UI error for ${staff.role}: ${await alert.innerText()}`);
+  }
+
   await expect(page).toHaveURL(new RegExp(`${expectedDefault[staff.role].replace('/', '\\/')}$`));
 }
 
@@ -52,8 +83,20 @@ test.describe('role and screen coverage', () => {
   for (const staff of E2E_STAFF) {
     test(`${staff.role}: default route and every permitted screen`, async ({ page }) => {
       const browserErrors = [];
-      page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()); });
-      page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}`));
+      const failedResponses = [];
+      page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(`CONSOLE: ${message.text()}`); });
+      page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}\n${error.stack ?? 'NO_STACK'}`));
+      page.on('response', async (response) => {
+        if (response.status() >= 400) {
+          let body = '';
+          try {
+            body = await response.text();
+          } catch (error) {
+            body = `<<unable to read response body: ${error instanceof Error ? error.message : String(error)}>>`;
+          }
+          failedResponses.push(`${response.status()} ${response.request().method()} ${response.url()}\nBODY: ${body}`);
+        }
+      });
 
       await loginAs(page, staff);
       for (const route of roleAccess[staff.role]) {
@@ -61,7 +104,8 @@ test.describe('role and screen coverage', () => {
         await page.waitForLoadState('domcontentloaded');
         await expect(page.locator('body')).toContainText(/./);
       }
-      expect(browserErrors, `${staff.role} produced unexpected browser errors`).toEqual([]);
+      expect(failedResponses, `${staff.role} produced HTTP failures\n${failedResponses.join('\n')}`).toEqual([]);
+      expect(browserErrors, `${staff.role} produced unexpected browser errors\n${browserErrors.join('\n')}`).toEqual([]);
     });
   }
 

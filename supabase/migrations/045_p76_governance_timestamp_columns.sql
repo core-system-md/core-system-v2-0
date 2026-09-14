@@ -50,8 +50,9 @@ UPDATE public.system_delivery_breaches SET updated_at = created_at WHERE updated
 ALTER TABLE public.system_delivery_breaches ALTER COLUMN updated_at SET DEFAULT now();
 ALTER TABLE public.system_delivery_breaches ALTER COLUMN updated_at SET NOT NULL;
 
+-- tenant_devices already has a canonical, non-null created_at column in migration 009.
+-- Do not reference the non-existent registered_at column here.
 ALTER TABLE public.tenant_devices ADD COLUMN IF NOT EXISTS created_at timestamptz;
-UPDATE public.tenant_devices SET created_at = registered_at WHERE created_at IS NULL;
 ALTER TABLE public.tenant_devices ALTER COLUMN created_at SET DEFAULT now();
 ALTER TABLE public.tenant_devices ALTER COLUMN created_at SET NOT NULL;
 ALTER TABLE public.tenant_devices ADD COLUMN IF NOT EXISTS updated_at timestamptz;

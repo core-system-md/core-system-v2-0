@@ -41,12 +41,14 @@ export async function savePatientIntakePage(
   page: number,
   payload: Json,
 ) {
-  const rpc = supabase.rpc as unknown as (
-    fn: string,
-    args: { p_session_id: string; p_page: number; p_payload: Json },
-  ) => ReturnType<typeof supabase.rpc>;
+  const client = supabase as unknown as {
+    rpc: (
+      fn: string,
+      args: { p_session_id: string; p_page: number; p_payload: Json },
+    ) => ReturnType<typeof supabase.rpc>;
+  };
 
-  return rpc('save_patient_intake_page', {
+  return client.rpc('save_patient_intake_page', {
     p_session_id: sessionId,
     p_page: page,
     p_payload: payload,

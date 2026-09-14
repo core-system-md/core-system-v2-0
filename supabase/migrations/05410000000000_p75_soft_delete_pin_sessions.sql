@@ -26,37 +26,11 @@ BEGIN
       )
   LOOP
     v_def := pg_get_functiondef(v_oid);
-
-    v_def := replace(
-      v_def,
-      'DELETE FROM public.pin_sessions' || chr(10) || '  WHERE staff_id',
-      'UPDATE public.pin_sessions' || chr(10) || '  SET deleted_at = pg_catalog.now()' || chr(10) || '  WHERE staff_id'
-    );
-
-    v_def := replace(
-      v_def,
-      'DELETE FROM public.pin_sessions WHERE staff_id',
-      'UPDATE public.pin_sessions SET deleted_at = pg_catalog.now() WHERE staff_id'
-    );
-
-    v_def := replace(
-      v_def,
-      'AND ps.expires_at > NOW()',
-      'AND ps.deleted_at IS NULL' || chr(10) || '    AND ps.expires_at > NOW()'
-    );
-
-    v_def := replace(
-      v_def,
-      'AND ps.expires_at>NOW()',
-      'AND ps.deleted_at IS NULL AND ps.expires_at>NOW()'
-    );
-
-    v_def := replace(
-      v_def,
-      'AND ps.expires_at > pg_catalog.now()',
-      'AND ps.deleted_at IS NULL' || chr(10) || '      AND ps.expires_at > pg_catalog.now()'
-    );
-
+    v_def := replace(v_def,'DELETE FROM public.pin_sessions' || chr(10) || '  WHERE staff_id','UPDATE public.pin_sessions' || chr(10) || '  SET deleted_at = pg_catalog.now()' || chr(10) || '  WHERE staff_id');
+    v_def := replace(v_def,'DELETE FROM public.pin_sessions WHERE staff_id','UPDATE public.pin_sessions SET deleted_at = pg_catalog.now() WHERE staff_id');
+    v_def := replace(v_def,'AND ps.expires_at > NOW()','AND ps.deleted_at IS NULL' || chr(10) || '    AND ps.expires_at > NOW()');
+    v_def := replace(v_def,'AND ps.expires_at>NOW()','AND ps.deleted_at IS NULL AND ps.expires_at>NOW()');
+    v_def := replace(v_def,'AND ps.expires_at > pg_catalog.now()','AND ps.deleted_at IS NULL' || chr(10) || '      AND ps.expires_at > pg_catalog.now()');
     EXECUTE v_def;
   END LOOP;
 END;

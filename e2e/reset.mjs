@@ -18,13 +18,9 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 const tenantId = process.env.E2E_TENANT_ID ?? E2E_TENANT_ID;
 const deletedAt = new Date().toISOString();
 
-const { error: intakeError } = await supabase
-  .from('patient_intake_responses')
-  .update({ deleted_at: deletedAt })
-  .eq('tenant_id', tenantId)
-  .in('session_id', E2E_SESSION_IDS)
-  .is('deleted_at', null);
-if (intakeError) throw new Error(`[E2E] intake soft-reset failed: ${intakeError.message}`);
+// patient_intake_responses is append-only by Blueprint contract and intentionally
+// has no deleted_at column. Existing rows are reconciled by the session-keyed upsert
+// in save_patient_intake_page(), so the E2E reset must not attempt a soft-delete here.
 
 const { error: sessionError } = await supabase
   .from('clinic_visit_sessions')

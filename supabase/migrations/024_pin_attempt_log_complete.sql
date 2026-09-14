@@ -2,6 +2,28 @@
 -- 1. Add staff_id column for user-level tracking
 -- 2. Add RLS policies with proper role-based access
 
+-- Prerequisite: these context helpers are consumed by migrations 024+
+-- before migration 034 restores/redefines the full RPC set. Defining the
+-- canonical helpers here keeps the migration chain executable from scratch;
+-- migration 034 may safely CREATE OR REPLACE them later.
+CREATE OR REPLACE FUNCTION get_current_tenant_id()
+RETURNS UUID
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT (auth.jwt()->>'tenant_id')::UUID;
+$$;
+
+CREATE OR REPLACE FUNCTION get_current_user_role()
+RETURNS TEXT
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT (auth.jwt()->>'user_role')::TEXT;
+$$;
+
 -- Step 1: Add staff_id column (nullable for backward compatibility)
 ALTER TABLE pin_attempt_log 
 ADD COLUMN IF NOT EXISTS staff_id UUID REFERENCES clinic_users(id);

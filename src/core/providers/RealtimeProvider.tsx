@@ -12,6 +12,7 @@ import { useAuthStore } from '@/shared/store/authStore';
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const tenantId = useAuthStore((s) => s.tenant_id);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const session = useAuthStore((s) => s.session);
   const subscriptionsRef = useRef<any[]>([]);
 
   useEffect(() => {
@@ -19,7 +20,10 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     subscriptionsRef.current.forEach((sub) => sub.unsubscribe?.());
     subscriptionsRef.current = [];
 
-    if (!tenantId || !isAuthenticated) return;
+    // PIN-authenticated users are application-authenticated but do not have a
+    // Supabase Auth session/JWT. Realtime postgres_changes requires the actual
+    // Supabase session context, so do not create subscriptions for PIN sessions.
+    if (!tenantId || !isAuthenticated || !session) return;
 
     // Subscribe to queue changes
     const queueSub = supabase
@@ -63,7 +67,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       subscriptionsRef.current.forEach((sub) => sub.unsubscribe?.());
       subscriptionsRef.current = [];
     };
-  }, [tenantId, isAuthenticated]);
+  }, [tenantId, isAuthenticated, session]);
 
   return <>{children}</>;
 }

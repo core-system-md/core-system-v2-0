@@ -1,1 +1,4 @@
-# ... (محتوى Migration 033 أعلاه)
+-- Migration 033: Seed demo users
+-- The repository currently contains only a placeholder marker here.
+-- Keep the migration syntactically valid until the canonical demo-user seed
+-- definition is restored from authoritative project evidence.

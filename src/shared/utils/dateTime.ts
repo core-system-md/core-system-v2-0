@@ -7,26 +7,40 @@
 
 const TIMEZONE = 'Asia/Amman';
 
+function toValidDate(date: Date | string | null): Date | null {
+  if (!date) return null;
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 /**
  * Format date to YYYY-MM-DD (Amman timezone)
  */
 export function formatDate(date: Date | string | null): string {
-  if (!date) return '';
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-JO', {
+  const d = toValidDate(date);
+  if (!d) return '';
+
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).split('/').reverse().join('-');
+  }).formatToParts(d);
+
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+
+  if (!year || !month || !day) return '';
+  return `${year}-${month}-${day}`;
 }
 
 /**
  * Format time to HH:mm (24-hour, Amman timezone)
  */
 export function formatTime(date: Date | string | null): string {
-  if (!date) return '';
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = toValidDate(date);
+  if (!d) return '';
   return d.toLocaleTimeString('en-JO', {
     timeZone: TIMEZONE,
     hour: '2-digit',
@@ -39,8 +53,9 @@ export function formatTime(date: Date | string | null): string {
  * Format date + time together
  */
 export function formatDateTime(date: Date | string | null): string {
-  if (!date) return '';
-  return `${formatDate(date)} ${formatTime(date)}`;
+  const d = toValidDate(date);
+  if (!d) return '';
+  return `${formatDate(d)} ${formatTime(d)}`;
 }
 
 /**
@@ -62,8 +77,9 @@ export function nowAmman(): Date {
  * Calculate difference in minutes between two dates
  */
 export function diffMinutes(start: Date | string, end: Date | string): number {
-  const s = typeof start === 'string' ? new Date(start) : start;
-  const e = typeof end === 'string' ? new Date(end) : end;
+  const s = toValidDate(start);
+  const e = toValidDate(end);
+  if (!s || !e) return 0;
   return Math.round((e.getTime() - s.getTime()) / (1000 * 60));
 }
 
@@ -78,7 +94,8 @@ export function addMinutes(date: Date, minutes: number): Date {
  * Check if date is today (Amman timezone)
  */
 export function isToday(date: Date | string): boolean {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = toValidDate(date);
+  if (!d) return false;
   const today = nowAmman();
   return formatDate(d) === formatDate(today);
 }
@@ -87,8 +104,8 @@ export function isToday(date: Date | string): boolean {
  * Format for display in Arabic locale
  */
 export function formatDateArabic(date: Date | string | null): string {
-  if (!date) return '';
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = toValidDate(date);
+  if (!d) return '';
   return d.toLocaleDateString('ar-JO', {
     timeZone: TIMEZONE,
     year: 'numeric',

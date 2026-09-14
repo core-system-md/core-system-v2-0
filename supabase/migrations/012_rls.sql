@@ -2,6 +2,9 @@
 -- Enable RLS on all tables and create helper functions + policies
 
 -- RLS Helper Functions
+-- These helpers live in Supabase's managed auth schema. CI grants the
+-- migration runner the required auth-schema CREATE privilege before replay.
+
 CREATE OR REPLACE FUNCTION auth.tenant_id() RETURNS UUID 
     LANGUAGE SQL STABLE PARALLEL SAFE 
 RETURN NULLIF(CURRENT_SETTING('app.current_tenant', TRUE)::TEXT, '')::UUID;

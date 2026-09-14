@@ -13,6 +13,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
   auth: { autoRefreshToken: false, persistSession: false },
 });
 const tenantId = process.env.E2E_TENANT_ID ?? E2E_TENANT_ID;
+const seededAt = new Date().toISOString();
+const doctorFixtureId = '30000000-0000-4000-8000-000000000003';
 
 const { error: tenantError } = await supabase.from('master_tenants').upsert({
   id: tenantId,
@@ -32,6 +34,16 @@ const { error: tenantError } = await supabase.from('master_tenants').upsert({
   primary_color: '#1B2A4A',
 }, { onConflict: 'id' });
 if (tenantError) throw new Error(`[E2E] master_tenants seed failed: ${tenantError.message}`);
+
+// Each Playwright suite starts a fresh test window against the same isolated tenant.
+// Move prior attempts outside the 15-minute enforcement window instead of deleting
+// audit/rate-limit records or changing the production rate-limit contract.
+const rateLimitResetAt = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+const { error: rateLimitResetError } = await supabase
+  .from('pin_attempt_log')
+  .update({ created_at: rateLimitResetAt, updated_at: rateLimitResetAt })
+  .eq('tenant_id', tenantId);
+if (rateLimitResetError) throw new Error(`[E2E] PIN rate-limit reset failed: ${rateLimitResetError.message}`);
 
 const staffRows = E2E_STAFF.map((staff, index) => ({
   id: `30000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
@@ -55,8 +67,12 @@ const patients = E2E_PATIENTS.map((p) => ({
   date_of_birth: p.date_of_birth, gender: p.gender, allergies: p.allergies, is_active: true, deleted_at: null,
 }));
 const sessions = E2E_PATIENTS.map((p, i) => ({
-  id: E2E_SESSION_IDS[i], tenant_id: tenantId, patient_id: p.id, session_status: 'pending', payment_status: 'pending',
-  total_charge_fils: 0, session_metadata: { e2e: true, e2e_case: p.n, urgency: p.urgency, visit_type: p.visit }, deleted_at: null,
+  id: E2E_SESSION_IDS[i], tenant_id: tenantId, patient_id: p.id,
+  doctor_id: i === 0 ? doctorFixtureId : null,
+  session_status: i === 0 ? 'waiting' : 'pending', payment_status: 'pending',
+  total_charge_subunits: 0,
+  session_metadata: { e2e: true, e2e_case: p.n, urgency: p.urgency, visit_type: p.visit },
+  created_at: seededAt, updated_at: seededAt, deleted_at: null,
 }));
 
 const { error: patientError } = await supabase.from('clinic_patients').upsert(patients, { onConflict: 'id' });

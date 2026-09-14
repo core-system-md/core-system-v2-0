@@ -1,6 +1,62 @@
 -- 021_triggers_governance.sql
 -- Financial Governance Triggers for CORE SYSTEM v2.1
 
+-- Canonical prerequisites used by the governance triggers.
+-- These fields are defined by Blueprint v2.1 but are absent from the legacy
+-- session/invoice base migrations that precede this migration.
+ALTER TABLE clinic_visit_sessions
+    ADD COLUMN IF NOT EXISTS doctor_id UUID REFERENCES clinic_users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS room_id UUID REFERENCES clinic_rooms(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS arrived_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS session_ended_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS visit_closed_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS lock_holder_id UUID REFERENCES clinic_users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS lock_timestamp TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS initialized_by_receptionist UUID REFERENCES clinic_users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS is_insured BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS waiting_time_minutes SMALLINT,
+    ADD COLUMN IF NOT EXISTS session_duration_minutes SMALLINT,
+    ADD COLUMN IF NOT EXISTS score_aps SMALLINT CHECK (score_aps BETWEEN 0 AND 1000),
+    ADD COLUMN IF NOT EXISTS score_dri SMALLINT CHECK (score_dri BETWEEN 0 AND 1000),
+    ADD COLUMN IF NOT EXISTS score_tsi SMALLINT CHECK (score_tsi BETWEEN 0 AND 1000),
+    ADD COLUMN IF NOT EXISTS score_uri SMALLINT CHECK (score_uri BETWEEN 0 AND 1000),
+    ADD COLUMN IF NOT EXISTS score_pqs SMALLINT CHECK (score_pqs BETWEEN 0 AND 1000),
+    ADD COLUMN IF NOT EXISTS score_rvs SMALLINT CHECK (score_rvs BETWEEN 0 AND 1000),
+    ADD COLUMN IF NOT EXISTS core_score_backend SMALLINT CHECK (core_score_backend BETWEEN 0 AND 1000),
+    ADD COLUMN IF NOT EXISTS core_score_display NUMERIC(5,1) CHECK (core_score_display BETWEEN 0 AND 100),
+    ADD COLUMN IF NOT EXISTS patient_class VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS scoring_mode VARCHAR(20) DEFAULT 'first_time',
+    ADD COLUMN IF NOT EXISTS par_result VARCHAR(30),
+    ADD COLUMN IF NOT EXISTS prestige_inflation_detected BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS prestige_inflation_factor NUMERIC(4,3) DEFAULT 1.000,
+    ADD COLUMN IF NOT EXISTS triangulation_verified BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS buffer_window_expires_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS auto_close_at TIMESTAMPTZ;
+
+ALTER TABLE clinic_visit_sessions DROP CONSTRAINT IF EXISTS clinic_visit_sessions_status_check;
+ALTER TABLE clinic_visit_sessions
+    ADD CONSTRAINT clinic_visit_sessions_status_check CHECK (session_status IN (
+        'waiting', 'in_consultation', 'pending_close', 'auto_closed', 'completed', 'cancelled', 'System_Closed_Timeout',
+        'pending', 'checked_in', 'in_progress', 'no_show', 'abandoned', 'rescheduled'
+    ));
+
+ALTER TABLE clinic_invoices
+    ADD COLUMN IF NOT EXISTS subtotal_subunits INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS discount_subunits INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS discount_reason VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS discount_approved_by UUID REFERENCES clinic_users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS tax_subunits INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS total_subunits INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS amount_paid_subunits INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS amount_due_subunits INTEGER,
+    ADD COLUMN IF NOT EXISTS invoice_status VARCHAR(20) NOT NULL DEFAULT 'draft',
+    ADD COLUMN IF NOT EXISTS doctor_par_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS collected_reception BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS match_triangulation BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS collected_by UUID REFERENCES clinic_users(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS invoice_date DATE NOT NULL DEFAULT CURRENT_DATE;
+
 -- TRIGGER 1: Consultation Fee Gate
 -- Prevents starting consultation without paid invoice
 CREATE OR REPLACE FUNCTION check_consultation_fee_gate()

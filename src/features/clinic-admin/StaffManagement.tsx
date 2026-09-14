@@ -25,7 +25,7 @@ type UpdateRoleRpc = (
   args: { p_user_id: string; p_role: StaffRole },
 ) => Promise<{ data: null; error: { message: string } | null }>;
 
-const updateRoleRpc = supabase.rpc as unknown as UpdateRoleRpc;
+const updateRoleRpc = supabase.rpc.bind(supabase) as unknown as UpdateRoleRpc;
 
 const roles: Array<{ value: StaffRole; label: string }> = [
   { value: 'clinic_admin', label: 'مدير العيادة' },
