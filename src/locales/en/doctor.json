@@ -1,5 +1,16 @@
 {
   "title": "Doctor workspace",
   "patients": "Today's patients",
-  "session": "Clinical session"
+  "session": "Clinical session",
+  "tenantNotInitialized": "Clinic is not initialized",
+  "closePermissionDenied": "You do not have permission to close the session",
+  "closeError": "Close error: {{message}}",
+  "closedSuccessfully": "Session closed successfully",
+  "unexpectedError": "An error occurred",
+  "confirmCloseTitle": "Confirm session closure",
+  "confirmCloseMessage": "Are you sure you want to close this session? This action cannot be undone after closing.",
+  "closeInProgress": "Closing...",
+  "confirmClose": "Yes, close session",
+  "cancel": "Cancel",
+  "closeSession": "Close session"
 }
