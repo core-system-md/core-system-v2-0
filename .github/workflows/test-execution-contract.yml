@@ -22,12 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout full history
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -160,7 +160,7 @@ jobs:
 
       - name: Upload execution plan
         if: ${{ always() && hashFiles('test-execution-plan.json') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-execution-plan
           path: test-execution-plan.json
@@ -168,7 +168,7 @@ jobs:
 
       - name: Upload E2E validation log
         if: ${{ always() && hashFiles('e2e-validation.log') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-validation-log
           path: e2e-validation.log
