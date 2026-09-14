@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!token || !persistedUser || !current.isPinAuthenticated) return false;
 
-      const rpc = supabase.rpc as unknown as (
+      const rpc = supabase.rpc.bind(supabase) as unknown as (
         fn: string,
         args: { p_tenant_id: string; p_session_token: string },
       ) => Promise<{ data: unknown; error: { message: string } | null }>;
