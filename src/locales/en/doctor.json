@@ -12,5 +12,14 @@
   "closeInProgress": "Closing...",
   "confirmClose": "Yes, close session",
   "cancel": "Cancel",
-  "closeSession": "Close session"
+  "closeSession": "Close session",
+  "noPatientsToday": "No patients today",
+  "noPatientsWaiting": "No patients have been added to the waiting list",
+  "waiting": "Waiting: {{minutes}} min",
+  "openSession": "Open session",
+  "allergyAlertTitle": "Allergy alert",
+  "allergyAlertDescription": "Allergy information must be reviewed before continuing the clinical session",
+  "recordedAllergy": "Recorded allergy:",
+  "confirmAllergyReview": "I confirm that I reviewed the allergy information",
+  "clinicalActionsBlocked": "Clinical actions are unavailable until confirmation"
 }
