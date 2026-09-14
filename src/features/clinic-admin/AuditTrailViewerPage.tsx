@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
@@ -19,6 +20,7 @@ type AuditEvent = {
 };
 
 export default function AuditTrailViewerPage() {
+  const { t } = useTranslation('clinic-admin');
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
@@ -72,29 +74,29 @@ export default function AuditTrailViewerPage() {
         <div className="flex items-center gap-3">
           <History className="h-6 w-6 text-primary" />
           <div>
-            <h2 className="text-xl font-bold text-slate-900">سجل التدقيق</h2>
-            <p className="text-sm text-slate-500">سجل تغييرات العيادة حسب الصلاحيات الحالية.</p>
-        </div>
+            <h2 className="text-xl font-bold text-slate-900">{t('audit.title')}</h2>
+            <p className="text-sm text-slate-500">{t('audit.description')}</p>
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
           {loading ? (
-            <div className="p-6 text-sm text-slate-500">جاري تحميل السجل...</div>
+            <div className="p-6 text-sm text-slate-500">{t('audit.loading')}</div>
           ) : error ? (
-            <div className="p-6 text-sm text-red-600">تعذر تحميل سجل التدقيق: {error}</div>
+            <div className="p-6 text-sm text-red-600">{t('audit.error', { message: error })}</div>
           ) : events.length === 0 ? (
-            <div className="p-6 text-sm text-slate-500">لا توجد أحداث تدقيق.</div>
+            <div className="p-6 text-sm text-slate-500">{t('audit.empty')}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-muted text-right text-slate-600">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">التاريخ</th>
-                    <th className="px-4 py-3 font-semibold">الإجراء</th>
-                    <th className="px-4 py-3 font-semibold">الجدول</th>
-                    <th className="px-4 py-3 font-semibold">الدور</th>
-                    <th className="px-4 py-3 font-semibold">المعرّف</th>
-                    <th className="px-4 py-3 font-semibold">السبب</th>
+                    <th className="px-4 py-3 font-semibold">{t('audit.date')}</th>
+                    <th className="px-4 py-3 font-semibold">{t('audit.action')}</th>
+                    <th className="px-4 py-3 font-semibold">{t('audit.table')}</th>
+                    <th className="px-4 py-3 font-semibold">{t('audit.role')}</th>
+                    <th className="px-4 py-3 font-semibold">{t('audit.id')}</th>
+                    <th className="px-4 py-3 font-semibold">{t('audit.reason')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -116,14 +118,14 @@ export default function AuditTrailViewerPage() {
           )}
 
           <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm">
-            <span className="text-slate-500">الصفحة {page + 1} من {pageCount}</span>
+            <span className="text-slate-500">{t('audit.page', { current: page + 1, total: pageCount })}</span>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setPage((value) => Math.max(0, value - 1))}
                 disabled={page === 0 || loading}
                 className="rounded-md border border-slate-200 p-2 disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="السابق"
+                aria-label={t('audit.previous')}
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -132,7 +134,7 @@ export default function AuditTrailViewerPage() {
                 onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}
                 disabled={page >= pageCount - 1 || loading}
                 className="rounded-md border border-slate-200 p-2 disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="التالي"
+                aria-label={t('audit.next')}
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
