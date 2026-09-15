@@ -3,16 +3,9 @@ import { CheckCircle2, CreditCard, RefreshCw } from 'lucide-react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import type { SubscriptionTier } from '@/shared/types/billing';
+import { TIER_LABELS } from '@/shared/constants/labels';
 
 const TIERS: SubscriptionTier[] = ['trial', 'essential', 'professional', 'enterprise', 'suspended'];
-
-const TIER_LABELS: Record<SubscriptionTier, string> = {
-  trial: 'تجريبي',
-  essential: 'أساسي',
-  professional: 'احترافي',
-  enterprise: 'مؤسسي',
-  suspended: 'موقوف',
-};
 
 type TenantRow = {
   id: string;

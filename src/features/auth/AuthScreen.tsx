@@ -2,12 +2,11 @@
 // CORE SYSTEM v2.1 — AuthScreen
 // VIEW ONLY. NO Business Logic. NO supabase.rpc(). NO supabase.from().
 // Constitution §12: AuthScreen → useAuth → Supabase. NOT AuthScreen → Supabase directly.
-// FIXED: 2026-07-14 — Remove selectedRole from loginWithPin (role comes from DB only)
-// FIXED: 2026-07-15 — Remove unused Select imports (BUG 9 cleanup)
 // ============================================================
 
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/core/auth/useAuth';
 import { useAuthStore, selectIsPinLocked, selectPinAttemptsRemaining } from '@/shared/store/authStore';
 import { getDefaultRoute } from '@/core/permissions/permissionMatrix';
@@ -20,6 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 
 export default function AuthScreen() {
+  const { t } = useTranslation('auth');
   const navigate = useNavigate();
   const {
     validateLicense,
@@ -59,9 +59,7 @@ export default function AuthScreen() {
     const trimmedKey = licenseKey.trim();
     if (!trimmedKey) return;
     const result = await validateLicense(trimmedKey);
-    if (result.success) {
-      setStep(2);
-    }
+    if (result.success) setStep(2);
   }, [licenseKey, validateLicense, clearError]);
 
   const handlePinSubmit = useCallback(async (e: React.FormEvent) => {
@@ -69,13 +67,10 @@ export default function AuthScreen() {
     clearError();
     const trimmedPin = pinCode.trim();
     if (!trimmedPin || trimmedPin.length !== 4) return;
-
     const result = await loginWithPin(trimmedPin);
-
     if (result.success) {
       const pinResult = result as { success: true; user: AuthUser };
-      const route = getDefaultRoute(pinResult.user.role);
-      navigate(route, { replace: true });
+      navigate(getDefaultRoute(pinResult.user.role), { replace: true });
     }
   }, [pinCode, loginWithPin, clearError, navigate]);
 
@@ -86,14 +81,12 @@ export default function AuthScreen() {
     const result = await (loginWithEmail ? loginWithEmail(email, password) : Promise.resolve({ success: false }));
     if (result.success) {
       const emailResult = result as { success: true; user: AuthUser };
-      const route = getDefaultRoute(emailResult.user.role);
-      navigate(route, { replace: true });
+      navigate(getDefaultRoute(emailResult.user.role), { replace: true });
     }
   }, [email, password, clearError, loginWithEmail, navigate]);
 
   const handlePinChange = useCallback((value: string) => {
-    const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
-    setPinCode(digitsOnly);
+    setPinCode(value.replace(/\D/g, '').slice(0, 4));
   }, []);
 
   const handleReset = useCallback(() => {
@@ -110,45 +103,38 @@ export default function AuthScreen() {
     const result = await loginWithPin('1234');
     if (result.success) {
       const devResult = result as { success: true; user: AuthUser };
-      const route = getDefaultRoute(devResult.user.role);
-      navigate(route, { replace: true });
+      navigate(getDefaultRoute(devResult.user.role), { replace: true });
     }
   }, [validateLicense, loginWithPin, clearError, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-primary">CORE SYSTEM v2.1</CardTitle>
           <p className="text-sm text-gray-500 mt-1">
-            {step === 1 ? 'تسجيل الدخول — الخطوة ١: الترخيص' : 'تسجيل الدخول — الخطوة ٢: PIN + الدور'}
+            {step === 1 ? t('stepLicense') : t('stepPin')}
           </p>
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
           {import.meta.env.DEV && step === 1 && (
             <div className="space-y-2 p-3 bg-accent border border-accent-foreground/20 rounded-lg">
-              <p className="text-xs text-accent-foreground font-bold text-center">🚀 وضع التطوير — تسجيل الدخول الفوري</p>
-              <Button type="button" variant="outline" onClick={handleDevMode} className="w-full text-xs">
-                تسجيل الدخول الفوري (وضع التطوير)
-              </Button>
+              <p className="text-xs text-accent-foreground font-bold text-center">🚀 {t('devMode')}</p>
+              <Button type="button" variant="outline" onClick={handleDevMode} className="w-full text-xs">{t('devLogin')}</Button>
             </div>
           )}
 
           {step === 1 && (
             <form onSubmit={handleLicenseSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="license">مفتاح الترخيص</Label>
+                <Label htmlFor="license">{t('licenseKey')}</Label>
                 <Input
                   id="license"
                   type="text"
-                  placeholder="أدخل مفتاح الترخيص..."
+                  placeholder={t('licensePlaceholder')}
                   value={licenseKey}
                   onChange={(e) => setLicenseKey(e.target.value)}
                   disabled={isChecking}
@@ -156,12 +142,8 @@ export default function AuthScreen() {
                   autoComplete="off"
                 />
               </div>
-              <Button
-                type="submit"
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                disabled={isChecking || !licenseKey.trim()}
-              >
-                {isChecking ? 'جاري التحقق...' : 'التحقق من الترخيص'}
+              <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isChecking || !licenseKey.trim()}>
+                {isChecking ? t('verifying') : t('verifyLicense')}
               </Button>
             </form>
           )}
@@ -169,114 +151,35 @@ export default function AuthScreen() {
           {step === 2 && (
             <div className="space-y-4">
               <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={loginMethod === 'pin' ? 'default' : 'ghost'}
-                  onClick={() => setLoginMethod('pin')}
-                  className="flex-1"
-                >
-                  تسجيل باستخدام PIN
-                </Button>
-                <Button
-                  type="button"
-                  variant={loginMethod === 'email' ? 'default' : 'ghost'}
-                  onClick={() => setLoginMethod('email')}
-                  className="flex-1"
-                >
-                  تسجيل باستخدام البريد
-                </Button>
+                <Button type="button" variant={loginMethod === 'pin' ? 'default' : 'ghost'} onClick={() => setLoginMethod('pin')} className="flex-1">{t('loginWithPin')}</Button>
+                <Button type="button" variant={loginMethod === 'email' ? 'default' : 'ghost'} onClick={() => setLoginMethod('email')} className="flex-1">{t('loginWithEmail')}</Button>
               </div>
 
               {loginMethod === 'pin' && (
                 <form onSubmit={handlePinSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="pin">رمز PIN (4 أرقام)</Label>
-                    <Input
-                      id="pin"
-                      type="password"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={4}
-                      placeholder="• • • •"
-                      value={pinCode}
-                      onChange={(e) => handlePinChange(e.target.value)}
-                      disabled={isChecking || isPinLocked}
-                      className="text-center text-2xl tracking-[0.5em]"
-                      autoComplete="off"
-                    />
-                    {isPinLocked && (
-                      <p className="text-xs text-red-600">تم قفل المحاولات. يرجى الانتظار.</p>
-                    )}
-                    {!isPinLocked && attemptsRemaining < 5 && (
-                      <p className="text-xs text-amber-600">محاولات متبقية: {attemptsRemaining}</p>
-                    )}
+                    <Label htmlFor="pin">{t('pinLabel')}</Label>
+                    <Input id="pin" type="password" inputMode="numeric" pattern="[0-9]*" maxLength={4} placeholder="• • • •" value={pinCode} onChange={(e) => handlePinChange(e.target.value)} disabled={isChecking || isPinLocked} className="text-center text-2xl tracking-[0.5em]" autoComplete="off" />
+                    {isPinLocked && <p className="text-xs text-red-600">{t('locked')}</p>}
+                    {!isPinLocked && attemptsRemaining < 5 && <p className="text-xs text-amber-600">{t('attemptsRemaining', { count: attemptsRemaining })}</p>}
                   </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                    disabled={isChecking || pinCode.length !== 4 || isPinLocked}
-                  >
-                    {isChecking ? 'جاري التحقق...' : 'تسجيل الدخول'}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full"
-                    onClick={handleReset}
-                    disabled={isChecking}
-                  >
-                    العودة — إدخال ترخيص آخر
-                  </Button>
+                  <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isChecking || pinCode.length !== 4 || isPinLocked}>{isChecking ? t('verifying') : t('login')}</Button>
+                  <Button type="button" variant="ghost" className="w-full" onClick={handleReset} disabled={isChecking}>{t('backToLicense')}</Button>
                 </form>
               )}
 
               {loginMethod === 'email' && (
                 <form onSubmit={handleEmailSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">البريد الإلكتروني</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="example@clinic.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={isChecking}
-                      autoComplete="email"
-                    />
+                    <Label htmlFor="email">{t('email')}</Label>
+                    <Input id="email" type="email" placeholder="example@clinic.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={isChecking} autoComplete="email" />
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="password">كلمة المرور</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={isChecking}
-                      autoComplete="current-password"
-                    />
+                    <Label htmlFor="password">{t('password')}</Label>
+                    <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isChecking} autoComplete="current-password" />
                   </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                    disabled={isChecking || !email || !password}
-                  >
-                    {isChecking ? 'جاري التحقق...' : 'تسجيل الدخول'}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full"
-                    onClick={handleReset}
-                    disabled={isChecking}
-                  >
-                    العودة — إدخال ترخيص آخر
-                  </Button>
+                  <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isChecking || !email || !password}>{isChecking ? t('verifying') : t('login')}</Button>
+                  <Button type="button" variant="ghost" className="w-full" onClick={handleReset} disabled={isChecking}>{t('backToLicense')}</Button>
                 </form>
               )}
             </div>

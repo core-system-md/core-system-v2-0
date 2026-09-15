@@ -32,7 +32,7 @@ export function ClinicalNotes({ notes, onAddNote, onUpdateNote, patientName }: C
   const filteredNotes = notes.filter((n) => n.type === activeTab);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col h-full" dir="rtl">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col h-full">
       <div className="p-4 border-b border-slate-800">
         <h2 className="text-lg font-semibold text-white">ملاحظات SOAP — {patientName}</h2>
         <div className="flex gap-2 mt-3">
@@ -65,7 +65,6 @@ export function ClinicalNotes({ notes, onAddNote, onUpdateNote, patientName }: C
               defaultValue={note.content}
               onBlur={(e) => onUpdateNote(note.id, e.target.value)}
               className="w-full bg-transparent text-sm text-slate-300 resize-none focus:outline-none min-h-[60px]"
-              dir="rtl"
             />
           </div>
         ))}
@@ -77,7 +76,6 @@ export function ClinicalNotes({ notes, onAddNote, onUpdateNote, patientName }: C
           onChange={(e) => setNewContent(e.target.value)}
           placeholder={`أضف ملاحظة ${tabs.find(t => t.key === activeTab)?.labelAr}...`}
           className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none min-h-[80px]"
-          dir="rtl"
         />
         <button
           onClick={() => {

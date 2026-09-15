@@ -4,6 +4,7 @@ import { useAuth } from '@/core/auth/AuthProvider';
 import { useTenantStore } from '@/shared/store/tenantStore';
 import PinPad from './PinPad';
 import { Shield, Clock, Users, LogIn } from 'lucide-react';
+import { formatTimeLocale } from '@/shared/utils/locale';
 
 export default function AmbientKioskView() {
   const navigate = useNavigate();
@@ -39,7 +40,6 @@ export default function AmbientKioskView() {
     <div
       className="min-h-screen flex flex-col items-center justify-center text-white p-6"
       style={{ backgroundColor: primaryColor || '#1B2A4A' }}
-      dir="rtl"
     >
       <div className="text-center space-y-8 max-w-2xl">
         <Shield className="w-24 h-24 mx-auto opacity-80" />
@@ -50,7 +50,7 @@ export default function AmbientKioskView() {
 
         <div className="flex items-center gap-4 justify-center text-lg opacity-70">
           <Clock className="w-5 h-5" />
-          <span>{currentTime.toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}</span>
+          <span>{formatTimeLocale(currentTime, { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
 
         <button

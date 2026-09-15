@@ -9,6 +9,8 @@ CREATE TABLE master_tenants (
     max_users INTEGER NOT NULL DEFAULT 5,
     max_patients INTEGER NOT NULL DEFAULT 100,
     max_procedures_per_month INTEGER NOT NULL DEFAULT 500,
+    currency VARCHAR(10) NOT NULL DEFAULT 'JOD',
+    currency_subunit INTEGER NOT NULL DEFAULT 1000,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     settings JSONB NOT NULL DEFAULT '{}',

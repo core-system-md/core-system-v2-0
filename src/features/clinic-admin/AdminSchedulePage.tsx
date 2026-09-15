@@ -3,6 +3,7 @@ import { CalendarDays } from 'lucide-react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuthStore } from '@/shared/store/authStore';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { formatTimeLocale } from '@/shared/utils/locale';
 
 type AgendaRow = {
   id: string;
@@ -72,11 +73,11 @@ export default function AdminSchedulePage() {
   const patientMap = useMemo(() => new Map(patients.map((row) => [row.id, row.label])), [patients]);
 
   const content = loading ? (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500" dir="rtl">جاري تحميل الجدول...</div>
+    <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">جاري تحميل الجدول...</div>
   ) : error ? (
-    <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700" dir="rtl">تعذر تحميل الجدول: {error}</div>
+    <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">تعذر تحميل الجدول: {error}</div>
   ) : (
-    <section className="space-y-4" dir="rtl">
+    <section className="space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <CalendarDays className="h-6 w-6 text-primary" />
@@ -107,9 +108,9 @@ export default function AdminSchedulePage() {
             ) : events.map((event) => (
               <tr key={event.id}>
                 <td className="px-4 py-3 whitespace-nowrap text-slate-700">
-                  {new Date(event.scheduled_start).toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}
+                  {formatTimeLocale(event.scheduled_start, { hour: '2-digit', minute: '2-digit' })}
                   {' – '}
-                  {new Date(event.scheduled_end).toLocaleTimeString('ar-JO', { hour: '2-digit', minute: '2-digit' })}
+                  {formatTimeLocale(event.scheduled_end, { hour: '2-digit', minute: '2-digit' })}
                 </td>
                 <td className="px-4 py-3 text-slate-700">{event.doctor_id ? doctorMap.get(event.doctor_id) || '—' : '—'}</td>
                 <td className="px-4 py-3 text-slate-700">{event.room_id ? roomMap.get(event.room_id) || '—' : '—'}</td>

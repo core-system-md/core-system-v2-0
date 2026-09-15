@@ -1,8 +1,8 @@
-﻿-- 039_tr_audit_tenants.sql
+-- 039_tr_audit_tenants.sql
 -- P37-B: Add audit trigger for master_tenants
 
 CREATE OR REPLACE FUNCTION fn_audit_tenants_changes()
-RETURNS TRIGGER AS $\$
+RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'UPDATE' THEN
     INSERT INTO audit_trail (
@@ -28,7 +28,7 @@ BEGIN
   END IF;
   IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
 END;
-$\$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_audit_tenants ON master_tenants;
 CREATE TRIGGER tr_audit_tenants

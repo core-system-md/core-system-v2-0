@@ -24,8 +24,8 @@ export default function TenantDetailPage() {
     return () => { active = false; };
   }, [tenantId]);
 
-  if (loading) return <div className="p-6 text-sm text-slate-500" dir="rtl">جاري تحميل تفاصيل العيادة...</div>;
-  if (error || !tenant) return <div className="p-6" dir="rtl"><div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error ?? 'لم يتم العثور على العيادة.'}</div><button onClick={() => navigate('/super-admin')} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">العودة</button></div>;
+  if (loading) return <div className="p-6 text-sm text-slate-500">جاري تحميل تفاصيل العيادة...</div>;
+  if (error || !tenant) return <div className="p-6"><div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error ?? 'لم يتم العثور على العيادة.'}</div><button onClick={() => navigate('/super-admin')} className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">العودة</button></div>;
 
   return <TenantDetailPanel tenant={tenant} isOpen onClose={() => navigate('/super-admin')} />;
 }
