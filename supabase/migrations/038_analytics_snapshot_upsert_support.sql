@@ -3,13 +3,15 @@
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'analytics_daily_snapshots_tenant_date_unique'
-    AND conrelid = 'analytics_daily_snapshots'::regclass
-  ) THEN
-    ALTER TABLE public.analytics_daily_snapshots
-    ADD CONSTRAINT analytics_daily_snapshots_tenant_date_unique
-    UNIQUE (tenant_id, snapshot_date);
+  IF to_regclass('public.analytics_daily_snapshots') IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname = 'analytics_daily_snapshots_tenant_date_unique'
+      AND conrelid = 'public.analytics_daily_snapshots'::regclass
+    ) THEN
+      ALTER TABLE public.analytics_daily_snapshots
+      ADD CONSTRAINT analytics_daily_snapshots_tenant_date_unique
+      UNIQUE (tenant_id, snapshot_date);
+    END IF;
   END IF;
 END $$;
