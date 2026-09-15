@@ -1,8 +1,8 @@
 -- 038_analytics_snapshot_upsert_support.sql
--- P37-A: Restore the canonical analytics snapshot table before adding
--- its tenant/date uniqueness required by the analytics snapshot upsert.
--- Evidence: Blueprint §18 defines this table; later migration 044 adds
--- deleted_at separately, so it is intentionally not introduced here.
+-- P37-A: Restore the canonical analytics warehouse tables required by
+-- Blueprint Sections 18-19 before applying later analytics governance.
+-- Evidence: Blueprint defines analytics_daily_snapshots and
+-- analytics_patient_metrics; migration 044 later adds deleted_at.
 
 CREATE TABLE IF NOT EXISTS public.analytics_daily_snapshots (
   id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -24,6 +24,22 @@ CREATE TABLE IF NOT EXISTS public.analytics_daily_snapshots (
   snapshot_metadata           JSONB,
   created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.analytics_patient_metrics (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id             UUID NOT NULL REFERENCES master_tenants(id),
+  metric_period         VARCHAR(20) NOT NULL
+    CHECK (metric_period IN ('weekly','monthly','quarterly')),
+  period_start          DATE NOT NULL,
+  period_end            DATE NOT NULL,
+  new_patients          INTEGER DEFAULT 0,
+  reactivated_patients  INTEGER DEFAULT 0,
+  churned_patients      INTEGER DEFAULT 0,
+  avg_ltv_subunits      BIGINT DEFAULT 0,
+  avg_disc_distribution JSONB DEFAULT '{}',
+  top_procedures        JSONB DEFAULT '[]',
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 DO $$
