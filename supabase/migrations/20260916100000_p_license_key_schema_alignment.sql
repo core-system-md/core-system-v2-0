@@ -15,5 +15,4 @@ ALTER TABLE public.master_tenants
   ADD COLUMN IF NOT EXISTS license_key TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_master_tenants_license_key
-  ON public.master_tenants (license_key)
-  WHERE deleted_at IS NULL;
+  ON public.master_tenants (license_key);
