@@ -1,5 +1,10 @@
 -- P0 security alignment: JWT authorization claims must come from app_metadata.
 -- Backfill existing clinic staff, then make tenant/role helpers read server-managed claims.
+--
+-- Migration 002 is the authoritative schema at this point in the replay chain and
+-- clinic_users does not yet have deleted_at. Soft-delete columns are introduced later.
+-- Therefore this backfill must include all existing clinic_users rows instead of
+-- referencing a column that does not exist yet.
 
 UPDATE auth.users u
 SET raw_app_meta_data = COALESCE(u.raw_app_meta_data, '{}'::jsonb) || jsonb_build_object(
@@ -9,8 +14,7 @@ SET raw_app_meta_data = COALESCE(u.raw_app_meta_data, '{}'::jsonb) || jsonb_buil
   'employee_code', cu.employee_code
 )
 FROM public.clinic_users cu
-WHERE cu.id = u.id
-  AND cu.deleted_at IS NULL;
+WHERE cu.id = u.id;
 
 CREATE OR REPLACE FUNCTION public.get_current_tenant_id()
 RETURNS uuid
