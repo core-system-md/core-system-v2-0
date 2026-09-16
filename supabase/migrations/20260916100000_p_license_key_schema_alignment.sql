@@ -4,10 +4,10 @@
 -- Evidence:
 -- - validate_license(p_license_key TEXT) reads license_key + deleted_at.
 -- - Production/Blueprint expect master_tenants.deleted_at.
--- - The E2E seed and active Super Admin UI use clinic_name,
---   clinic_name_ar, and primary_color on master_tenants.
--- - The replayed repository schema was missing these canonical tenant
---   presentation fields, creating schema drift that blocked E2E setup.
+-- - The E2E seed and active Super Admin UI use tenant presentation and
+--   activation fields that were missing from the replayed base schema.
+-- - Master Test #400 reached E2E and failed because master_tenants.is_active
+--   was missing after the migration chain was replayed.
 --
 -- Keep this as a forward migration so existing databases can be
 -- reconciled without rewriting historical migration files.
@@ -18,7 +18,9 @@ ALTER TABLE public.master_tenants
   ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL,
   ADD COLUMN IF NOT EXISTS clinic_name TEXT,
   ADD COLUMN IF NOT EXISTS clinic_name_ar TEXT,
-  ADD COLUMN IF NOT EXISTS primary_color TEXT DEFAULT '#1B2A4A';
+  ADD COLUMN IF NOT EXISTS primary_color TEXT DEFAULT '#1B2A4A',
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'Asia/Amman';
 
 -- Preserve existing tenant names when introducing the canonical
 -- clinic_name field before enforcing the Blueprint's required value.
