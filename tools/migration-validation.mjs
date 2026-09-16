@@ -53,8 +53,12 @@ const moveMigrations = () => {
 };
 
 const restoreMigrations = () => {
+  // Only replace the live directory when an actual backup exists. This makes
+  // cleanup idempotent and prevents the finalizer from deleting migrations
+  // after they have already been restored by the inner reset guard.
+  if (!fs.existsSync(MIGRATION_BACKUP_DIR)) return;
   if (fs.existsSync(MIGRATIONS_DIR)) fs.rmSync(MIGRATIONS_DIR, { recursive: true, force: true });
-  if (fs.existsSync(MIGRATION_BACKUP_DIR)) fs.renameSync(MIGRATION_BACKUP_DIR, MIGRATIONS_DIR);
+  fs.renameSync(MIGRATION_BACKUP_DIR, MIGRATIONS_DIR);
 };
 
 try {
