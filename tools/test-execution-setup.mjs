@@ -219,6 +219,7 @@ function runSelfTest() {
   commitFixture(cwd, 'baseline');
   const base = git(['rev-parse', 'HEAD'], cwd);
   writeFixture(cwd, 'src/features/doctor/ClinicalNotes.tsx', 'export const ClinicalNotes = () => null;');
+  writeFixture(cwd, 'src/features/reception/FrontDesk.tsx', 'export const FrontDesk = () => null;');
   writeFixture(cwd, 'src/services/api.ts', 'export const loadPatient = (supabase) => supabase.rpc(\'get_patient\');');
   writeFixture(cwd, 'supabase/migrations/002_rls.sql', 'alter table x enable row level security;');
   commitFixture(cwd, 'candidate');
