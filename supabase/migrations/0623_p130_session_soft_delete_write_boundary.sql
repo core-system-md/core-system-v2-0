@@ -17,7 +17,7 @@ USING (
     )
     OR (
       (SELECT public.get_current_user_role()) = 'doctor'::text
-      AND doctor_id = (SELECT auth.uid())
+      AND primary_doctor_id = (SELECT auth.uid())
       AND session_status <> 'completed'::text
     )
   )
@@ -31,7 +31,7 @@ WITH CHECK (
     )
     OR (
       (SELECT public.get_current_user_role()) = 'doctor'::text
-      AND doctor_id = (SELECT auth.uid())
+      AND primary_doctor_id = (SELECT auth.uid())
       AND session_status <> 'completed'::text
     )
   )
