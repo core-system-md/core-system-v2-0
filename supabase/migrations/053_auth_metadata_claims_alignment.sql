@@ -2,16 +2,15 @@
 -- Backfill existing clinic staff, then make tenant/role helpers read server-managed claims.
 --
 -- Migration 002 is the authoritative schema at this point in the replay chain and
--- clinic_users does not yet have deleted_at. Soft-delete columns are introduced later.
--- Therefore this backfill must include all existing clinic_users rows instead of
--- referencing a column that does not exist yet.
+-- clinic_users does not yet have deleted_at or employee_code. Later migrations
+-- introduce the PIN/session compatibility fields. The authorization helpers only
+-- require tenant_id and role, so this backfill must not reference later-only fields.
 
 UPDATE auth.users u
 SET raw_app_meta_data = COALESCE(u.raw_app_meta_data, '{}'::jsonb) || jsonb_build_object(
   'tenant_id', cu.tenant_id::text,
   'user_role', cu.role,
-  'full_name', cu.full_name,
-  'employee_code', cu.employee_code
+  'full_name', cu.full_name
 )
 FROM public.clinic_users cu
 WHERE cu.id = u.id;
