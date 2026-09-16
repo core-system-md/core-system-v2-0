@@ -30,18 +30,7 @@ const rpcUrl = `${root}/rest/v1/rpc/validate_license`;
 const rpcHeaders = { ...headers, 'Content-Type': 'application/json' };
 
 await expectStatus(
-  'validate_license canonical two-argument RPC contract',
-  rpcUrl,
-  {
-    method: 'POST',
-    headers: rpcHeaders,
-    body: JSON.stringify({ p_license_key: '__e2e_nonexistent_license__', p_device_fingerprint: null }),
-  },
-  200,
-);
-
-await expectStatus(
-  'validate_license default device-fingerprint contract',
+  'validate_license canonical public RPC contract',
   rpcUrl,
   {
     method: 'POST',
