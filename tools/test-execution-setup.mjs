@@ -249,3 +249,5 @@ if (!options.base || !options.candidate) throw new Error('--base and --candidate
 const impact = analyzeFiles(options.base, options.candidate);
 const plan = buildPlan(options.base, options.candidate, impact);
 validatePlan(plan);
+fs.writeFileSync(options.output, `${JSON.stringify({ plan, validation: { plan_valid: true } }, null, 2)}\n`);
+console.log(JSON.stringify({ plan, validation: { plan_valid: true } }, null, 2));
