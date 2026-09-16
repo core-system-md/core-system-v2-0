@@ -6,7 +6,8 @@ import { spawnSync } from 'node:child_process';
 
 const ROOT = process.cwd();
 const planPath = path.resolve(process.argv[2] ?? 'test-execution-plan.json');
-const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+const payload = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+const plan = payload.plan ?? payload;
 
 function run(command, args, env = process.env) {
   console.log(`[validation] ${command} ${args.join(' ')}`);
@@ -26,9 +27,13 @@ const engineeringCommands = {
   database_validation: ['node', ['tools/migration-validation.mjs', '--apply']],
 };
 
-const runsFullE2EAsEngineering = plan.required_engineering.includes('integration_tests');
+const requiredEngineering = Array.isArray(plan.required_engineering) ? plan.required_engineering : [];
+const requiredE2E = Array.isArray(plan.required_e2e) ? plan.required_e2e : [];
+const requiredNegative = Array.isArray(plan.required_negative_tests) ? plan.required_negative_tests : [];
+const requiredReconciliation = Array.isArray(plan.required_reconciliation) ? plan.required_reconciliation : [];
+const runsFullE2EAsEngineering = requiredEngineering.includes('integration_tests');
 
-for (const check of plan.required_engineering) {
+for (const check of requiredEngineering) {
   const command = engineeringCommands[check];
   if (!command) {
     throw new Error(`NOT VERIFIED: required engineering validation '${check}' has no executable repository-native runner.`);
@@ -36,10 +41,7 @@ for (const check of plan.required_engineering) {
   run(command[0], command[1]);
 }
 
-const browserValidationRequired =
-  plan.required_e2e.length > 0 ||
-  plan.required_negative_tests.length > 0 ||
-  plan.required_reconciliation.length > 0;
+const browserValidationRequired = requiredE2E.length > 0 || requiredNegative.length > 0 || requiredReconciliation.length > 0;
 
 if (browserValidationRequired) {
   if (process.env.TEST_EXECUTION_RUN_E2E !== 'true') {
@@ -53,11 +55,11 @@ if (browserValidationRequired) {
   }
 }
 
-if (plan.required_negative_tests.length > 0 && !fs.existsSync(path.join(ROOT, 'e2e/security-negative.spec.mjs'))) {
+if (requiredNegative.length > 0 && !fs.existsSync(path.join(ROOT, 'e2e/security-negative.spec.mjs'))) {
   throw new Error('NOT VERIFIED: required negative/security suite is missing.');
 }
 
-if (plan.required_reconciliation.length > 0 && !fs.existsSync(path.join(ROOT, 'e2e/reconcile.mjs'))) {
+if (requiredReconciliation.length > 0 && !fs.existsSync(path.join(ROOT, 'e2e/reconcile.mjs'))) {
   throw new Error('NOT VERIFIED: required reconciliation runner is missing.');
 }
 
