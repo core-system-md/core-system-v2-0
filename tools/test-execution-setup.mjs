@@ -219,6 +219,7 @@ function runSelfTest() {
   commitFixture(cwd, 'baseline');
   const base = git(['rev-parse', 'HEAD'], cwd);
   writeFixture(cwd, 'src/features/doctor/ClinicalNotes.tsx', 'export const ClinicalNotes = () => null;');
+  writeFixture(cwd, 'src/services/api.ts', 'export const loadPatient = (supabase) => supabase.rpc(\'get_patient\');');
   writeFixture(cwd, 'supabase/migrations/002_rls.sql', 'alter table x enable row level security;');
   commitFixture(cwd, 'candidate');
   const candidate = git(['rev-parse', 'HEAD'], cwd);
@@ -248,5 +249,3 @@ if (!options.base || !options.candidate) throw new Error('--base and --candidate
 const impact = analyzeFiles(options.base, options.candidate);
 const plan = buildPlan(options.base, options.candidate, impact);
 validatePlan(plan);
-fs.writeFileSync(options.output, `${JSON.stringify({ plan, validation: { plan_valid: true } }, null, 2)}\n`);
-console.log(JSON.stringify({ plan, validation: { plan_valid: true } }, null, 2));
