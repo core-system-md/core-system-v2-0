@@ -233,10 +233,11 @@ CREATE INDEX IF NOT EXISTS idx_patient_longitudinal_active_patient
   ON public.patient_longitudinal_profiles (tenant_id, patient_id)
   WHERE deleted_at IS NULL;
 
--- 10) clinic_patients — score and DISC display fields used by doctor/reception.
+-- 10) clinic_patients — score/status/DISC display fields used by doctor/reception.
 ALTER TABLE public.clinic_patients
   ADD COLUMN IF NOT EXISTS core_score_display NUMERIC(5,1),
-  ADD COLUMN IF NOT EXISTS dominant_disc_profile VARCHAR(20);
+  ADD COLUMN IF NOT EXISTS dominant_disc_profile VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS patient_status VARCHAR(30);
 
 CREATE INDEX IF NOT EXISTS idx_clinic_patients_tenant_active
   ON public.clinic_patients (tenant_id, created_at DESC)
@@ -270,6 +271,7 @@ CREATE INDEX IF NOT EXISTS idx_inventory_ledger_tenant_active
 
 -- 12) clinic_visit_sessions — canonical score/doctor/queue read fields.
 ALTER TABLE public.clinic_visit_sessions
+  ADD COLUMN IF NOT EXISTS is_insured BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS doctor_id UUID,
   ADD COLUMN IF NOT EXISTS room_id UUID,
   ADD COLUMN IF NOT EXISTS waiting_time_minutes SMALLINT,
