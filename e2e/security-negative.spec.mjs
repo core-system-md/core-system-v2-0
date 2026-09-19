@@ -46,7 +46,7 @@ test.describe('security negative browser suite', () => {
     for (const route of protectedRoutes) {
       await reset(page);
       await page.goto(route);
-      await expect(page).toHaveURL(/\\/login$/);
+      await expect(page).toHaveURL(/\/login$/);
     }
   });
 
