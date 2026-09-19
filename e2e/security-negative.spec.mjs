@@ -26,38 +26,10 @@ async function loginAs(page, staff) {
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
   await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
   await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
+
   try {
     const expectedRoute = defaultRoute[staff.role];
-    await expect(page).toHaveURL(new RegExp(`${expectedRoute.replace('/', '\\/')}import { test, expect } from '@playwright/test';
-import { E2E_STAFF, E2E_LICENSE_KEY } from './fixtures/staff.mjs';
-
-const protectedRoutes = ['/admin', '/doctor', '/reception', '/super-admin'];
-const defaultRoute = {
-  super_admin: '/super-admin',
-  clinic_admin: '/admin',
-  doctor: '/doctor',
-  receptionist: '/reception',
-};
-const privilegedDenied = {
-  clinic_admin: ['/super-admin', '/super-admin/billing'],
-  doctor: ['/admin', '/admin/billing', '/reception', '/reception/invoices', '/super-admin'],
-  receptionist: ['/admin', '/admin/billing', '/doctor', '/super-admin'],
-};
-
-async function reset(page) {
-  await page.goto('/login');
-  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
-  await page.reload();
-}
-
-async function loginAs(page, staff) {
-  await reset(page);
-  await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
-  await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
-  await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
-  await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
-  try {
-    ));
+    await expect(page).toHaveURL(new RegExp(`${expectedRoute.replace('/', '\\/')}$`));
   } catch (error) {
     const diagnostics = await page.evaluate(() => ({
       url: location.href,
@@ -65,7 +37,7 @@ async function loginAs(page, staff) {
       authStore: localStorage.getItem('auth-store'),
       pinSession: sessionStorage.getItem('core-system-pin-session') ? 'present' : 'missing',
     }));
-    throw new Error(`PIN login failed: ${JSON.stringify(diagnostics)}\\n${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`PIN login failed: ${JSON.stringify(diagnostics)}\n${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -74,7 +46,7 @@ test.describe('security negative browser suite', () => {
     for (const route of protectedRoutes) {
       await reset(page);
       await page.goto(route);
-      await expect(page).toHaveURL(/\/login$/);
+      await expect(page).toHaveURL(/\\/login$/);
     }
   });
 
