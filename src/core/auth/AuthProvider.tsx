@@ -54,14 +54,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!token || !tenantId) return false;
 
       try {
-        const { data, error } = await supabase.rpc('restore_pin_session', {
+        const rpc = supabase.rpc as unknown as (
+          fn: string,
+          args: { p_tenant_id: string; p_session_token: string },
+        ) => Promise<{ data: unknown; error: { message: string } | null }>;
+
+        const { data, error } = await rpc('restore_pin_session', {
           p_tenant_id: tenantId,
           p_session_token: token,
         });
 
         if (error) return false;
 
-        const result = data as Record<string, unknown> | null;
+        const result = data as unknown as Record<string, unknown> | null;
         if (!result?.success || !result.user_id) {
           sessionStorage.removeItem('core-system-pin-session');
           return false;
