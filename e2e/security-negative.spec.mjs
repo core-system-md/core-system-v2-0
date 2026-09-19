@@ -36,6 +36,7 @@ async function loginAs(page, staff) {
       alerts: Array.from(document.querySelectorAll('[role="alert"]')).map((node) => node.textContent?.trim() ?? ''),
       authStore: localStorage.getItem('auth-store'),
       pinSession: sessionStorage.getItem('core-system-pin-session') ? 'present' : 'missing',
+      authError: document.body.textContent?.match(/(?:خطأ|Error|Invalid|RATE_LIMIT|Too many|PIN)[^\n]*/i)?.[0] ?? '',
     }));
     throw new Error(`PIN login failed: ${JSON.stringify(diagnostics)}\n${error instanceof Error ? error.message : String(error)}`);
   }
