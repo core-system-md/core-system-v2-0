@@ -272,6 +272,8 @@ CREATE INDEX IF NOT EXISTS idx_inventory_ledger_tenant_active
 -- 12) clinic_visit_sessions — canonical score/doctor/queue read fields.
 ALTER TABLE public.clinic_visit_sessions
   ADD COLUMN IF NOT EXISTS is_insured BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS lock_holder_id UUID,
+  ADD COLUMN IF NOT EXISTS lock_timestamp TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS doctor_id UUID,
   ADD COLUMN IF NOT EXISTS room_id UUID,
   ADD COLUMN IF NOT EXISTS waiting_time_minutes SMALLINT,
