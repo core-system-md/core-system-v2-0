@@ -67,8 +67,11 @@ test.describe('role and screen coverage', () => {
       const browserErrors = [];
       const badResponses = [];
       page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()); });
-      page.on('response', (response) => {
-        if (response.status() >= 400) badResponses.push(`${response.status()} ${response.url()}`);
+      page.on('response', async (response) => {
+        if (response.status() < 400) return;
+        let body = '';
+        try { body = await response.text(); } catch {}
+        badResponses.push(`${response.status()} ${response.url()} :: ${body.slice(0, 1000)}`);
       });
       page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}`));
 
@@ -78,6 +81,7 @@ test.describe('role and screen coverage', () => {
         await page.waitForLoadState('domcontentloaded');
         await expect(page.locator('body')).toContainText(/./);
       }
+      await page.waitForTimeout(250);
       expect(browserErrors, `${staff.role} produced unexpected browser errors; HTTP failures: ${JSON.stringify(badResponses)}`).toEqual([]);
     });
   }
