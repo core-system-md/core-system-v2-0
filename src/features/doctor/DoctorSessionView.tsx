@@ -19,6 +19,13 @@ import type { Json } from '@/infrastructure/supabase/database.types';
 import { formatDate, formatTime } from '@/shared/utils/dateTime';
 import { useSessionChannel } from '@/core/realtime/useSessionChannel';
 
+type DoctorSessionRpcClient = {
+  rpc: (
+    fn: string,
+    args: Record<string, unknown>
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
 interface Note { id: string; content: string; type: 'subjective' | 'objective' | 'assessment' | 'plan'; created_at: string; created_by: string; }
 interface SessionData { id: string; patient_id: string; patient_name: string; patient_name_ar: string | null; session_status: string; created_at: string; waiting_time_minutes: number | null; session_duration_minutes: number | null; is_insured: boolean; core_score_display: number | null; core_score_backend: number | null; patient_class: string | null; doctor_notes: string | null; par_result: string | null; room_id: string | null; agenda_event_id: string | null; dominant_disc_profile: string | null; allergies: string | null; }
 interface SessionQueryResult { id: string; patient_id: string; session_status: string; created_at: string; waiting_time_minutes: number | null; session_duration_minutes: number | null; is_insured: boolean; core_score_display: number | null; core_score_backend: number | null; patient_class: string | null; doctor_notes: string | null; par_result: string | null; room_id: string | null; agenda_event_id: string | null; session_metadata: Json | null; clinic_patients: { first_name: string; last_name: string; first_name_ar: string | null; last_name_ar: string | null; phone_primary: string; dominant_disc_profile: string | null; allergies: string | null; } | null; }
@@ -58,7 +65,8 @@ export default function DoctorSessionView() {
     const sessionToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
     if (!sessionToken) { setError('PIN session missing'); setLoading(false); return; }
 
-    const { data, error: dbError } = await supabase.rpc('get_doctor_session_for_pin_session', {
+    const rpcClient = supabase as unknown as DoctorSessionRpcClient;
+    const { data, error: dbError } = await rpcClient.rpc('get_doctor_session_for_pin_session', {
       p_tenant_id: tenantId,
       p_session_token: sessionToken,
       p_session_id: sessionId,
