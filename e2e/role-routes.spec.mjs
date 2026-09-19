@@ -81,7 +81,7 @@ test.describe('role and screen coverage', () => {
     for (const route of BASE_ROUTES) {
       await clearBrowserAuth(page);
       await page.goto(route);
-      await expect(page).toHaveURL(/\\/login$/);
+      await expect(page).toHaveURL(/\/login$/);
     }
   });
 });
