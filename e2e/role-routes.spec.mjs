@@ -45,7 +45,17 @@ async function loginAs(page, staff) {
   await expect(page.getByLabel('رمز PIN (4 أرقام)')).toBeVisible();
   await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
   await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
-  await expect(page).toHaveURL(new RegExp(`${expectedDefault[staff.role].replace('/', '\\/')}$`));
+  try {
+    await expect(page).toHaveURL(new RegExp(`\${expectedDefault[staff.role].replace('/', '\\\\/')}$`));
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => ({
+      url: location.href,
+      alerts: Array.from(document.querySelectorAll('[role="alert"]')).map((node) => node.textContent?.trim() ?? ''),
+      authStore: localStorage.getItem('auth-store'),
+      pinSession: sessionStorage.getItem('core-system-pin-session') ? 'present' : 'missing',
+    }));
+    throw new Error(`PIN login failed: ${JSON.stringify(diagnostics)}\\n${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 test.describe('role and screen coverage', () => {
