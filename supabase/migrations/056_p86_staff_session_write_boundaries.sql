@@ -72,7 +72,7 @@ USING (
     public.get_current_user_role() IN ('clinic_admin', 'super_admin', 'receptionist')
     OR (
       public.get_current_user_role() = 'doctor'
-      AND doctor_id = auth.uid()
+      AND primary_doctor_id = auth.uid()
       AND session_status <> 'completed'
     )
   )
@@ -83,7 +83,7 @@ WITH CHECK (
     public.get_current_user_role() IN ('clinic_admin', 'super_admin', 'receptionist')
     OR (
       public.get_current_user_role() = 'doctor'
-      AND doctor_id = auth.uid()
+      AND primary_doctor_id = auth.uid()
       AND session_status <> 'completed'
     )
   )

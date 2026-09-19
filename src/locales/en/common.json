@@ -1,0 +1,26 @@
+{
+  "language": "English",
+  "switchToArabic": "العربية",
+  "roles": {
+    "doctor": "Doctor",
+    "receptionist": "Receptionist",
+    "clinic_admin": "Clinic Admin",
+    "super_admin": "Super Admin"
+  },
+  "tiers": {
+    "trial": "Trial",
+    "essential": "Essential",
+    "professional": "Professional",
+    "enterprise": "Enterprise",
+    "suspended": "Suspended"
+  },
+  "severity": {
+    "critical": "Critical",
+    "warning": "Warning",
+    "info": "Info"
+  },
+  "actions": {
+    "reload": "Reload",
+    "changeLanguage": "Change language"
+  }
+}

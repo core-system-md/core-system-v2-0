@@ -1,0 +1,20 @@
+{
+  "title": "Survey",
+  "next": "Next",
+  "back": "Back",
+  "complete": "Complete survey",
+  "sessionRequired": "Session number is required",
+  "sessionRequiredDetail": "The survey cannot be accessed without a valid session number.",
+  "saveError": "Unable to save the data. Please try again.",
+  "saveSuccess": "Your answers and electronic signature were saved successfully. Thank you for your time.",
+  "completeSuccess": "Survey completed successfully",
+  "saving": "Saving data...",
+  "progress": {
+    "label": "Survey progress",
+    "pageOf": "Page {{current}} of {{total}}",
+    "current": "current",
+    "completed": "completed",
+    "last": "Last",
+    "continue": "Continue to complete the survey"
+  }
+}

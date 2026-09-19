@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import { Shield, ToggleLeft, ToggleRight, Info, Save, RefreshCw } from 'lucide-react';
+import { TIER_LABELS } from '@/shared/constants/labels';
 
 interface FeatureFlag {
   id: string;
@@ -30,14 +31,6 @@ interface Tenant {
 }
 
 const ALL_TIERS = ['trial', 'essential', 'professional', 'enterprise'];
-
-const TIER_LABELS: Record<string, string> = {
-  trial: 'تجريبي',
-  essential: 'أساسي',
-  professional: 'احترافي',
-  enterprise: 'مؤسسي',
-  suspended: 'موقوف',
-};
 
 const PRESET_FLAGS = [
   { key: 'AI_REPORTS', name: 'AI-Generated Clinical Reports', desc: 'Generate AI clinical reports from session notes' },
@@ -64,7 +57,6 @@ export default function FeatureFlagManager() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch active feature flags only; soft-deleted rows are not operational state.
       const { data: flagsData, error: flagsError } = await supabase
         .from('feature_flags')
         .select('id, tenant_id, flag_key, flag_name, description, is_enabled, allowed_tiers, config_json')
@@ -84,7 +76,6 @@ export default function FeatureFlagManager() {
         config_json: r.config_json ?? null,
       })));
 
-      // Fetch tenants for dropdown
       const { data: tenantsData, error: tenantsError } = await supabase
         .from('master_tenants')
         .select('id, clinic_name, clinic_name_ar, subscription_tier')

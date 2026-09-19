@@ -1,14 +1,10 @@
--- Migration 031: RLS Policies for analytics_events, currency_reference, medical_procedure_taxonomy
--- Date: 2026-06-24
-
-CREATE POLICY IF NOT EXISTS rls_analytics_events_select
-  ON analytics_events FOR SELECT
-  USING (tenant_id = get_current_tenant_id());
-
-CREATE POLICY IF NOT EXISTS rls_currency_reference_select
-  ON currency_reference FOR SELECT
-  USING (true);
-
-CREATE POLICY IF NOT EXISTS rls_taxonomy_select
-  ON medical_procedure_taxonomy FOR SELECT
-  USING (true);
+-- Migration 031: RLS policy reconciliation for reference/analytics tables
+--
+-- The required policies are already created explicitly by migration 022 with
+-- the canonical access contract (including TO authenticated for analytics and
+-- global reference reads). PostgreSQL does not support CREATE POLICY IF NOT
+-- EXISTS, so repeating those CREATE POLICY statements here would fail replay
+-- and could also change the established policy semantics.
+--
+-- Keep this migration intentionally idempotent/no-op for historical replay.
+SELECT 1;

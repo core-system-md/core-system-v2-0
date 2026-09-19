@@ -12,6 +12,6 @@ USING (
   tenant_id = get_current_tenant_id()
   AND (
     get_current_user_role() IN ('clinic_admin', 'super_admin', 'receptionist')
-    OR doctor_id = auth.uid()
+    OR primary_doctor_id = auth.uid()
   )
 );

@@ -47,72 +47,127 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ─── STATE MACHINE: BOOTING → CHECKING_SESSION ────────
     store.startChecking();
 
-    // ─── Check existing session ───────────────────────────
-    supabase.auth.getUser().then(({ data: { user }, error }) => {
+    const restorePinSession = async () => {
+      const token = sessionStorage.getItem('core-system-pin-session');
+      const tenantId = store.tenant_id;
+
+      if (!token || !tenantId) return false;
+
+      try {
+        const rpc = supabase.rpc as unknown as (
+          fn: string,
+          args: { p_tenant_id: string; p_session_token: string },
+        ) => Promise<{ data: unknown; error: { message: string } | null }>;
+
+        const { data, error } = await rpc('restore_pin_session', {
+          p_tenant_id: tenantId,
+          p_session_token: token,
+        });
+
+        if (error) return false;
+
+        const result = data as unknown as Record<string, unknown> | null;
+        if (!result?.success || !result.user_id) {
+          sessionStorage.removeItem('core-system-pin-session');
+          return false;
+        }
+
+        const authUser: AuthUser = {
+          id: String(result.user_id),
+          email: (result.email as string | null) ?? null,
+          full_name: (result.full_name as string) ?? '',
+          full_name_ar: (result.full_name_ar as string | null) ?? null,
+          role: (result.role as AuthUser['role']) || 'receptionist',
+          tenant_id: (result.tenant_id as string) ?? tenantId,
+          employee_code: (result.employee_code as string | null) ?? null,
+          pin_code: null,
+          phone: (result.phone as string | null) ?? null,
+          specialization: (result.specialization as string | null) ?? null,
+        };
+
+        store.login(authUser, null, null);
+        store.setPinAuthenticated(true);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    // ─── Check existing authentication ───────────────────
+    const initializeAuth = async () => {
+      if (await restorePinSession()) return;
+
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) {
         // If tenant context exists (license validated), don't wipe tenant data
-        // Just mark auth as unauthenticated so PIN flow can proceed
+        // Just mark auth as unauthenticated so PIN flow can proceed.
         if (store.tenant_id) {
           store.setStatus('UNAUTHENTICATED');
           return;
         }
 
-        // No tenant context — full unauthenticate
+        // No tenant context — full unauthenticate.
         store.unauthenticate(error?.message ?? null);
         return;
       }
 
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) {
-          // If tenant context exists, keep it for PIN flow
-          if (store.tenant_id) {
-            store.setStatus('UNAUTHENTICATED');
-            return;
-          }
-
-          store.unauthenticate();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // If tenant context exists, keep it for PIN flow.
+        if (store.tenant_id) {
+          store.setStatus('UNAUTHENTICATED');
           return;
         }
 
-        store.setSession(session);
-        store.setSupabaseUser(user);
+        store.unauthenticate();
+        return;
+      }
 
-        supabase
-          .from('clinic_users')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-          .then(({ data: profile, error: profileError }) => {
-            if (profileError || !profile) {
-              store.unauthenticate(profileError?.message || 'Profile not found');
-              return;
-            }
+      store.setSession(session);
+      store.setSupabaseUser(user);
 
-            const authUser: AuthUser = {
-              id: profile.id,
-              email: user.email ?? null,
-              full_name: profile.full_name ?? '',
-              full_name_ar: profile.full_name_ar ?? null,
-              role: (profile.role as AuthUser['role']) || 'receptionist',
-              tenant_id: profile.tenant_id ?? '',
-              employee_code: profile.employee_code ?? null,
-              pin_code: profile.pin_code ?? null,
-              phone: profile.phone ?? null,
-              specialization: profile.specialization ?? null,
-              avatar_url: user.user_metadata?.avatar_url ?? null,
-            };
+      const { data: profile, error: profileError } = await supabase
+        .from('clinic_users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-            store.authenticate(authUser, user, session);
-          });
-      });
-    });
+      if (profileError || !profile) {
+        store.unauthenticate(profileError?.message || 'Profile not found');
+        return;
+      }
+
+      const authUser: AuthUser = {
+        id: profile.id,
+        email: user.email ?? null,
+        full_name: profile.full_name ?? '',
+        full_name_ar: profile.full_name_ar ?? null,
+        role: (profile.role as AuthUser['role']) || 'receptionist',
+        tenant_id: profile.tenant_id ?? '',
+        employee_code: profile.employee_code ?? null,
+        pin_code: profile.pin_code ?? null,
+        phone: profile.phone ?? null,
+        specialization: profile.specialization ?? null,
+        avatar_url: user.user_metadata?.avatar_url ?? null,
+      };
+
+      store.authenticate(authUser, user, session);
+    };
+
+    void initializeAuth();
 
     // ─── Listen for auth state changes ────────────────────
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        // If tenant context exists, keep it for re-auth
+        // PIN authentication is independent of Supabase Auth. A valid PIN
+        // session token must survive route reloads without being logged out.
+        if (store.tenant_id && sessionStorage.getItem('core-system-pin-session')) {
+          return;
+        }
+
+        // If tenant context exists, keep it for re-auth.
         if (store.tenant_id) {
           store.setStatus('UNAUTHENTICATED');
           return;

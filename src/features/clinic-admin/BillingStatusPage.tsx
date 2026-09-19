@@ -3,24 +3,14 @@ import { CalendarClock, CreditCard, Smartphone } from 'lucide-react';
 import { supabase } from '@/infrastructure/supabase/client';
 import { useAuthStore } from '@/shared/store/authStore';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { TIER_LABELS } from '@/shared/constants/labels';
+import { formatDateLocale } from '@/shared/utils/locale';
 
 const TRIAL_DAYS = 14;
 
-const TIER_LABELS: Record<string, string> = {
-  trial: 'تجريبي',
-  essential: 'أساسي',
-  professional: 'احترافي',
-  enterprise: 'مؤسسي',
-  suspended: 'موقوف',
-};
-
 function formatDate(value: string | null) {
   if (!value) return 'غير محدد';
-  return new Date(value).toLocaleDateString('ar-JO', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  return formatDateLocale(value, { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 function addDays(value: string, days: number) {
@@ -83,7 +73,7 @@ export default function BillingStatusPage() {
 
   return (
     <PermissionGuard required="view_invoices">
-      <section className="space-y-4" dir="rtl">
+      <section className="space-y-4">
         <div className="flex items-center gap-3">
           <CreditCard className="h-6 w-6 text-primary" />
           <div>
