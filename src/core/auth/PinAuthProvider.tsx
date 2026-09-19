@@ -30,8 +30,7 @@ export function usePinAuth() {
         });
 
         if (sessionError) {
-          store.setError(sessionError.message);
-          store.unauthenticate();
+          store.unauthenticate(sessionError.message);
           store.incrementPinAttempt();
           return { success: false, error: sessionError.message };
         }
@@ -41,8 +40,7 @@ export function usePinAuth() {
           const msg = sessionResult?.error === 'RATE_LIMIT_EXCEEDED'
             ? 'Too many PIN attempts. Try again later.'
             : 'Invalid PIN or employee code';
-          store.setError(msg);
-          store.unauthenticate();
+          store.unauthenticate(msg);
           store.incrementPinAttempt();
           return { success: false, error: msg };
         }
@@ -71,8 +69,7 @@ export function usePinAuth() {
         return { success: true, user: authUser };
       } catch (err: any) {
         const msg = err?.message || 'PIN validation failed';
-        store.setError(msg);
-        store.unauthenticate();
+        store.unauthenticate(msg);
         store.incrementPinAttempt();
         return { success: false, error: msg };
       }
