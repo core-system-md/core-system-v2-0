@@ -27,7 +27,37 @@ async function loginAs(page, staff) {
   await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
   await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
   try {
-    await expect(page).toHaveURL(new RegExp(`\${defaultRoute[staff.role].replace('/', '\\\\/')}$`));
+    const expectedRoute = defaultRoute[staff.role];
+    await expect(page).toHaveURL(new RegExp(`${expectedRoute.replace('/', '\\/')}import { test, expect } from '@playwright/test';
+import { E2E_STAFF, E2E_LICENSE_KEY } from './fixtures/staff.mjs';
+
+const protectedRoutes = ['/admin', '/doctor', '/reception', '/super-admin'];
+const defaultRoute = {
+  super_admin: '/super-admin',
+  clinic_admin: '/admin',
+  doctor: '/doctor',
+  receptionist: '/reception',
+};
+const privilegedDenied = {
+  clinic_admin: ['/super-admin', '/super-admin/billing'],
+  doctor: ['/admin', '/admin/billing', '/reception', '/reception/invoices', '/super-admin'],
+  receptionist: ['/admin', '/admin/billing', '/doctor', '/super-admin'],
+};
+
+async function reset(page) {
+  await page.goto('/login');
+  await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+  await page.reload();
+}
+
+async function loginAs(page, staff) {
+  await reset(page);
+  await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
+  await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
+  await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
+  await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
+  try {
+    ));
   } catch (error) {
     const diagnostics = await page.evaluate(() => ({
       url: location.href,
