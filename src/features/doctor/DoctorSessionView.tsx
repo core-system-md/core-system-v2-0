@@ -5,6 +5,7 @@ import { useAuthStore } from '@/shared/store/authStore';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
+import { PIN_SESSION_STORAGE_KEY } from '@/core/auth/PinAuthProvider';
 import DecisionCard from '@/components/doctor/DecisionCard';
 import CoreScoreWidget from '@/components/CoreScoreWidget';
 import { ClinicalNotes } from './ClinicalNotes';
@@ -54,12 +55,15 @@ export default function DoctorSessionView() {
     if (!['doctor', 'clinic_admin', 'super_admin'].includes(role)) { setError('Access denied'); setLoading(false); return; }
     setLoading(true); setError(null);
 
-    let query = supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, session_metadata, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId).is('deleted_at', null).is('clinic_patients.deleted_at', null);
-    if (role === 'doctor') {
-      query = query.eq('doctor_id', user.id);
-    }
+    const sessionToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
+    if (!sessionToken) { setError('PIN session missing'); setLoading(false); return; }
 
-    const { data, error: dbError } = await query.single();
+    const { data, error: dbError } = await supabase.rpc('get_doctor_session_for_pin_session', {
+      p_tenant_id: tenantId,
+      p_session_token: sessionToken,
+      p_session_id: sessionId,
+    });
+
     if (dbError || !data) { setError(dbError?.message || 'Session not found or access denied'); setLoading(false); return; }
     const row = data as unknown as SessionQueryResult;
     const patient = row.clinic_patients;
