@@ -25,6 +25,22 @@ ALTER TABLE clinic_visit_sessions
   );
 
 
+-- Governance trigger 021 also observes the canonical invoice contract.
+ALTER TABLE clinic_invoices
+  ADD COLUMN IF NOT EXISTS invoice_status VARCHAR(20) NOT NULL DEFAULT 'draft',
+  ADD COLUMN IF NOT EXISTS doctor_par_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS collected_reception BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS amount_paid_subunits INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS match_triangulation BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE clinic_invoices
+  DROP CONSTRAINT IF EXISTS clinic_invoices_invoice_status_check;
+
+ALTER TABLE clinic_invoices
+  ADD CONSTRAINT clinic_invoices_invoice_status_check CHECK (
+    invoice_status IN ('draft','issued','paid','partial','cancelled','refunded')
+  );
+
 -- The governance trigger in 021 observes the six behavioral score columns.
 -- They belong to the session schema and must exist before governance triggers are created.
 ALTER TABLE clinic_visit_sessions
