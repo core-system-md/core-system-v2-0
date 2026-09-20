@@ -70,7 +70,7 @@ test.describe('role and screen coverage', () => {
       page.on('response', async (response) => {
         if (response.status() < 400) return;
         let body = '';
-        try { body = await response.text(); } catch {}
+        try { body = await response.text(); } catch { body = ''; }
         badResponses.push(`${response.status()} ${response.url()} :: ${body.slice(0, 1000)}`);
       });
       page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}`));
