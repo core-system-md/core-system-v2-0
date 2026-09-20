@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'archive/**', 'features_backup/**', 'rules_backup/**', 'scoring_duplicates/**', 'sessions_backup/**'],
+    ignores: ['dist/**', 'node_modules/**', 'archive/**', 'features_backup/**', 'rules_backup/**', 'scoring_duplicates/**', 'sessions_backup/**', 'src/components/ui/*.tsx'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
