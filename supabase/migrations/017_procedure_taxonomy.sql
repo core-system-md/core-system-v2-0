@@ -14,9 +14,9 @@ CREATE TABLE medical_procedure_taxonomy (
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT uq_taxonomy_standard_code UNIQUE (standard_code_type, standard_code) 
-        WHERE standard_code IS NOT NULL AND standard_code_type IS NOT NULL
 );
+CREATE UNIQUE INDEX uq_taxonomy_standard_code ON medical_procedure_taxonomy(standard_code_type, standard_code)
+    WHERE standard_code IS NOT NULL AND standard_code_type IS NOT NULL;
 CREATE INDEX idx_taxonomy_specialty ON medical_procedure_taxonomy(medical_specialty, is_active) 
     WHERE is_active = TRUE;
 CREATE INDEX idx_taxonomy_category ON medical_procedure_taxonomy(category);
