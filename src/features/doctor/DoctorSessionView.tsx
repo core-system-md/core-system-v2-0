@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
+import { PIN_SESSION_STORAGE_KEY } from '@/core/auth/PinAuthProvider';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import DecisionCard from '@/components/doctor/DecisionCard';
 import CoreScoreWidget from '@/components/CoreScoreWidget';
@@ -17,6 +18,13 @@ import { AlertCircle, User, Calendar, Clock, Shield } from 'lucide-react';
 import type { Json } from '@/infrastructure/supabase/database.types';
 import { formatDate, formatTime } from '@/shared/utils/dateTime';
 import { useSessionChannel } from '@/core/realtime/useSessionChannel';
+
+type DoctorSessionRpcClient = {
+  rpc: (
+    fn: string,
+    args: Record<string, unknown>
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
 
 interface Note { id: string; content: string; type: 'subjective' | 'objective' | 'assessment' | 'plan'; created_at: string; created_by: string; }
 interface SessionData { id: string; patient_id: string; patient_name: string; patient_name_ar: string | null; session_status: string; created_at: string; waiting_time_minutes: number | null; session_duration_minutes: number | null; is_insured: boolean; core_score_display: number | null; core_score_backend: number | null; patient_class: string | null; doctor_notes: string | null; par_result: string | null; room_id: string | null; agenda_event_id: string | null; dominant_disc_profile: string | null; allergies: string | null; }
@@ -54,12 +62,16 @@ export default function DoctorSessionView() {
     if (!['doctor', 'clinic_admin', 'super_admin'].includes(role)) { setError('Access denied'); setLoading(false); return; }
     setLoading(true); setError(null);
 
-    let query = supabase.from('clinic_visit_sessions').select(`id, patient_id, session_status, created_at, waiting_time_minutes, session_duration_minutes, is_insured, core_score_display, core_score_backend, patient_class, doctor_notes, par_result, room_id, agenda_event_id, session_metadata, clinic_patients!inner(first_name, last_name, first_name_ar, last_name_ar, phone_primary, dominant_disc_profile, allergies)`).eq('id', sessionId).eq('tenant_id', tenantId).is('deleted_at', null).is('clinic_patients.deleted_at', null);
-    if (role === 'doctor') {
-      query = query.eq('doctor_id', user.id);
-    }
+    const sessionToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
+    if (!sessionToken) { setError('PIN session missing'); setLoading(false); return; }
 
-    const { data, error: dbError } = await query.single();
+    const rpcClient = supabase as unknown as DoctorSessionRpcClient;
+    const { data, error: dbError } = await rpcClient.rpc('get_doctor_session_for_pin_session', {
+      p_tenant_id: tenantId,
+      p_session_token: sessionToken,
+      p_session_id: sessionId,
+    });
+
     if (dbError || !data) { setError(dbError?.message || 'Session not found or access denied'); setLoading(false); return; }
     const row = data as unknown as SessionQueryResult;
     const patient = row.clinic_patients;
