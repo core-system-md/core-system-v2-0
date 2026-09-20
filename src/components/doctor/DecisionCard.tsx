@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/infrastructure/supabase/client';
+import { PIN_SESSION_STORAGE_KEY } from '@/core/auth/PinAuthProvider';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import CoreScoreEngine from '@/core/rules/scoring/CoreScoreEngine';
 import CoreScoreMeter from '@/shared/components/ui/CoreScoreMeter';
@@ -106,10 +107,23 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
     if (!sessionId) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('clinic_visit_sessions').update({
-        par_result: selectedPar, updated_at: new Date().toISOString()
-      }).eq('id', sessionId).eq('tenant_id', tenant_id).is('deleted_at', null);
-      if (error) throw error;
+      const pinToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
+      if (pinToken) {
+        const { data, error } = await rpcClient.rpc('save_doctor_par_for_pin_session', {
+          p_tenant_id: tenant_id,
+          p_session_token: pinToken,
+          p_session_id: sessionId,
+          p_par_result: selectedPar,
+        });
+        if (error) throw error;
+        const result = data as { success?: boolean } | null;
+        if (!result?.success) throw new Error('PAR_SAVE_FAILED');
+      } else {
+        const { error } = await supabase.from('clinic_visit_sessions').update({
+          par_result: selectedPar, updated_at: new Date().toISOString()
+        }).eq('id', sessionId).eq('tenant_id', tenant_id).is('deleted_at', null);
+        if (error) throw error;
+      }
       toast.success('تم الحفظ');
     } catch (err: unknown) { toast.error(getErrorMessage(err, 'فشل في الحفظ')); }
     finally { setSaving(false); }
