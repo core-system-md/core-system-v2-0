@@ -1,6 +1,30 @@
 -- 020_session_status_fix.sql
 -- Fix session_status enum if needed
 
+-- Align the legacy session CHECK with the canonical v2.1 lifecycle.
+ALTER TABLE clinic_visit_sessions
+  DROP CONSTRAINT IF EXISTS clinic_visit_sessions_status_check;
+
+ALTER TABLE clinic_visit_sessions
+  ADD CONSTRAINT clinic_visit_sessions_status_check CHECK (
+    session_status IN (
+      'waiting',
+      'in_consultation',
+      'pending_close',
+      'auto_closed',
+      'completed',
+      'cancelled',
+      'System_Closed_Timeout',
+      'pending',
+      'checked_in',
+      'in_progress',
+      'no_show',
+      'abandoned',
+      'rescheduled'
+    )
+  );
+
+
 -- The governance trigger in 021 observes the six behavioral score columns.
 -- They belong to the session schema and must exist before governance triggers are created.
 ALTER TABLE clinic_visit_sessions
