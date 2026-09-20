@@ -2,6 +2,26 @@
 -- Enable RLS on all tables and create helper functions + policies
 
 -- RLS Helper Functions
+-- Keep initial replay helpers in public; current Supabase local auth schema
+-- is managed by Supabase and does not permit application migrations to create
+-- custom functions there. Later auth-metadata migrations replace these helpers
+-- with JWT/app_metadata-backed implementations.
+
+CREATE OR REPLACE FUNCTION public.get_current_tenant_id() RETURNS UUID
+    LANGUAGE SQL STABLE PARALLEL SAFE
+RETURN NULLIF(CURRENT_SETTING('app.current_tenant', TRUE)::TEXT, '')::UUID;
+
+CREATE OR REPLACE FUNCTION public.get_current_user_role() RETURNS TEXT
+    LANGUAGE SQL STABLE PARALLEL SAFE
+RETURN CASE
+    WHEN NULLIF(CURRENT_SETTING('app.is_super_admin', TRUE)::TEXT, '')::BOOLEAN = TRUE
+      THEN 'super_admin'
+    ELSE NULL
+END;
+
+-- Enable RLS on all tables and create helper functions + policies
+
+-- RLS Helper Functions
 CREATE OR REPLACE FUNCTION public.tenant_id() RETURNS UUID 
     LANGUAGE SQL STABLE PARALLEL SAFE 
 RETURN NULLIF(CURRENT_SETTING('app.current_tenant', TRUE)::TEXT, '')::UUID;
