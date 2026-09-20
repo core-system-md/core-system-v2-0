@@ -86,7 +86,37 @@ export default function DoctorSessionView() {
 
   const persistNotes = useCallback(async (updatedNotes: Note[]) => {
     if (!sessionId || !tenantId) return;
-    try { const updatedMeta = { ...sessionMetaRef.current, clinical_notes: updatedNotes }; const { error } = await supabase.from('clinic_visit_sessions').update({ session_metadata: updatedMeta as unknown as Json, updated_at: new Date().toISOString() }).eq('id', sessionId).eq('tenant_id', tenantId).is('deleted_at', null); if (error) { console.error('Persist notes error:', error); toast.error('فشل في حفظ الملاحظات السريرية'); } else { sessionMetaRef.current = updatedMeta; } } catch (err) { console.error('Persist notes exception:', err); }
+    try {
+      const pinToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
+      if (pinToken) {
+        const rpcClient = supabase as unknown as DoctorSessionRpcClient;
+        const { data, error } = await rpcClient.rpc('save_doctor_clinical_notes_for_pin_session', {
+          p_tenant_id: tenantId,
+          p_session_token: pinToken,
+          p_session_id: sessionId,
+          p_clinical_notes: updatedNotes,
+        });
+        if (error) throw error;
+        const result = data as { success?: boolean } | null;
+        if (!result?.success) throw new Error('CLINICAL_NOTES_SAVE_FAILED');
+        sessionMetaRef.current = { ...sessionMetaRef.current, clinical_notes: updatedNotes };
+        return;
+      }
+
+      const updatedMeta = { ...sessionMetaRef.current, clinical_notes: updatedNotes };
+      const { error } = await supabase.from('clinic_visit_sessions')
+        .update({ session_metadata: updatedMeta as unknown as Json, updated_at: new Date().toISOString() })
+        .eq('id', sessionId).eq('tenant_id', tenantId).is('deleted_at', null);
+      if (error) {
+        console.error('Persist notes error:', error);
+        toast.error('فشل في حفظ الملاحظات السريرية');
+      } else {
+        sessionMetaRef.current = updatedMeta;
+      }
+    } catch (err) {
+      console.error('Persist notes exception:', err);
+      toast.error('فشل في حفظ الملاحظات السريرية');
+    }
   }, [sessionId, tenantId]);
 
   const handleAddNote = useCallback((note: Omit<Note, 'id' | 'created_at'>) => { const newNote: Note = { ...note, id: crypto.randomUUID(), created_at: new Date().toISOString() }; setNotes((prev) => { const updated = [...prev, newNote]; persistNotes(updated); return updated; }); }, [persistNotes]);
