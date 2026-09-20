@@ -29,11 +29,11 @@ ALTER TABLE medical_procedure_taxonomy ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "taxonomy_global_select" ON medical_procedure_taxonomy 
     FOR SELECT TO authenticated USING (TRUE);
 CREATE POLICY "taxonomy_super_admin_insert" ON medical_procedure_taxonomy 
-    FOR INSERT TO authenticated WITH CHECK (auth.is_super_admin() = TRUE);
+    FOR INSERT TO authenticated WITH CHECK (public.is_super_admin() = TRUE);
 CREATE POLICY "taxonomy_super_admin_update" ON medical_procedure_taxonomy 
-    FOR UPDATE TO authenticated USING (auth.is_super_admin() = TRUE);
+    FOR UPDATE TO authenticated USING (public.is_super_admin() = TRUE);
 CREATE POLICY "taxonomy_super_admin_delete" ON medical_procedure_taxonomy 
-    FOR DELETE TO authenticated USING (auth.is_super_admin() = TRUE);
+    FOR DELETE TO authenticated USING (public.is_super_admin() = TRUE);
 ALTER TABLE clinic_procedures
     ADD COLUMN taxonomy_id UUID REFERENCES medical_procedure_taxonomy(id) ON DELETE SET NULL,
     ADD COLUMN is_custom BOOLEAN NOT NULL DEFAULT TRUE;
