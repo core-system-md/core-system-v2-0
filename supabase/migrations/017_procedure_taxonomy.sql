@@ -13,7 +13,7 @@ CREATE TABLE medical_procedure_taxonomy (
     is_regional_standard BOOLEAN NOT NULL DEFAULT TRUE,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE UNIQUE INDEX uq_taxonomy_standard_code ON medical_procedure_taxonomy(standard_code_type, standard_code)
     WHERE standard_code IS NOT NULL AND standard_code_type IS NOT NULL;
