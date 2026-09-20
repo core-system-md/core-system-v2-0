@@ -61,6 +61,22 @@ BEGIN
     'room_id', s.room_id,
     'agenda_event_id', s.agenda_event_id,
     'session_metadata', s.session_metadata,
+    'patient_longitudinal_profile', (
+      SELECT jsonb_build_object(
+        'dominant_disc_profile', lp.dominant_disc_profile,
+        'total_visits', lp.total_visits,
+        'total_revenue_subunits', lp.total_revenue_subunits,
+        'loyalty_tier', lp.loyalty_tier,
+        'historical_core_score_avg', lp.historical_core_score_avg,
+        'last_visit_date', lp.last_visit_date
+      )
+      FROM public.patient_longitudinal_profiles lp
+      WHERE lp.patient_id = s.patient_id
+        AND lp.tenant_id = s.tenant_id
+        AND lp.deleted_at IS NULL
+      ORDER BY lp.updated_at DESC NULLS LAST
+      LIMIT 1
+    ),
     'clinic_patients', jsonb_build_object(
       'first_name', p.first_name,
       'last_name', p.last_name,
