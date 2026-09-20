@@ -36,17 +36,15 @@ export default tseslint.config(
         caughtErrorsIgnorePattern: '^_',
       }],
     },
-  }
-);
-
-
-{
-  files: ['**/*.mjs', 'vite.config.js'],
-  languageOptions: {
-    ecmaVersion: 2022,
-    globals: {
-      ...globals.node,
-      ...globals.browser,
+  },
+  {
+    files: ['**/*.mjs', 'vite.config.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
     },
   },
-},
+);
