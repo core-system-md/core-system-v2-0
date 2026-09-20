@@ -116,9 +116,10 @@ serve(async (req) => {
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
   try {
+    const body = await req.json();
     const authHeader = req.headers.get("Authorization") ?? "";
-    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (!token) return json({ error: "UNAUTHORIZED" }, 401);
+    const bearerToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const pinSessionToken = String(body.pinSessionToken ?? body.pin_session_token ?? "").trim();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -128,10 +129,6 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) return json({ error: "UNAUTHORIZED" }, 401);
-
-    const body = await req.json();
     const sessionId = String(body.sessionId ?? body.session_id ?? "").trim();
     const suppliedTenantId = String(body.tenantId ?? body.tenant_id ?? "").trim();
     const indicators = validateIndicators(body.indicators);
@@ -140,15 +137,60 @@ serve(async (req) => {
       return json({ error: "Invalid tenantId" }, 400);
     }
 
-    const { data: clinicUser, error: clinicUserError } = await supabase
-      .from("clinic_users")
-      .select("id, tenant_id, role, is_active")
-      .eq("id", user.id)
-      .is("deleted_at", null)
-      .single();
-    if (clinicUserError || !clinicUser || !clinicUser.is_active || !ALLOWED_ROLES.has(clinicUser.role)) {
-      return json({ error: "FORBIDDEN" }, 403);
+    let callerUserId: string | null = null;
+    let clinicUser: { id: string; tenant_id: string; role: string; is_active: boolean } | null = null;
+
+    if (pinSessionToken) {
+      if (pinSessionToken.length < 32 || !suppliedTenantId) return json({ error: "UNAUTHORIZED" }, 401);
+
+      const tokenBytes = new TextEncoder().encode(pinSessionToken);
+      const digest = await crypto.subtle.digest("SHA-256", tokenBytes);
+      const tokenHash = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+
+      const { data: pinSession, error: pinError } = await supabase
+        .from("pin_sessions")
+        .select("staff_id, tenant_id")
+        .eq("tenant_id", suppliedTenantId)
+        .eq("token_hash", tokenHash)
+        .is("deleted_at", null)
+        .gt("expires_at", new Date().toISOString())
+        .limit(1)
+        .maybeSingle();
+
+      if (pinError || !pinSession?.staff_id) return json({ error: "UNAUTHORIZED" }, 401);
+      callerUserId = pinSession.staff_id;
+
+      const { data: pinUser, error: pinUserError } = await supabase
+        .from("clinic_users")
+        .select("id, tenant_id, role, is_active")
+        .eq("id", callerUserId)
+        .eq("tenant_id", suppliedTenantId)
+        .is("deleted_at", null)
+        .single();
+
+      if (pinUserError || !pinUser || !pinUser.is_active || !ALLOWED_ROLES.has(pinUser.role)) {
+        return json({ error: "FORBIDDEN" }, 403);
+      }
+      clinicUser = pinUser;
+    } else {
+      if (!bearerToken) return json({ error: "UNAUTHORIZED" }, 401);
+      const { data: { user }, error: userError } = await supabase.auth.getUser(bearerToken);
+      if (userError || !user) return json({ error: "UNAUTHORIZED" }, 401);
+
+      callerUserId = user.id;
+      const { data: authClinicUser, error: clinicUserError } = await supabase
+        .from("clinic_users")
+        .select("id, tenant_id, role, is_active")
+        .eq("id", user.id)
+        .is("deleted_at", null)
+        .single();
+
+      if (clinicUserError || !authClinicUser || !authClinicUser.is_active || !ALLOWED_ROLES.has(authClinicUser.role)) {
+        return json({ error: "FORBIDDEN" }, 403);
+      }
+      clinicUser = authClinicUser;
     }
+
     if (suppliedTenantId && suppliedTenantId !== clinicUser.tenant_id) {
       return json({ error: "TENANT_MISMATCH" }, 403);
     }
