@@ -45,14 +45,34 @@ async function loginAs(page, staff) {
   await expect(page.getByLabel('رمز PIN (4 أرقام)')).toBeVisible();
   await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
   await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
-  await expect(page).toHaveURL(new RegExp(`${expectedDefault[staff.role].replace('/', '\\/')}$`));
+
+  try {
+    const expectedRoute = expectedDefault[staff.role];
+    await expect(page).toHaveURL(new RegExp(`${expectedRoute.replace('/', '\\/')}$`));
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => ({
+      url: location.href,
+      alerts: Array.from(document.querySelectorAll('[role="alert"]')).map((node) => node.textContent?.trim() ?? ''),
+      authStore: localStorage.getItem('auth-store'),
+      pinSession: sessionStorage.getItem('core-system-pin-session') ? 'present' : 'missing',
+      authError: document.body.textContent?.match(/(?:خطأ|Error|Invalid|RATE_LIMIT|Too many|PIN)[^\n]*/i)?.[0] ?? '',
+    }));
+    throw new Error(`PIN login failed: ${JSON.stringify(diagnostics)}\n${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 test.describe('role and screen coverage', () => {
   for (const staff of E2E_STAFF) {
     test(`${staff.role}: default route and every permitted screen`, async ({ page }) => {
       const browserErrors = [];
+      const badResponses = [];
       page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()); });
+      page.on('response', async (response) => {
+        if (response.status() < 400) return;
+        let body = '';
+        try { body = await response.text(); } catch { body = ''; }
+        badResponses.push(`${response.status()} ${response.url()} :: ${body.slice(0, 1000)}`);
+      });
       page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}`));
 
       await loginAs(page, staff);
@@ -61,7 +81,8 @@ test.describe('role and screen coverage', () => {
         await page.waitForLoadState('domcontentloaded');
         await expect(page.locator('body')).toContainText(/./);
       }
-      expect(browserErrors, `${staff.role} produced unexpected browser errors`).toEqual([]);
+      await page.waitForTimeout(250);
+      expect(browserErrors, `${staff.role} produced unexpected browser errors; HTTP failures: ${JSON.stringify(badResponses)}`).toEqual([]);
     });
   }
 

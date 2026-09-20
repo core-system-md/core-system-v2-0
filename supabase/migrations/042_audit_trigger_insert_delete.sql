@@ -1,4 +1,4 @@
-﻿-- 042_audit_trigger_insert_delete.sql
+-- 042_audit_trigger_insert_delete.sql
 -- P38-C: Extend fn_audit_sensitive_changes to cover INSERT and DELETE
 -- Existing UPDATE behavior is preserved. Existing triggers are NOT modified.
 
@@ -7,7 +7,7 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $\$
+AS $$
 DECLARE
   v_tenant_id UUID;
   v_record_id UUID;
@@ -82,7 +82,7 @@ BEGIN
 
   RETURN NULL;
 END;
-$\$;
+$$;
 
 -- INSERT trigger for clinic_visit_sessions
 DROP TRIGGER IF EXISTS tr_audit_sessions_insert ON clinic_visit_sessions;

@@ -9,7 +9,7 @@ export function useSessionChannel(tenantId: string, callback?: (payload: unknown
     if (!tenantId || !isAuthenticated) return;
 
     const channel = supabase
-      .channel(`sessions_${tenantId}`)
+      .channel(`session_listener_${tenantId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'clinic_visit_sessions', filter: `tenant_id=eq.${tenantId}` },

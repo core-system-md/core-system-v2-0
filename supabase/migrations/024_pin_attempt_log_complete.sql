@@ -21,6 +21,29 @@ DROP POLICY IF EXISTS rls_pin_attempts_receptionist ON pin_attempt_log;
 DROP POLICY IF EXISTS rls_pin_attempts_own ON pin_attempt_log;
 DROP POLICY IF EXISTS rls_pin_attempts_insert ON pin_attempt_log;
 
+-- Historical migrations 024-033 reference these helpers before migration 034
+-- restores the complete RPC set. Define the canonical JWT-backed helpers here
+-- so a clean migration replay does not depend on a future migration.
+CREATE OR REPLACE FUNCTION get_current_tenant_id()
+RETURNS UUID
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT (auth.jwt()->>'tenant_id')::UUID;
+$$;
+
+CREATE OR REPLACE FUNCTION get_current_user_role()
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT (auth.jwt()->>'user_role')::TEXT;
+$$;
+
 -- Step 5: Create new policies
 
 -- Super admin: full access to all tenants

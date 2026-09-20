@@ -138,3 +138,14 @@ BEGIN
   RETURN jsonb_build_object('intake_id',v_intake_id,'completion_status',v_new_status);
 END;
 $function$;
+
+-- Foundation required by migration 044 before the later runtime functions in migration 047.
+-- Keep this schema identical to the established 047 definition so later CREATE TABLE IF NOT EXISTS remains compatible.
+CREATE TABLE IF NOT EXISTS public.pin_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES public.master_tenants(id),
+  staff_id UUID NOT NULL REFERENCES public.clinic_users(id),
+  token_hash BYTEA NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

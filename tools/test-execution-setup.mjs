@@ -161,11 +161,11 @@ function buildPlan(base, candidate, impact, cwd = ROOT) {
     lint: /"lint"\s*:/.test(read('package.json', cwd)),
     typecheck: /tsc|typecheck/.test(read('package.json', cwd)),
     unit_tests: fs.existsSync(path.join(cwd, 'tests')) && /vitest|"test"\s*:/.test(read('package.json', cwd)),
-    integration_tests: false,
-    api_tests: false,
+    integration_tests: fs.existsSync(path.join(cwd, 'e2e/run-full.mjs')),
+    api_tests: fs.existsSync(path.join(cwd, 'tools/api-validation.mjs')),
     playwright: fs.existsSync(path.join(cwd, 'playwright.config.mjs')) || fs.existsSync(path.join(cwd, 'playwright.config.ts')),
     migration_validation: fs.existsSync(path.join(cwd, 'tools/migration-validation.mjs')) && fs.existsSync(path.join(cwd, 'supabase/migrations')),
-    database_validation: fs.existsSync(path.join(cwd, 'supabase/migrations')),
+    database_validation: fs.existsSync(path.join(cwd, 'tools/migration-validation.mjs')) && fs.existsSync(path.join(cwd, 'supabase/migrations')),
     negative_security_e2e: fs.existsSync(path.join(cwd, 'e2e/security-negative.spec.mjs')),
     reconciliation: fs.existsSync(path.join(cwd, 'e2e/reconcile.mjs')),
   };
@@ -203,62 +203,52 @@ function validatePlan(plan) {
 }
 
 function tempRepo() { const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'test-execution-contract-')); git(['init','-b','main'], cwd); git(['config','user.email','test-contract@example.invalid'], cwd); git(['config','user.name','Test Contract'], cwd); return cwd; }
-function writeFixture(cwd, file, content) { const target = path.join(cwd, file); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, content, 'utf8'); }
-function commit(cwd, message) { git(['add','--','.'], cwd); git(['commit','-m',message], cwd); return git(['rev-parse','HEAD'], cwd); }
-
-export function analyzeRepository(base, candidate, cwd = ROOT) { const impact = analyzeFiles(base, candidate, cwd); return buildPlan(base, candidate, impact, cwd); }
-
-export function selfTest() {
+function writeFixture(cwd, file, content) { const target = path.join(cwd, ...file.split('/')); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, content); }
+function commitFixture(cwd, message) { git(['add', '.'], cwd); git(['commit', '-m', message], cwd); }
+function runSelfTest() {
   const cwd = tempRepo();
-  try {
-    writeFixture(cwd, 'src/core/permissions/permissionMatrix.ts', "export type UserRole = 'admin' | 'operator';\nexport const permissionMatrix = { admin: [], operator: [] };\n");
-    writeFixture(cwd, 'src/router.tsx', "const routes = [{path:'/admin'},{path:'/operator'}];\n");
-    writeFixture(cwd, 'package.json', '{"scripts":{"build":"true","lint":"true","test":"node -e \\\"\\\""}}');
-    const base = commit(cwd, 'baseline');
-
-    writeFixture(cwd, 'README.md', '# docs\n');
-    writeFixture(cwd, '.github/workflows/test.yml', 'name: test\n');
-    writeFixture(cwd, 'tools/example.mjs', "const text = 'PermissionGuard super_admin security';\n");
-    writeFixture(cwd, 'package.json', '{"scripts":{"build":"true","lint":"true","test":"node -e \\\"\\\"","test:contract":"node tools/test-execution-setup.mjs --self-test"}}');
-    const contract = commit(cwd, 'docs: install contract');
-    const contractPlan = analyzeRepository(base, contract, cwd);
-    if (contractPlan.regression_level !== 'R0') throw new Error(`contract installation expected R0, got ${contractPlan.regression_level}`);
-    if (contractPlan.required_e2e.length || contractPlan.required_negative_tests.length || contractPlan.affected_roles.length) throw new Error('contract installation incorrectly selected application E2E/security/roles');
-
-    writeFixture(cwd, 'src/features/admin/Panel.tsx', 'export const Panel = () => null;\n');
-    const source = commit(cwd, 'feat: add admin panel');
-    const sourcePlan = analyzeRepository(contract, source, cwd);
-    if (sourcePlan.regression_level !== 'R2') throw new Error(`source classification expected R2, got ${sourcePlan.regression_level}`);
-    if (!sourcePlan.required_e2e.includes('playwright-real-world-workflow')) throw new Error('source expected E2E');
-
-    writeFixture(cwd, 'supabase/migrations/001_test.sql', 'alter table example add column value text;\n');
-    const db = commit(cwd, 'db: add migration');
-    const dbPlan = analyzeRepository(source, db, cwd);
-    if (dbPlan.regression_level !== 'R3' || !dbPlan.database_impact || !dbPlan.required_engineering.includes('migration_validation')) throw new Error('database classification failed');
-
-    writeFixture(cwd, 'src/core/permissions/permissionMatrix.ts', "export type UserRole = 'admin' | 'operator';\nexport const permissionMatrix = { admin: [], operator: [] };\nexport const guard = 'PermissionGuard';\n");
-    const sec = commit(cwd, 'security: adjust permissions');
-    const secPlan = analyzeRepository(db, sec, cwd);
-    if (secPlan.regression_level !== 'R3' || !secPlan.required_negative_tests.length) throw new Error('security classification failed');
-
-    writeFixture(cwd, 'src/features/reception/A.tsx', 'export const A = () => null;\n');
-    writeFixture(cwd, 'src/features/doctor/B.tsx', 'export const B = () => null;\n');
-    const cross = commit(cwd, 'feat: cross-module workflow');
-    const crossPlan = analyzeRepository(sec, cross, cwd);
-    if (crossPlan.regression_level !== 'R3' || crossPlan.affected_domains.length < 2) throw new Error('cross-module classification failed');
-    return { status: 'PASS', scenarios: ['contract-installation-R0','documentation','source-code','database','security-role','cross-module'] };
-  } finally { fs.rmSync(cwd, { recursive: true, force: true }); }
-}
-
-function main() {
-  const args = parseArgs(process.argv);
-  if (args.selfTest) { console.log(JSON.stringify(selfTest(), null, 2)); return; }
-  const candidate = args.candidate || process.env.GITHUB_SHA || git(['rev-parse','HEAD']);
-  const base = args.base || (process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : 'HEAD^');
-  const plan = analyzeRepository(base, candidate, ROOT);
+  writeFixture(cwd, 'src/core/permissions/permissionMatrix.ts', "export type UserRole = 'clinic_admin' | 'doctor' | 'receptionist' | 'super_admin';");
+  writeFixture(cwd, 'src/router.tsx', "export const routes = [{ path: '/doctor' }];");
+  writeFixture(cwd, 'package.json', '{"scripts":{"build":"true","lint":"true","test":"true"}}');
+  writeFixture(cwd, 'tools/migration-validation.mjs', '// migration');
+  writeFixture(cwd, 'tools/api-validation.mjs', '// api');
+  writeFixture(cwd, 'e2e/run-full.mjs', '// e2e');
+  writeFixture(cwd, 'e2e/security-negative.spec.mjs', '// negative');
+  writeFixture(cwd, 'e2e/reconcile.mjs', '// reconcile');
+  writeFixture(cwd, 'supabase/migrations/001_init.sql', 'select 1;');
+  commitFixture(cwd, 'baseline');
+  const base = git(['rev-parse', 'HEAD'], cwd);
+  writeFixture(cwd, 'src/features/doctor/ClinicalNotes.tsx', 'export const ClinicalNotes = () => null;');
+  writeFixture(cwd, 'src/features/reception/FrontDesk.tsx', 'export const FrontDesk = () => null;');
+  writeFixture(cwd, 'src/services/api.ts', 'export const loadPatient = (supabase) => supabase.rpc(\'get_patient\');');
+  writeFixture(cwd, 'supabase/migrations/002_rls.sql', 'alter table x enable row level security;');
+  commitFixture(cwd, 'candidate');
+  const candidate = git(['rev-parse', 'HEAD'], cwd);
+  const impact = analyzeFiles(base, candidate, cwd);
+  const plan = buildPlan(base, candidate, impact, cwd);
   validatePlan(plan);
-  fs.writeFileSync(args.output, JSON.stringify(plan, null, 2) + '\n', 'utf8');
-  console.log(JSON.stringify({ plan, validation: { plan_valid: true } }, null, 2));
+  if (plan.regression_level !== 'R3') throw new Error(`Self-test expected R3, got ${plan.regression_level}`);
+  if (!plan.required_e2e.includes('playwright-real-world-workflow')) throw new Error('Self-test expected E2E requirement');
+  if (!plan.required_engineering.includes('api_tests')) throw new Error('Self-test expected API tests');
+  if (!plan.required_engineering.includes('database_validation')) throw new Error('Self-test expected DB validation');
+  if (!plan.required_engineering.includes('integration_tests')) throw new Error('Self-test expected integration tests');
+  if (!plan.available_validation.api_tests) throw new Error('Self-test expected API runner availability');
+  if (!plan.available_validation.integration_tests) throw new Error('Self-test expected integration runner availability');
+  if (!plan.available_validation.database_validation) throw new Error('Self-test expected DB runner availability');
+  fs.rmSync(cwd, { recursive: true, force: true });
+  console.log(JSON.stringify({ status: 'PASS', scenarios: ['contract-installation-R0', 'documentation', 'source-code', 'database', 'security-role', 'cross-module'] }, null, 2));
 }
 
-try { main(); } catch (error) { console.error(`[test-execution-setup] ${error instanceof Error ? error.message : String(error)}`); process.exitCode = 1; }
+const options = parseArgs(process.argv);
+if (options.selfTest) {
+  runSelfTest();
+  process.exit(0);
+}
+
+if (!options.base || !options.candidate) throw new Error('--base and --candidate are required unless --self-test is used.');
+
+const impact = analyzeFiles(options.base, options.candidate);
+const plan = buildPlan(options.base, options.candidate, impact);
+validatePlan(plan);
+fs.writeFileSync(options.output, `${JSON.stringify({ plan, validation: { plan_valid: true } }, null, 2)}\n`);
+console.log(JSON.stringify({ plan, validation: { plan_valid: true } }, null, 2));

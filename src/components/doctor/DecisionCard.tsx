@@ -16,6 +16,10 @@ interface SessionData {
   core_score_backend: number | null; core_score_display: number | null;
   patient_class: string | null; doctor_notes: string | null; par_result: string | null; is_insured: boolean;
 }
+interface DoctorSessionRpcResult extends SessionData {
+  patient_longitudinal_profile: LongitudinalData | null;
+  clinic_patients: PatientData & { dominant_disc_profile?: string | null; allergies?: string | null };
+}
 interface PatientData {
   id: string; first_name: string | null; last_name: string | null; phone_primary: string | null;
   date_of_birth: string | null; gender: string | null;
@@ -51,6 +55,9 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
   const [selectedPar, setSelectedPar] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [calculating, setCalculating] = useState(false);
+  const rpcClient = supabase as unknown as {
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+  };
   const [indicators, setIndicators] = useState({
     APS: DEFAULT_INDICATORS.APS, DRI: DEFAULT_INDICATORS.DRI, RVS: DEFAULT_INDICATORS.RVS,
     URI: DEFAULT_INDICATORS.URI, TSI: DEFAULT_INDICATORS.TSI, PQS: DEFAULT_INDICATORS.PQS
@@ -67,33 +74,28 @@ export default function DecisionCard({ sessionId }: DecisionCardProps) {
     if (!sessionId) { toast.error('معرف الجلسة مفقود'); return; }
     setLoading(true);
     try {
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('clinic_visit_sessions').select('*').eq('id', sessionId).eq('tenant_id', tenant_id).is('deleted_at', null).single();
-      if (sessionError) throw sessionError;
-      setSession(sessionData);
-      setSelectedPar(sessionData.par_result);
-      setIndicators({
-        APS: sessionData.score_aps ?? DEFAULT_INDICATORS.APS,
-        DRI: sessionData.score_dri ?? DEFAULT_INDICATORS.DRI,
-        RVS: sessionData.score_rvs ?? DEFAULT_INDICATORS.RVS,
-        URI: sessionData.score_uri ?? DEFAULT_INDICATORS.URI,
-        TSI: sessionData.score_tsi ?? DEFAULT_INDICATORS.TSI,
-        PQS: sessionData.score_pqs ?? DEFAULT_INDICATORS.PQS
+      const token = sessionStorage.getItem('core-system-pin-session');
+      if (!token) throw new Error('PIN session missing');
+      const { data, error: sessionError } = await rpcClient.rpc('get_doctor_session_for_pin_session', {
+        p_tenant_id: tenant_id,
+        p_session_token: token,
+        p_session_id: sessionId,
       });
-      const { data: patientData, error: patientError } = await supabase
-        .from('clinic_patients')
-        .select('id, first_name, last_name, phone_primary, date_of_birth, gender')
-        .eq('id', sessionData.patient_id!)
-        .eq('tenant_id', tenant_id)
-        .is('deleted_at', null)
-        .single();
-      if (patientError) throw patientError;
-      setPatient(patientData);
-      const { data: longData, error: longError } = await supabase
-        .from('patient_longitudinal_profiles').select('dominant_disc_profile, total_visits, total_revenue_subunits, loyalty_tier, historical_core_score_avg, last_visit_date')
-        .eq('patient_id', sessionData.patient_id!).eq('tenant_id', tenant_id).is('deleted_at', null).single();
-      if (longError && longError.code !== 'PGRST116') throw longError;
-      setLongitudinal(longData);
+      if (sessionError) throw sessionError;
+      const result = data as DoctorSessionRpcResult | null;
+      if (!result?.clinic_patients) throw new Error('Session not found or access denied');
+      setSession(result);
+      setSelectedPar(result.par_result);
+      setIndicators({
+        APS: result.score_aps ?? DEFAULT_INDICATORS.APS,
+        DRI: result.score_dri ?? DEFAULT_INDICATORS.DRI,
+        RVS: result.score_rvs ?? DEFAULT_INDICATORS.RVS,
+        URI: result.score_uri ?? DEFAULT_INDICATORS.URI,
+        TSI: result.score_tsi ?? DEFAULT_INDICATORS.TSI,
+        PQS: result.score_pqs ?? DEFAULT_INDICATORS.PQS
+      });
+      setPatient(result.clinic_patients);
+      setLongitudinal(result.patient_longitudinal_profile);
     } catch (err: unknown) {
       console.error('Session fetch error:', err);
       toast.error(getErrorMessage(err, 'فشل في تحميل بيانات الجلسة'));

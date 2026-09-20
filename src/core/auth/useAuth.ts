@@ -43,15 +43,15 @@ export function useAuth() {
       const rpc = supabase.rpc as unknown as (fn: string, args: { p_tenant_id: string; p_pin: string }) => ReturnType<typeof supabase.rpc>;
       const createPinSession = rpc.bind(supabase, 'create_pin_session') as unknown as PinSessionRpc;
       const { data, error } = await createPinSession({ p_tenant_id: tenantId, p_pin: pin });
-      if (error) { store.setError(error.message); store.unauthenticate(); store.incrementPinAttempt(); return { success: false, error: error.message }; }
+      if (error) { store.unauthenticate(error.message); store.incrementPinAttempt(); return { success: false, error: error.message }; }
       const result = data as RpcResult;
-      if (!result?.success || !result.session_token) { const msg = result?.error === 'RATE_LIMIT_EXCEEDED' ? 'Too many PIN attempts. Try again later.' : 'Invalid PIN'; store.setError(msg); store.unauthenticate(); store.incrementPinAttempt(); return { success: false, error: msg }; }
+      if (!result?.success || !result.session_token) { const msg = result?.error === 'RATE_LIMIT_EXCEEDED' ? 'Too many PIN attempts. Try again later.' : 'Invalid PIN'; store.unauthenticate(msg); store.incrementPinAttempt(); return { success: false, error: msg }; }
       const authUser: AuthUser = { id: String(result.user_id ?? ''), email: (result.email as string | null) ?? null, full_name: (result.full_name as string) ?? '', full_name_ar: (result.full_name_ar as string | null) ?? null, role: (result.role as AuthUser['role']) || 'receptionist', tenant_id: (result.tenant_id as string) ?? tenantId, employee_code: (result.employee_code as string | null) ?? null, pin_code: null, phone: (result.phone as string | null) ?? null, specialization: (result.specialization as string | null) ?? null };
       sessionStorage.setItem(PIN_SESSION_STORAGE_KEY, String(result.session_token));
       store.resetPinAttempts(); store.login(authUser, null, null); store.setPinAuthenticated(true);
       return { success: true, user: authUser };
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'PIN validation failed'; store.setError(msg); store.unauthenticate(); store.incrementPinAttempt(); return { success: false, error: msg };
+      const msg = err instanceof Error ? err.message : 'PIN validation failed'; store.unauthenticate(msg); store.incrementPinAttempt(); return { success: false, error: msg };
     }
   }, [store]);
 

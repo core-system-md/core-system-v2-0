@@ -1,0 +1,32 @@
+{
+  "title": "Clinic administration",
+  "staff": "Staff",
+  "schedule": "Schedule",
+  "billing": "Billing",
+  "analytics": {
+    "error": "Unable to load analytics indicators: {{message}}",
+    "totalPatients": "Total patients",
+    "visitsToday": "Visits today",
+    "revenueToday": "Revenue today",
+    "avgWait": "Average wait time",
+    "minutes": "minutes",
+    "slaBreaches": "SLA breaches",
+    "hotLeads": "Hot leads"
+  },
+  "audit": {
+    "title": "Audit trail",
+    "description": "Clinic changes recorded according to current permissions.",
+    "loading": "Loading audit trail...",
+    "error": "Unable to load audit trail: {{message}}",
+    "empty": "No audit events found.",
+    "date": "Date",
+    "action": "Action",
+    "table": "Table",
+    "role": "Role",
+    "id": "ID",
+    "reason": "Reason",
+    "page": "Page {{current}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next"
+  }
+}

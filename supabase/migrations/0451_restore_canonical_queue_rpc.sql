@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 045: Restore canonical get_queue_for_tenant contract
+-- Migration 0451: Restore canonical get_queue_for_tenant contract
 -- Purpose: reconcile Production with the repository RPC contract and
 --          restore tenant authorization for this SECURITY DEFINER RPC.
 -- No table/schema changes; existing session columns are used.

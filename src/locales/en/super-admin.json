@@ -1,0 +1,20 @@
+{
+  "title": "System administration",
+  "tenants": "Clinics",
+  "features": "Features",
+  "alerts": "Alerts",
+  "systemAlerts": {
+    "title": "System alert console",
+    "description": "View breaches across all clinics.",
+    "refresh": "Refresh",
+    "loading": "Loading...",
+    "clinic": "Clinic",
+    "type": "Type",
+    "severity": "Severity",
+    "status": "Status",
+    "details": "Details",
+    "date": "Date",
+    "resolved": "Resolved",
+    "open": "Open"
+  }
+}
