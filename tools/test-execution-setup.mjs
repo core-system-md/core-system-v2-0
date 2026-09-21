@@ -165,7 +165,7 @@ function buildPlan(base, candidate, impact, cwd = ROOT) {
     api_tests: fs.existsSync(path.join(cwd, 'api_tests/rpc-contract.mjs')),
     playwright: fs.existsSync(path.join(cwd, 'playwright.config.mjs')) || fs.existsSync(path.join(cwd, 'playwright.config.ts')),
     migration_validation: fs.existsSync(path.join(cwd, 'tools/migration-validation.mjs')) && fs.existsSync(path.join(cwd, 'supabase/migrations')),
-    database_validation: fs.existsSync(path.join(cwd, 'supabase/migrations')),
+    database_validation: fs.existsSync(path.join(cwd, 'database_tests/schema-contract.mjs')) && /\"test:database\"\s*:/.test(read('package.json', cwd)),
     negative_security_e2e: fs.existsSync(path.join(cwd, 'e2e/security-negative.spec.mjs')),
     reconciliation: fs.existsSync(path.join(cwd, 'e2e/reconcile.mjs')),
   };
