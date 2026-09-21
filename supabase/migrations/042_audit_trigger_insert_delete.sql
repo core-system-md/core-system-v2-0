@@ -61,5 +61,4 @@ CREATE TRIGGER tr_audit_invoices_insert
 AFTER INSERT ON public.clinic_invoices
 FOR EACH ROW EXECUTE FUNCTION public.fn_audit_sensitive_changes();
 
-DROP TRIGGER IF EXISTS tr_audit_invoices_delete ON public.clinic_invoices
-FOR EACH ROW EXECUTE FUNCTION public.fn_audit_sensitive_changes();
+DROP TRIGGER IF EXISTS tr_audit_invoices_delete ON public.clinic_invoices;
