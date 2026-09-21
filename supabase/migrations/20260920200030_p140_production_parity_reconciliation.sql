@@ -31,7 +31,19 @@ WHERE clinic_name IS NULL;
 
 ALTER TABLE public.clinic_patients
   ADD COLUMN IF NOT EXISTS patient_status VARCHAR(30),
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS phone_primary TEXT,
+  ADD COLUMN IF NOT EXISTS phone_secondary VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS preferred_channel VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS first_visit_date DATE,
+  ADD COLUMN IF NOT EXISTS referral_source VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS notes TEXT,
+  ADD COLUMN IF NOT EXISTS core_score_display NUMERIC(5,1),
+  ADD COLUMN IF NOT EXISTS dominant_disc_profile VARCHAR(50);
+
+UPDATE public.clinic_patients
+SET phone_primary = COALESCE(phone_primary, phone)
+WHERE phone_primary IS NULL;
 
 ALTER TABLE public.clinic_visit_sessions
   ADD COLUMN IF NOT EXISTS is_insured BOOLEAN NOT NULL DEFAULT FALSE,
