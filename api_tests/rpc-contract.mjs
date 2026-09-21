@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { E2E_LICENSE_KEY, E2E_STAFF, E2E_TENANT_ID } from '../e2e/fixtures/staff.mjs';
+import { E2E_STAFF, E2E_TENANT_ID } from '../e2e/fixtures/staff.mjs';
 
 for (const key of ['SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY']) {
   if (!process.env[key]) throw new Error(`[API] Missing required environment variable: ${key}`);
