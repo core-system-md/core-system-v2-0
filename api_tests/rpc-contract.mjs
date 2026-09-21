@@ -8,7 +8,7 @@ for (const key of ['SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_R
 const tenantId = process.env.E2E_TENANT_ID ?? E2E_TENANT_ID;
 const supabaseUrl = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').trim();
 const anonKey = (process.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
-if (!/^https?:\\/\\//i.test(supabaseUrl)) throw new Error(`[API] Invalid isolated Supabase URL: ${JSON.stringify(supabaseUrl)}`);
+if (!/^https?:\/\//i.test(supabaseUrl)) throw new Error(`[API] Invalid isolated Supabase URL: ${JSON.stringify(supabaseUrl)}`);
 if (!anonKey) throw new Error('[API] Missing isolated Supabase anon key after environment normalization.');
 const anon = createClient(supabaseUrl, anonKey, {
   auth: { autoRefreshToken: false, persistSession: false },
