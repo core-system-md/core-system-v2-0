@@ -21,9 +21,10 @@ jobs:
   execution-contract:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout full history
+      - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Setup Node
@@ -67,7 +68,7 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           DISPATCH_BASE: ${{ inputs.base_ref }}
           DISPATCH_CANDIDATE: ${{ inputs.candidate_ref }}
-          WORKFLOW_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           if [ -n "$PR_BASE_SHA" ]; then
             echo "base=$PR_BASE_SHA" >> "$GITHUB_OUTPUT"
