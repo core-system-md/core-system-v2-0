@@ -7,10 +7,15 @@ for (const key of ['SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_R
 }
 
 const tenantId = process.env.E2E_TENANT_ID ?? E2E_TENANT_ID;
-const anon = createClient(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, {
+const supabaseUrl = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').trim();
+const anonKey = (process.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
+const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
+if (!/^https?:\\/\\//i.test(supabaseUrl)) throw new Error(`[INTEGRATION] Invalid isolated Supabase URL: ${JSON.stringify(supabaseUrl)}`);
+if (!anonKey || !serviceRoleKey) throw new Error('[INTEGRATION] Missing isolated Supabase credentials after environment normalization.');
+const anon = createClient(supabaseUrl, anonKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+const admin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
