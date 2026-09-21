@@ -45,6 +45,9 @@ UPDATE public.clinic_patients
 SET phone_primary = COALESCE(phone_primary, phone)
 WHERE phone_primary IS NULL;
 
+ALTER TABLE public.patient_intake_responses
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
 ALTER TABLE public.clinic_visit_sessions
   ADD COLUMN IF NOT EXISTS is_insured BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS lock_holder_id UUID,
