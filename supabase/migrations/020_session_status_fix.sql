@@ -44,7 +44,8 @@ ALTER TABLE public.clinic_visit_sessions
   ADD COLUMN IF NOT EXISTS prestige_inflation_factor NUMERIC(4,3) DEFAULT 1.000,
   ADD COLUMN IF NOT EXISTS triangulation_verified BOOLEAN DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS buffer_window_expires_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS auto_close_at TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS auto_close_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 
 UPDATE public.clinic_visit_sessions
 SET doctor_id = COALESCE(doctor_id, primary_doctor_id),
