@@ -5,6 +5,13 @@
 -- consumed by DecisionCard.
 -- Additive/idempotent only. No RLS, Auth, scoring formula, or business rule change.
 
+ALTER TABLE public.master_tenants
+  ADD COLUMN IF NOT EXISTS clinic_name VARCHAR(255);
+
+UPDATE public.master_tenants
+SET clinic_name = COALESCE(clinic_name, name)
+WHERE clinic_name IS NULL;
+
 ALTER TABLE public.clinic_patients
   ADD COLUMN IF NOT EXISTS patient_status VARCHAR(30);
 
