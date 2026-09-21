@@ -4,6 +4,8 @@
 
 ALTER TABLE public.feature_flags
   ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES public.master_tenants(id),
+  ADD COLUMN IF NOT EXISTS flag_key VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS flag_name VARCHAR(255),
   ADD COLUMN IF NOT EXISTS allowed_tiers TEXT[] DEFAULT ARRAY['enterprise']::TEXT[],
   ADD COLUMN IF NOT EXISTS config_json JSONB DEFAULT '{}'::JSONB,
   ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
