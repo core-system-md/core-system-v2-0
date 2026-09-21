@@ -592,10 +592,10 @@ BEGIN
   RETURN QUERY
   SELECT *
   FROM master_agenda_events
-  WHERE doctor_id = p_doctor_id
-    AND DATE(scheduled_start) = p_date
+  WHERE user_id = p_doctor_id
+    AND DATE(start_at) = p_date
     AND status NOT IN ('cancelled', 'no_show')
-  ORDER BY scheduled_start;
+  ORDER BY start_at;
 END;
 $$;
 
