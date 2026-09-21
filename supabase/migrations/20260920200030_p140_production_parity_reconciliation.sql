@@ -45,6 +45,11 @@ UPDATE public.clinic_patients
 SET phone_primary = COALESCE(phone_primary, phone)
 WHERE phone_primary IS NULL;
 
+ALTER TABLE public.pin_attempt_log
+  ADD COLUMN IF NOT EXISTS ip_address INET,
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 ALTER TABLE public.patient_intake_responses
   ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
