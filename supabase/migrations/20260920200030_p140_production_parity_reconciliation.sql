@@ -30,7 +30,8 @@ SET clinic_name = COALESCE(clinic_name, name)
 WHERE clinic_name IS NULL;
 
 ALTER TABLE public.clinic_patients
-  ADD COLUMN IF NOT EXISTS patient_status VARCHAR(30);
+  ADD COLUMN IF NOT EXISTS patient_status VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 ALTER TABLE public.clinic_visit_sessions
   ADD COLUMN IF NOT EXISTS is_insured BOOLEAN NOT NULL DEFAULT FALSE,
