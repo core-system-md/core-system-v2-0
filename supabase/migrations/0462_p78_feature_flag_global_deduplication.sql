@@ -8,34 +8,15 @@ ALTER TABLE public.feature_flags
   ADD COLUMN IF NOT EXISTS config_json JSONB DEFAULT '{}'::JSONB,
   ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
 
--- Rename legacy columns into the active contract rather than duplicating state.
-DO $p0462$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='feature_flags' AND column_name='key'
-  ) AND NOT EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='feature_flags' AND column_name='flag_key'
-  ) THEN
-    ALTER TABLE public.feature_flags RENAME COLUMN key TO flag_key;
-  END IF;
+-- Backfill the active feature flag columns from the legacy schema.
+UPDATE public.feature_flags
+SET flag_key = COALESCE(flag_key, "key"),
+    flag_name = COALESCE(flag_name, "name")
+WHERE flag_key IS NULL OR flag_name IS NULL;
 
-  IF EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='feature_flags' AND column_name='name'
-  ) AND NOT EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='feature_flags' AND column_name='flag_name'
-  ) THEN
-    ALTER TABLE public.feature_flags RENAME COLUMN name TO flag_name;
-  END IF;
-END
-$p0462$;
+ALTER TABLE public.feature_flags
+  ALTER COLUMN "key" DROP NOT NULL,
+  ALTER COLUMN "name" DROP NOT NULL;
 
 -- Preserve legacy condition payloads as the current JSON configuration and
 -- derive tier gates where the old payload provided tenant_tiers.
