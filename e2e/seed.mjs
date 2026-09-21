@@ -54,8 +54,12 @@ const patients = E2E_PATIENTS.map((p) => ({
   id: p.id, tenant_id: tenantId, mrn: p.mrn, full_name: p.full_name, phone_primary: p.phone,
   date_of_birth: p.date_of_birth, gender: p.gender, allergies: p.allergies, is_active: true, deleted_at: null,
 }));
+const e2eDoctor = E2E_STAFF.findIndex((staff) => staff.role === 'doctor');
+if (e2eDoctor < 0) throw new Error('[E2E] doctor fixture missing');
+const doctorId = `30000000-0000-4000-8000-${String(e2eDoctor + 1).padStart(12, '0')}`;
+
 const sessions = E2E_PATIENTS.map((p, i) => ({
-  id: E2E_SESSION_IDS[i], tenant_id: tenantId, patient_id: p.id, session_status: 'pending', payment_status: 'pending',
+  id: E2E_SESSION_IDS[i], tenant_id: tenantId, patient_id: p.id, doctor_id: doctorId, session_status: 'pending', payment_status: 'pending',
   session_metadata: { e2e: true, e2e_case: p.n, urgency: p.urgency, visit_type: p.visit }, deleted_at: null,
 }));
 
