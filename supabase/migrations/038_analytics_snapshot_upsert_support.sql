@@ -43,6 +43,22 @@ CREATE TABLE IF NOT EXISTS public.analytics_patient_metrics (
 CREATE INDEX IF NOT EXISTS idx_patient_metrics_tenant_period
   ON public.analytics_patient_metrics(tenant_id, metric_period, period_start DESC);
 
+CREATE TABLE IF NOT EXISTS public.pin_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES public.master_tenants(id),
+  staff_id UUID NOT NULL REFERENCES public.clinic_users(id),
+  token_hash BYTEA NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pin_sessions_lookup
+  ON public.pin_sessions(tenant_id, staff_id, expires_at);
+
+ALTER TABLE public.pin_sessions ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.pin_sessions FROM anon, authenticated, public;
+
 CREATE INDEX IF NOT EXISTS idx_snapshots_tenant_date
   ON public.analytics_daily_snapshots(tenant_id, snapshot_date DESC);
 
