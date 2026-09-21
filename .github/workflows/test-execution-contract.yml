@@ -95,6 +95,8 @@ jobs:
           node --check e2e/reconcile.mjs
           node --check e2e/role-routes.spec.mjs
           node --check e2e/security-negative.spec.mjs
+          node --check api_tests/rpc-contract.mjs
+          node --check integration_tests/reception-workflow.mjs
 
       - name: Generate decision plan
         run: |
