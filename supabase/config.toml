@@ -10,3 +10,6 @@ verify_jwt = false
 
 [functions.notification-processor]
 verify_jwt = false
+
+[functions.score-calculator]
+verify_jwt = false
