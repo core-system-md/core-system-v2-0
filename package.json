@@ -18,7 +18,8 @@
     "e2e:reset": "node e2e/reset.mjs",
     "preview": "vite preview",
     "test:api": "node api_tests/rpc-contract.mjs",
-    "test:integration": "node integration_tests/reception-workflow.mjs"
+    "test:integration": "node integration_tests/reception-workflow.mjs",
+    "test:database": "node database_tests/schema-contract.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.5",
