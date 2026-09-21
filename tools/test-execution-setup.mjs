@@ -162,7 +162,7 @@ function buildPlan(base, candidate, impact, cwd = ROOT) {
     typecheck: /tsc|typecheck/.test(read('package.json', cwd)),
     unit_tests: fs.existsSync(path.join(cwd, 'tests')) && /vitest|"test"\s*:/.test(read('package.json', cwd)),
     integration_tests: false,
-    api_tests: false,
+    api_tests: fs.existsSync(path.join(cwd, 'api_tests/rpc-contract.mjs')),
     playwright: fs.existsSync(path.join(cwd, 'playwright.config.mjs')) || fs.existsSync(path.join(cwd, 'playwright.config.ts')),
     migration_validation: fs.existsSync(path.join(cwd, 'tools/migration-validation.mjs')) && fs.existsSync(path.join(cwd, 'supabase/migrations')),
     database_validation: fs.existsSync(path.join(cwd, 'supabase/migrations')),
