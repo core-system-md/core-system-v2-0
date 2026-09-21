@@ -16,7 +16,8 @@
     "e2e:reconcile": "node e2e/reconcile.mjs",
     "e2e:full": "node e2e/run-full.mjs",
     "e2e:reset": "node e2e/reset.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:api": "node api_tests/rpc-contract.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.5",
