@@ -41,6 +41,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Verify migration workspace
+        shell: bash
+        run: |
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "031_SHA=$(git hash-object supabase/migrations/031_rls_policies_missing_tables.sql)"
+          echo "031_CONTENT_BEGIN"
+          sed -n '1,40p' supabase/migrations/031_rls_policies_missing_tables.sql
+          echo "031_CONTENT_END"
+
       - name: Start isolated Supabase
         run: supabase start
 
