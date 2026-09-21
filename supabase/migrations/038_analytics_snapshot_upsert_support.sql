@@ -24,6 +24,25 @@ CREATE TABLE IF NOT EXISTS public.analytics_daily_snapshots (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.analytics_patient_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES public.master_tenants(id),
+  metric_period VARCHAR(20) NOT NULL CHECK (metric_period IN ('weekly','monthly','quarterly')),
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  new_patients INTEGER DEFAULT 0,
+  reactivated_patients INTEGER DEFAULT 0,
+  churned_patients INTEGER DEFAULT 0,
+  avg_ltv_subunits BIGINT DEFAULT 0,
+  avg_disc_distribution JSONB DEFAULT '{}',
+  top_procedures JSONB DEFAULT '[]',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT uq_patient_metrics UNIQUE (tenant_id, metric_period, period_start)
+);
+
+CREATE INDEX IF NOT EXISTS idx_patient_metrics_tenant_period
+  ON public.analytics_patient_metrics(tenant_id, metric_period, period_start DESC);
+
 CREATE INDEX IF NOT EXISTS idx_snapshots_tenant_date
   ON public.analytics_daily_snapshots(tenant_id, snapshot_date DESC);
 
