@@ -21,6 +21,7 @@ const engineeringCommands = {
   typecheck: ['npx', ['tsc', '--noEmit']],
   unit_tests: ['npm', ['test']],
   migration_validation: ['node', ['tools/migration-validation.mjs', '--apply']],
+  api_tests: ['npm', ['run', 'test:api']],
 };
 
 for (const check of plan.required_engineering) {
