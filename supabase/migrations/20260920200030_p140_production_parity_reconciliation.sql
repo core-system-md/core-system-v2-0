@@ -79,6 +79,12 @@ ALTER TABLE public.patient_intake_responses
   ADD COLUMN IF NOT EXISTS signature_timestamp TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS whatsapp_redirect_sent BOOLEAN DEFAULT FALSE;
 
+-- Production evidence: patient_intake_responses.session_id is UNIQUE and the
+-- active save RPC relies on ON CONFLICT(session_id). Restore the same constraint
+-- in the replay schema for deterministic survey upsert behavior.
+CREATE UNIQUE INDEX IF NOT EXISTS patient_intake_responses_session_id_key
+  ON public.patient_intake_responses(session_id);
+
 ALTER TABLE public.clinic_visit_sessions
   ADD COLUMN IF NOT EXISTS is_insured BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS lock_holder_id UUID,
