@@ -68,6 +68,37 @@ if (patientError) throw new Error(`[E2E] clinic_patients seed failed: ${patientE
 const { error: sessionError } = await supabase.from('clinic_visit_sessions').upsert(sessions, { onConflict: 'id' });
 if (sessionError) throw new Error(`[E2E] clinic_visit_sessions seed failed: ${sessionError.message}`);
 
+const intakeRows = E2E_SESSION_IDS.map((sessionId, index) => ({
+  tenant_id: tenantId,
+  session_id: sessionId,
+  patient_id: E2E_PATIENTS[index].id,
+  visit_type_selection: null,
+  service_reason: null,
+  procedures_requested: [],
+  consent_accepted: false,
+  consent_timestamp: null,
+  service_interest: null,
+  visit_goal: null,
+  consideration_period: null,
+  readiness_level: null,
+  decision_factor: null,
+  referral_source: null,
+  followup_importance: null,
+  top_priorities: [],
+  main_concern: null,
+  openness_to_proceed: null,
+  digital_signature_svg: null,
+  signature_timestamp: null,
+  whatsapp_redirect_sent: false,
+  completion_status: null,
+  completed_at: null,
+  deleted_at: null,
+}));
+const { error: intakeSeedError } = await supabase
+  .from('patient_intake_responses')
+  .upsert(intakeRows, { onConflict: 'session_id' });
+if (intakeSeedError) throw new Error(`[E2E] patient_intake_responses seed failed: ${intakeSeedError.message}`);
+
 const [{ count: staffCount, error: staffVerifyError }, { count: patientCount, error: patientVerifyError }, { count: sessionCount, error: sessionVerifyError }] = await Promise.all([
   supabase.from('clinic_users').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).in('role', E2E_STAFF.map((staff) => staff.role)).like('employee_code', 'E2E-%').is('deleted_at', null),
   supabase.from('clinic_patients').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).like('mrn', 'E2E-PT-%').is('deleted_at', null),
