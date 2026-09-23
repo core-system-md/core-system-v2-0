@@ -165,7 +165,7 @@ function buildPlan(base, candidate, impact, cwd = ROOT) {
     api_tests: fs.existsSync(path.join(cwd, 'api_tests/rpc-contract.mjs')),
     playwright: fs.existsSync(path.join(cwd, 'playwright.config.mjs')) || fs.existsSync(path.join(cwd, 'playwright.config.ts')),
     migration_validation: fs.existsSync(path.join(cwd, 'tools/migration-validation.mjs')) && fs.existsSync(path.join(cwd, 'supabase/migrations')),
-    database_validation: fs.existsSync(path.join(cwd, 'database_tests/schema-contract.mjs')) && /\"test:database\"\s*:/.test(read('package.json', cwd)),
+    database_validation: fs.existsSync(path.join(cwd, 'database_tests/schema-contract.mjs')) && /"test:database"\s*:/.test(read('package.json', cwd)),
     negative_security_e2e: fs.existsSync(path.join(cwd, 'e2e/security-negative.spec.mjs')),
     reconciliation: fs.existsSync(path.join(cwd, 'e2e/reconcile.mjs')),
   };
@@ -213,13 +213,13 @@ export function selfTest() {
   try {
     writeFixture(cwd, 'src/core/permissions/permissionMatrix.ts', "export type UserRole = 'admin' | 'operator';\nexport const permissionMatrix = { admin: [], operator: [] };\n");
     writeFixture(cwd, 'src/router.tsx', "const routes = [{path:'/admin'},{path:'/operator'}];\n");
-    writeFixture(cwd, 'package.json', '{"scripts":{"build":"true","lint":"true","test":"node -e \\\"\\\""}}');
+    writeFixture(cwd, 'package.json', '{"scripts":{"build":"true","lint":"true","test":"node -e \\"\\""}}');
     const base = commit(cwd, 'baseline');
 
     writeFixture(cwd, 'README.md', '# docs\n');
     writeFixture(cwd, '.github/workflows/test.yml', 'name: test\n');
     writeFixture(cwd, 'tools/example.mjs', "const text = 'PermissionGuard super_admin security';\n");
-    writeFixture(cwd, 'package.json', '{"scripts":{"build":"true","lint":"true","test":"node -e \\\"\\\"","test:contract":"node tools/test-execution-setup.mjs --self-test"}}');
+    writeFixture(cwd, 'package.json', '{"scripts":{"build":"true","lint":"true","test":"node -e \\"\\"","test:contract":"node tools/test-execution-setup.mjs --self-test"}}');
     const contract = commit(cwd, 'docs: install contract');
     const contractPlan = analyzeRepository(base, contract, cwd);
     if (contractPlan.regression_level !== 'R0') throw new Error(`contract installation expected R0, got ${contractPlan.regression_level}`);
