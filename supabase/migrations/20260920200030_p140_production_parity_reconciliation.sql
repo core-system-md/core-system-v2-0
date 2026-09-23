@@ -76,7 +76,8 @@ ALTER TABLE public.patient_intake_responses
   ADD COLUMN IF NOT EXISTS main_concern VARCHAR(500),
   ADD COLUMN IF NOT EXISTS openness_to_proceed SMALLINT,
   ADD COLUMN IF NOT EXISTS digital_signature_svg TEXT,
-  ADD COLUMN IF NOT EXISTS signature_timestamp TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS signature_timestamp TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS whatsapp_redirect_sent BOOLEAN DEFAULT FALSE;
 
 ALTER TABLE public.clinic_visit_sessions
   ADD COLUMN IF NOT EXISTS is_insured BOOLEAN NOT NULL DEFAULT FALSE,
