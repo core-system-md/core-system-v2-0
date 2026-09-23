@@ -98,7 +98,6 @@ const intakeRows = E2E_SESSION_IDS.map((sessionId, index) => ({
   digital_signature_svg: null,
   signature_timestamp: null,
   whatsapp_redirect_sent: false,
-  completion_status: null,
   completed_at: null,
   deleted_at: null,
 }));
