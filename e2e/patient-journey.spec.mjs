@@ -10,7 +10,7 @@ test('survey entry renders for all 20 seeded patient sessions', async ({ page })
 
   for (const sessionId of E2E_SESSION_IDS) {
     await page.goto(`/survey/${sessionId}`);
-    await expect(page.getByText(/الصفحة 1 من 5/)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الصفحة 1 من 5/ })).toBeVisible();
     await expect(page.getByText(/نوع الزيارة/)).toBeVisible();
     await expect(page.getByText(/سبب الزيارة/)).toBeVisible();
   }

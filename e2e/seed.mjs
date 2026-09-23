@@ -51,18 +51,60 @@ const { error: staffError } = await supabase.from('clinic_users').upsert(staffRo
 if (staffError) throw new Error(`[E2E] clinic_users seed failed: ${staffError.message}`);
 
 const patients = E2E_PATIENTS.map((p) => ({
-  id: p.id, tenant_id: tenantId, mrn: p.mrn, full_name: p.full_name, phone: p.phone,
+  id: p.id, tenant_id: tenantId, mrn: p.mrn, full_name: p.full_name, phone_primary: p.phone,
   date_of_birth: p.date_of_birth, gender: p.gender, allergies: p.allergies, is_active: true, deleted_at: null,
 }));
+const e2eDoctor = E2E_STAFF.findIndex((staff) => staff.role === 'doctor');
+if (e2eDoctor < 0) throw new Error('[E2E] doctor fixture missing');
+const doctorId = `30000000-0000-4000-8000-${String(e2eDoctor + 1).padStart(12, '0')}`;
+
 const sessions = E2E_PATIENTS.map((p, i) => ({
-  id: E2E_SESSION_IDS[i], tenant_id: tenantId, patient_id: p.id, session_status: 'pending', payment_status: 'pending',
-  total_charge_fils: 0, session_metadata: { e2e: true, e2e_case: p.n, urgency: p.urgency, visit_type: p.visit }, deleted_at: null,
+  id: E2E_SESSION_IDS[i], tenant_id: tenantId, patient_id: p.id, doctor_id: doctorId, session_status: 'pending', payment_status: 'pending',
+  session_metadata: { e2e: true, e2e_case: p.n, urgency: p.urgency, visit_type: p.visit }, deleted_at: null,
 }));
 
 const { error: patientError } = await supabase.from('clinic_patients').upsert(patients, { onConflict: 'id' });
 if (patientError) throw new Error(`[E2E] clinic_patients seed failed: ${patientError.message}`);
 const { error: sessionError } = await supabase.from('clinic_visit_sessions').upsert(sessions, { onConflict: 'id' });
 if (sessionError) throw new Error(`[E2E] clinic_visit_sessions seed failed: ${sessionError.message}`);
+
+const intakeRows = E2E_SESSION_IDS.map((sessionId, index) => ({
+  tenant_id: tenantId,
+  session_id: sessionId,
+  patient_id: E2E_PATIENTS[index].id,
+  form_type: E2E_PATIENTS[index].visit === 'returning' ? 'follow_up' : 'new_patient',
+  form_version: '1.0',
+  responses: {},
+  consent_given: false,
+  consent_at: null,
+  consent_ip: null,
+  is_complete: false,
+  completion_status: null,
+  visit_type_selection: null,
+  service_reason: null,
+  procedures_requested: [],
+  consent_accepted: false,
+  consent_timestamp: null,
+  service_interest: null,
+  visit_goal: null,
+  consideration_period: null,
+  readiness_level: null,
+  decision_factor: null,
+  referral_source: null,
+  followup_importance: null,
+  top_priorities: [],
+  main_concern: null,
+  openness_to_proceed: null,
+  digital_signature_svg: null,
+  signature_timestamp: null,
+  whatsapp_redirect_sent: false,
+  completed_at: null,
+  deleted_at: null,
+}));
+const { error: intakeSeedError } = await supabase
+  .from('patient_intake_responses')
+  .upsert(intakeRows, { onConflict: 'session_id' });
+if (intakeSeedError) throw new Error(`[E2E] patient_intake_responses seed failed: ${intakeSeedError.message}`);
 
 const [{ count: staffCount, error: staffVerifyError }, { count: patientCount, error: patientVerifyError }, { count: sessionCount, error: sessionVerifyError }] = await Promise.all([
   supabase.from('clinic_users').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).in('role', E2E_STAFF.map((staff) => staff.role)).like('employee_code', 'E2E-%').is('deleted_at', null),

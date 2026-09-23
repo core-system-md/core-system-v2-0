@@ -1,5 +1,26 @@
 import { test, expect } from '@playwright/test';
-import { E2E_STAFF, E2E_LICENSE_KEY } from './fixtures/staff.mjs';
+import { createClient } from '@supabase/supabase-js';
+import { E2E_STAFF, E2E_LICENSE_KEY, E2E_TENANT_ID } from './fixtures/staff.mjs';
+
+const adminClient = createClient(process.env.SUPABASE_URL ?? '', process.env.SUPABASE_SERVICE_ROLE_KEY ?? '', {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+async function resetPinRateLimitWindow() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('[E2E] Missing service-role environment for PIN rate-limit isolation.');
+  }
+  const target = process.env.E2E_BASE_URL ?? '';
+  if (/^https:\/\//i.test(target) && process.env.E2E_ALLOW_PRODUCTION !== 'true') {
+    throw new Error('[E2E] Refusing PIN rate-limit test reset against unapproved HTTPS target.');
+  }
+  const oldTimestamp = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+  const { error } = await adminClient
+    .from('pin_attempt_log')
+    .update({ created_at: oldTimestamp })
+    .eq('tenant_id', E2E_TENANT_ID);
+  if (error) throw new Error(`[E2E] PIN rate-limit isolation failed: ${error.message}`);
+}
 
 const protectedRoutes = ['/admin', '/doctor', '/reception', '/super-admin'];
 const defaultRoute = {
@@ -21,6 +42,7 @@ async function reset(page) {
 }
 
 async function loginAs(page, staff) {
+  await resetPinRateLimitWindow();
   await reset(page);
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
