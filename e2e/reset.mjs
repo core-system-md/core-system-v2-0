@@ -18,6 +18,13 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 const tenantId = process.env.E2E_TENANT_ID ?? E2E_TENANT_ID;
 const deletedAt = new Date().toISOString();
 
+const { error: pinAttemptError } = await supabase
+  .from('pin_attempt_log')
+  .update({ deleted_at: deletedAt })
+  .eq('tenant_id', tenantId)
+  .is('deleted_at', null);
+if (pinAttemptError) throw new Error(`[E2E] PIN-attempt soft-reset failed: ${pinAttemptError.message}`);
+
 const { error: intakeError } = await supabase
   .from('patient_intake_responses')
   .update({ deleted_at: deletedAt })
