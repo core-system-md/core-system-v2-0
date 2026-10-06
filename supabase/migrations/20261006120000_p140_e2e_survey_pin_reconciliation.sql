@@ -5,6 +5,90 @@
 -- 3) Soft-deleted patient_intake_responses rows were still considered current by save_patient_intake_page().
 -- Scope: test isolation + correct soft-delete semantics; no RLS or role expansion.
 
+-- Evidence: isolated replay exposed a schema-parity gap. Production patient_intake_responses
+-- contains the five-page survey columns and a unique session_id constraint, while the repository
+-- baseline did not. Keep the replay schema aligned with the verified production contract.
+
+ALTER TABLE public.patient_intake_responses
+  ADD COLUMN IF NOT EXISTS visit_type_selection VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS service_reason VARCHAR(1000),
+  ADD COLUMN IF NOT EXISTS procedures_requested TEXT[],
+  ADD COLUMN IF NOT EXISTS consent_accepted BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS consent_timestamp TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS service_interest VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS visit_goal VARCHAR(1000),
+  ADD COLUMN IF NOT EXISTS consideration_period VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS readiness_level SMALLINT,
+  ADD COLUMN IF NOT EXISTS decision_factor VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS referral_source VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS followup_importance SMALLINT,
+  ADD COLUMN IF NOT EXISTS top_priorities TEXT[],
+  ADD COLUMN IF NOT EXISTS main_concern VARCHAR(1000),
+  ADD COLUMN IF NOT EXISTS openness_to_proceed SMALLINT,
+  ADD COLUMN IF NOT EXISTS digital_signature_svg TEXT,
+  ADD COLUMN IF NOT EXISTS signature_timestamp TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS whatsapp_redirect_sent BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS completion_status VARCHAR(20) DEFAULT 'incomplete',
+  ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+CREATE UNIQUE INDEX IF NOT EXISTS patient_intake_responses_session_id_key
+  ON public.patient_intake_responses(session_id);
+
+DO $guard_survey_checks$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.patient_intake_responses'::regclass
+      AND conname = 'patient_intake_responses_completion_status_check'
+  ) THEN
+    ALTER TABLE public.patient_intake_responses
+      ADD CONSTRAINT patient_intake_responses_completion_status_check
+      CHECK (completion_status IN ('incomplete','page1_done','page2_done','page3_done','page4_done','completed'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.patient_intake_responses'::regclass
+      AND conname = 'patient_intake_responses_readiness_level_check'
+  ) THEN
+    ALTER TABLE public.patient_intake_responses
+      ADD CONSTRAINT patient_intake_responses_readiness_level_check
+      CHECK (readiness_level IS NULL OR (readiness_level >= 1 AND readiness_level <= 5));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.patient_intake_responses'::regclass
+      AND conname = 'patient_intake_responses_followup_importance_check'
+  ) THEN
+    ALTER TABLE public.patient_intake_responses
+      ADD CONSTRAINT patient_intake_responses_followup_importance_check
+      CHECK (followup_importance IS NULL OR (followup_importance >= 1 AND followup_importance <= 4));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.patient_intake_responses'::regclass
+      AND conname = 'patient_intake_responses_openness_to_proceed_check'
+  ) THEN
+    ALTER TABLE public.patient_intake_responses
+      ADD CONSTRAINT patient_intake_responses_openness_to_proceed_check
+      CHECK (openness_to_proceed IS NULL OR (openness_to_proceed >= 1 AND openness_to_proceed <= 3));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.patient_intake_responses'::regclass
+      AND conname = 'patient_intake_responses_visit_type_selection_check'
+  ) THEN
+    ALTER TABLE public.patient_intake_responses
+      ADD CONSTRAINT patient_intake_responses_visit_type_selection_check
+      CHECK (visit_type_selection IS NULL OR visit_type_selection IN ('first_time','returning'));
+  END IF;
+END
+$guard_survey_checks$;
+
 CREATE OR REPLACE FUNCTION public.check_pin_rate_limit(
   p_tenant_id UUID,
   p_ip_address TEXT DEFAULT NULL
