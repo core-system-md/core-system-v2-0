@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { E2E_STAFF, E2E_TENANT_ID } from '../e2e/fixtures/staff.mjs';
+import { E2E_SESSION_IDS } from '../e2e/fixtures/patients.mjs';
 
 for (const key of ['SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY']) {
   if (!process.env[key]) throw new Error(`[DATABASE] Missing required environment variable: ${key}`);
@@ -55,6 +56,22 @@ try {
   if (loginError || !login?.success || typeof login.session_token !== 'string') {
     throw new Error(`[DATABASE] PIN session fixture creation failed: ${loginError?.message ?? 'invalid response'}`);
   }
+
+  const { data: surveySave, error: surveySaveError } = await anon.rpc('save_patient_intake_page', {
+    p_session_id: E2E_SESSION_IDS[1],
+    p_page: 1,
+    p_payload: {
+      visit_type_selection: 'returning',
+      service_reason: 'متابعة حالة سابقة',
+      procedures_requested: ['فحص عام'],
+      consent_accepted: true,
+    },
+  });
+  if (surveySaveError) throw new Error(`[DATABASE] survey page-1 save failed: ${surveySaveError.message}`);
+  if (surveySave?.completion_status !== 'page1_done') {
+    throw new Error(`[DATABASE] survey page-1 save contract mismatch: ${JSON.stringify(surveySave)}`);
+  }
+  console.log('[DATABASE] PASS — survey page-1 save RPC');
 
   const tenant = await expectSelect(
     'tenant production-parity columns',
