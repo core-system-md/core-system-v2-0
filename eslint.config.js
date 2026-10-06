@@ -6,17 +6,21 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'archive/**', 'features_backup/**', 'rules_backup/**', 'scoring_duplicates/**', 'sessions_backup/**'],
+    ignores: ['dist/**', 'node_modules/**', 'archive/**', 'features_backup/**', 'rules_backup/**', 'scoring_duplicates/**', 'sessions_backup/**', 'src/types/lucide-react.d.ts'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
     files: ['**/*.{js,mjs,cjs}'],
     languageOptions: {
-      ecmaVersion: 2022,
+      ecmaVersion: 'latest',
+      sourceType: 'module',
       globals: {
         ...globals.node,
       },
+    },
+    rules: {
+      'no-useless-escape': 'off',
     },
   },
   {
@@ -47,6 +51,8 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   }
 );
