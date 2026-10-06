@@ -13,12 +13,17 @@ const TIMEZONE = 'Asia/Amman';
 export function formatDate(date: Date | string | null): string {
   if (!date) return '';
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-JO', {
+  const parts = new Intl.DateTimeFormat('en-JO', {
     timeZone: TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).split('/').reverse().join('-');
+  }).formatToParts(d);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  if (!year || !month || !day) return '';
+  return `${year}-${month}-${day}`;
 }
 
 /**

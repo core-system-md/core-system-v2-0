@@ -21,9 +21,10 @@ jobs:
   execution-contract:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout full history
+      - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Setup Node
@@ -40,6 +41,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Verify migration workspace
+        shell: bash
+        run: |
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "031_SHA=$(git hash-object supabase/migrations/031_rls_policies_missing_tables.sql)"
+          echo "031_CONTENT_BEGIN"
+          sed -n '1,40p' supabase/migrations/031_rls_policies_missing_tables.sql
+          echo "031_CONTENT_END"
+
       - name: Start isolated Supabase
         run: supabase start
 
@@ -47,9 +57,9 @@ jobs:
         shell: bash
         run: |
           supabase status -o env > .supabase.env
-          api_url=$(grep '^API_URL=' .supabase.env | cut -d= -f2-)
-          anon_key=$(grep '^ANON_KEY=' .supabase.env | cut -d= -f2-)
-          service_role_key=$(grep '^SERVICE_ROLE_KEY=' .supabase.env | cut -d= -f2-)
+          api_url=$(grep '^API_URL=' .supabase.env | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/')
+          anon_key=$(grep '^ANON_KEY=' .supabase.env | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/')
+          service_role_key=$(grep '^SERVICE_ROLE_KEY=' .supabase.env | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/')
           printf 'VITE_SUPABASE_URL=%s\n' "$api_url" >> "$GITHUB_ENV"
           printf 'VITE_SUPABASE_ANON_KEY=%s\n' "$anon_key" >> "$GITHUB_ENV"
           printf 'SUPABASE_URL=%s\n' "$api_url" >> "$GITHUB_ENV"
@@ -67,7 +77,7 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           DISPATCH_BASE: ${{ inputs.base_ref }}
           DISPATCH_CANDIDATE: ${{ inputs.candidate_ref }}
-          WORKFLOW_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           if [ -n "$PR_BASE_SHA" ]; then
             echo "base=$PR_BASE_SHA" >> "$GITHUB_OUTPUT"
@@ -85,6 +95,9 @@ jobs:
           node --check e2e/reconcile.mjs
           node --check e2e/role-routes.spec.mjs
           node --check e2e/security-negative.spec.mjs
+          node --check api_tests/rpc-contract.mjs
+          node --check integration_tests/reception-workflow.mjs
+          node --check database_tests/schema-contract.mjs
 
       - name: Generate decision plan
         run: |
