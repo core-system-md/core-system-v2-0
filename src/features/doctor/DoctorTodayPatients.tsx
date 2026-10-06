@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
+import { PIN_SESSION_STORAGE_KEY } from '@/core/auth/PinAuthProvider';
 import { PermissionGuard } from '@/core/permissions/PermissionGuard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ export default function DoctorTodayPatients() {
   const navigate = useNavigate();
   const tenantId = useAuthStore((state) => state.tenant_id);
   const user = useAuthStore((state) => state.user);
+  const isPinAuthenticated = useAuthStore((state) => state.isPinAuthenticated);
 
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +47,62 @@ export default function DoctorTodayPatients() {
       const today = formatDate(new Date());
       const dayStart = parseDate(today);
       const nextDayStart = addMinutes(dayStart, 24 * 60);
+
+      if (isPinAuthenticated) {
+        const sessionToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
+        if (!sessionToken) throw new Error('MISSING_PIN_SESSION');
+
+        const queueClient = supabase as unknown as {
+          rpc: (
+            fn: string,
+            args: { p_tenant_id: string; p_session_token: string },
+          ) => Promise<{ data: unknown; error: { message: string } | null }>;
+        };
+        const { data, error: dbError } = await queueClient.rpc('get_queue_for_pin_session', {
+          p_tenant_id: tenantId,
+          p_session_token: sessionToken,
+        });
+        if (dbError) throw new Error(dbError.message);
+
+        const rows = (Array.isArray(data) ? data : []) as Array<{
+          id: string;
+          patient_id: string | null;
+          doctor_id: string | null;
+          session_status: string;
+          wait_time_minutes: number | null;
+          actual_check_in: string | null;
+          clinic_patients: {
+            id?: string;
+            first_name?: string | null;
+            last_name?: string | null;
+            phone_primary?: string | null;
+            full_name?: string | null;
+          } | null;
+        }>;
+
+        const formatted = rows
+          .filter((row) => {
+            if (row.session_status !== 'waiting') return false;
+            if (user.role === 'doctor' && row.doctor_id !== user.id) return false;
+            if (!row.actual_check_in) return false;
+            const checkedIn = new Date(row.actual_check_in).getTime();
+            return Number.isFinite(checkedIn) && checkedIn >= dayStart.getTime() && checkedIn < nextDayStart.getTime();
+          })
+          .map((row) => ({
+            id: row.id,
+            patient_id: row.patient_id ?? row.clinic_patients?.id ?? '',
+            first_name: row.clinic_patients?.first_name ?? row.clinic_patients?.full_name?.split(' ')[0] ?? '',
+            last_name: row.clinic_patients?.last_name ?? row.clinic_patients?.full_name?.split(' ').slice(1).join(' ') ?? '',
+            phone_primary: row.clinic_patients?.phone_primary ?? '',
+            created_at: row.actual_check_in as string,
+            session_status: row.session_status,
+            waiting_time_minutes: row.wait_time_minutes,
+          }));
+
+        setPatients(formatted);
+        setLoading(false);
+        return;
+      }
 
       let query = supabase
         .from('clinic_visit_sessions')
@@ -96,7 +154,7 @@ export default function DoctorTodayPatients() {
     }
 
     void fetchPatients();
-  }, [tenantId, user?.id, user?.role, refreshKey]);
+  }, [tenantId, user?.id, user?.role, isPinAuthenticated, refreshKey]);
 
   if (loading) {
     return (
