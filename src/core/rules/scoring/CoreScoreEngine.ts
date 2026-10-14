@@ -170,11 +170,13 @@ export class CoreScoreEngine {
     indicators: ScoreIndicators,
     context: ScoreCalculationContext,
   ): Promise<CoreScoreResult> {
+    const pinSessionToken = sessionStorage.getItem('core-system-pin-session');
     const { data, error } = await supabase.functions.invoke('score-calculator', {
       body: {
         indicators,
         sessionId: context.sessionId,
         tenantId: context.tenantId,
+        ...(pinSessionToken ? { pinSessionToken } : {}),
       },
     });
 

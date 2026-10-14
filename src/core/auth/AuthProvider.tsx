@@ -3,6 +3,8 @@ import { useAuthStore } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
 import type { AuthUser } from '@/shared/store/authStore';
 
+const PIN_SESSION_STORAGE_KEY = 'core-system-pin-session';
+
 export { useAuth } from './useAuth';
 
 export function useAuthContext() {
@@ -22,8 +24,13 @@ export function useAuthContext() {
     login: store.login,
     logout: store.logout,
     clearError: store.clearError,
-    validateLicense: async (_unusedKey?: string) => ({ success: true }),
+    validateLicense: async (_unusedKey?: string) => {
+      void _unusedKey;
+      return { success: true };
+    },
     loginWithPin: async (_unusedPin: string, _unusedRole?: string) => {
+      void _unusedPin;
+      void _unusedRole;
       return { success: false, error: 'Use useAuth().loginWithPin() instead' };
     },
   };
@@ -43,6 +50,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+
+    const hasActivePinSession = () => (
+      typeof window !== 'undefined' &&
+      Boolean(window.sessionStorage.getItem(PIN_SESSION_STORAGE_KEY)) &&
+      Boolean(store.user) &&
+      store.isPinAuthenticated
+    );
+
+    // PIN authentication is independent of Supabase Auth. On a full route
+    // navigation/reload, preserve the server-issued PIN session instead of
+    // downgrading it to UNAUTHENTICATED because auth.users has no JWT session.
+    if (hasActivePinSession()) {
+      store.authenticate(store.user as AuthUser, null, null);
+      store.setPinAuthenticated(true);
+      return;
+    }
 
     // ─── STATE MACHINE: BOOTING → CHECKING_SESSION ────────
     store.startChecking();
@@ -112,6 +135,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
+        if (hasActivePinSession()) {
+          store.authenticate(store.user as AuthUser, null, null);
+          store.setPinAuthenticated(true);
+          return;
+        }
+
         // If tenant context exists, keep it for re-auth
         if (store.tenant_id) {
           store.setStatus('UNAUTHENTICATED');

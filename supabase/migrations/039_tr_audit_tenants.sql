@@ -1,36 +1,41 @@
-﻿-- 039_tr_audit_tenants.sql
--- P37-B: Add audit trigger for master_tenants
+-- 039_tr_audit_tenants.sql
+-- P37-B: Audit tenant INSERT/UPDATE/DELETE events.
 
-CREATE OR REPLACE FUNCTION fn_audit_tenants_changes()
-RETURNS TRIGGER AS $\$
+CREATE OR REPLACE FUNCTION public.fn_audit_tenants_changes()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $p039$
 BEGIN
-  IF TG_OP = 'UPDATE' THEN
-    INSERT INTO audit_trail (
-      tenant_id, actor_id, actor_role, action, table_name, record_id, old_values, new_values
-    ) VALUES (
-      NEW.id, auth.uid(), (auth.jwt()->>'user_role')::TEXT, 'UPDATE', TG_TABLE_NAME, OLD.id,
-      to_jsonb(OLD), to_jsonb(NEW)
-    );
-  ELSIF TG_OP = 'DELETE' THEN
-    INSERT INTO audit_trail (
-      tenant_id, actor_id, actor_role, action, table_name, record_id, old_values, new_values
-    ) VALUES (
-      OLD.id, auth.uid(), (auth.jwt()->>'user_role')::TEXT, 'DELETE', TG_TABLE_NAME, OLD.id,
-      to_jsonb(OLD), NULL
-    );
-  ELSIF TG_OP = 'INSERT' THEN
-    INSERT INTO audit_trail (
-      tenant_id, actor_id, actor_role, action, table_name, record_id, old_values, new_values
-    ) VALUES (
-      NEW.id, auth.uid(), (auth.jwt()->>'user_role')::TEXT, 'INSERT', TG_TABLE_NAME, NEW.id,
-      NULL, to_jsonb(NEW)
-    );
-  END IF;
-  IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
-END;
-$\$ LANGUAGE plpgsql SECURITY DEFINER;
+  INSERT INTO public.audit_trail (
+    tenant_id,
+    user_id,
+    actor_type,
+    action,
+    entity_type,
+    entity_id,
+    old_values,
+    new_values
+  ) VALUES (
+    COALESCE(NEW.id, OLD.id),
+    auth.uid(),
+    CASE WHEN auth.uid() IS NULL THEN 'system' ELSE 'user' END,
+    CASE TG_OP WHEN 'INSERT' THEN 'create' WHEN 'UPDATE' THEN 'update' WHEN 'DELETE' THEN 'delete' END,
+    TG_TABLE_NAME,
+    COALESCE(NEW.id, OLD.id),
+    CASE WHEN TG_OP = 'INSERT' THEN '{}'::jsonb ELSE to_jsonb(OLD) END,
+    CASE WHEN TG_OP = 'DELETE' THEN '{}'::jsonb ELSE to_jsonb(NEW) END
+  );
 
-DROP TRIGGER IF EXISTS tr_audit_tenants ON master_tenants;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$p039$;
+
+DROP TRIGGER IF EXISTS tr_audit_tenants ON public.master_tenants;
 CREATE TRIGGER tr_audit_tenants
-AFTER INSERT OR UPDATE OR DELETE ON master_tenants
-FOR EACH ROW EXECUTE FUNCTION fn_audit_tenants_changes();
+AFTER INSERT OR UPDATE OR DELETE ON public.master_tenants
+FOR EACH ROW EXECUTE FUNCTION public.fn_audit_tenants_changes();

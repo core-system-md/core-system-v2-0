@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '@/shared/store/authStore';
 import { supabase } from '@/infrastructure/supabase/client';
+import { PIN_SESSION_STORAGE_KEY } from '@/core/auth/PinAuthProvider';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Lock, AlertTriangle } from 'lucide-react';
@@ -35,26 +36,50 @@ export function CloseSession({ sessionId, onClose }: CloseSessionProps) {
 
     setIsClosing(true);
     try {
-      let updateQuery = supabase
-        .from('clinic_visit_sessions')
-        .update({
-          session_status: 'completed',
-          session_ended_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', sessionId)
-        .eq('tenant_id', tenantId)
-        .is('deleted_at', null);
+      const pinToken = sessionStorage.getItem(PIN_SESSION_STORAGE_KEY);
+      if (pinToken) {
+        const rpcClient = supabase as unknown as {
+          rpc: (
+            fn: string,
+            args: Record<string, unknown>,
+          ) => Promise<{ data: unknown; error: { message: string } | null }>;
+        };
+        const { data, error } = await rpcClient.rpc('end_doctor_session_for_pin_session', {
+          p_tenant_id: tenantId,
+          p_session_token: pinToken,
+          p_session_id: sessionId,
+        });
+        if (error) {
+          toast.error(`خطأ في الإغلاق: ${error.message}`);
+          return;
+        }
+        const result = data as { success?: boolean; error?: string } | null;
+        if (!result?.success) {
+          toast.error(result?.error === 'SESSION_CLOSED' ? 'الجلسة مغلقة مسبقًا' : 'تعذر إغلاق الجلسة');
+          return;
+        }
+      } else {
+        let updateQuery = supabase
+          .from('clinic_visit_sessions')
+          .update({
+            session_status: 'completed',
+            session_ended_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', sessionId)
+          .eq('tenant_id', tenantId)
+          .is('deleted_at', null);
 
-      if (user.role === 'doctor') {
-        updateQuery = updateQuery.eq('doctor_id', user.id);
-      }
+        if (user.role === 'doctor') {
+          updateQuery = updateQuery.eq('doctor_id', user.id);
+        }
 
-      const { error } = await updateQuery;
+        const { error } = await updateQuery;
 
-      if (error) {
-        toast.error(`خطأ في الإغلاق: ${error.message}`);
-        return;
+        if (error) {
+          toast.error(`خطأ في الإغلاق: ${error.message}`);
+          return;
+        }
       }
 
       toast.success('تم إغلاق الجلسة بنجاح');
