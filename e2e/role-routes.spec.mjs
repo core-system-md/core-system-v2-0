@@ -65,7 +65,16 @@ test.describe('role and screen coverage', () => {
         })());
       });
 
-      await loginAs(page, staff);
+      try {
+        await loginAs(page, staff);
+      } catch (error) {
+        await Promise.all(responseDiagnostics);
+        throw new Error(
+          `[E2E] ${staff.role} login/default-route failed: ${error instanceof Error ? error.message : String(error)}; ` +
+          `currentUrl=${page.url()}; body=${(await page.locator('body').innerText()).slice(-1000)}; ` +
+          `browserErrors=${JSON.stringify(browserErrors)}; failedHttpResponses=${JSON.stringify(failedHttpResponses)}`,
+        );
+      }
       for (const route of roleAccess[staff.role]) {
         await page.goto(route);
         await page.waitForLoadState('domcontentloaded');
