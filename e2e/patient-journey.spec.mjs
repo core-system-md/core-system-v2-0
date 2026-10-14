@@ -35,8 +35,21 @@ test('page 1 accepts valid data and advances to page 2', async ({ page }) => {
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: /التالي — الصفحة 2/ }).click();
   const saveAlert = page.getByRole('alert');
-  if (await saveAlert.isVisible().catch(() => false)) {
+  const page2Heading = page.getByRole('heading', { name: /الصفحة 2 من 5/ });
+
+  // Saving is asynchronous: wait until either the next page renders or the
+  // page-level alert appears, otherwise an immediate isVisible() can miss the
+  // real RPC error and report only a misleading heading timeout.
+  await expect.poll(async () => {
+    const [headingCount, alertCount] = await Promise.all([
+      page2Heading.count(),
+      saveAlert.count(),
+    ]);
+    return headingCount + alertCount;
+  }, { timeout: 15000 }).toBeGreaterThan(0);
+
+  if (await saveAlert.isVisible()) {
     throw new Error(`[E2E] survey page-1 save error: ${await saveAlert.textContent()}`);
   }
-  await expect(page.getByRole('heading', { name: /الصفحة 2 من 5/ })).toBeVisible();
+  await expect(page2Heading).toBeVisible();
 });
