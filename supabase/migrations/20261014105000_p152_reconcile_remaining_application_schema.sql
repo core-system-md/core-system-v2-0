@@ -144,12 +144,12 @@ SET invoice_date = COALESCE(invoice_date, issued_at::date, created_at::date, CUR
         WHEN 'refunded' THEN 'refunded'
         ELSE 'draft'
       END),
-    subtotal_subunits = COALESCE(subtotal_subunits, subtotal_fils, 0),
-    tax_subunits = COALESCE(tax_subunits, tax_fils, 0),
-    discount_subunits = COALESCE(discount_subunits, discount_fils, 0),
-    total_subunits = COALESCE(total_subunits, total_fils, 0),
-    amount_paid_subunits = COALESCE(amount_paid_subunits, paid_fils, 0),
-    amount_due_subunits = COALESCE(amount_due_subunits, balance_fils, 0),
+    subtotal_subunits = COALESCE(subtotal_subunits, 0),
+    tax_subunits = COALESCE(tax_subunits, 0),
+    discount_subunits = COALESCE(discount_subunits, 0),
+    total_subunits = COALESCE(total_subunits, 0),
+    amount_paid_subunits = COALESCE(amount_paid_subunits, paid_subunits, 0),
+    amount_due_subunits = COALESCE(amount_due_subunits, balance_subunits, 0),
     collected_reception = COALESCE(collected_reception, FALSE),
     updated_at = COALESCE(updated_at, NOW())
 WHERE invoice_date IS NULL
