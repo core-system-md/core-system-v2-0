@@ -33,18 +33,6 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       )
       .subscribe();
 
-    // Subscribe to session changes
-    const sessionSub = supabase
-      .channel(`sessions_${tenantId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'clinic_visit_sessions', filter: `tenant_id=eq.${tenantId}` },
-        () => {
-          // Session updates are consumed by subscribed feature stores/hooks.
-        }
-      )
-      .subscribe();
-
     // Subscribe to notification_queue
     const notifSub = supabase
       .channel(`notification_queue_${tenantId}`)
@@ -57,7 +45,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       )
       .subscribe();
 
-    subscriptionsRef.current = [queueSub, sessionSub, notifSub];
+    subscriptionsRef.current = [queueSub, notifSub];
 
     return () => {
       subscriptionsRef.current.forEach((sub) => sub.unsubscribe?.());

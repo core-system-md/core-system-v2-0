@@ -52,16 +52,39 @@ test.describe('role and screen coverage', () => {
   for (const staff of E2E_STAFF) {
     test(`${staff.role}: default route and every permitted screen`, async ({ page }) => {
       const browserErrors = [];
+      const failedHttpResponses = [];
+      const responseDiagnostics = [];
       page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()); });
       page.on('pageerror', (error) => browserErrors.push(`PAGEERROR: ${error.message}`));
+      page.on('response', (response) => {
+        if (response.status() < 400) return;
+        responseDiagnostics.push((async () => {
+          let body = '';
+          try { body = await response.text(); } catch { /* non-text or already closed */ }
+          failedHttpResponses.push(`${response.status()} ${response.url()} ${body.slice(0, 500)}`);
+        })());
+      });
 
-      await loginAs(page, staff);
+      try {
+        await loginAs(page, staff);
+      } catch (error) {
+        await Promise.all(responseDiagnostics);
+        throw new Error(
+          `[E2E] ${staff.role} login/default-route failed: ${error instanceof Error ? error.message : String(error)}; ` +
+          `currentUrl=${page.url()}; body=${(await page.locator('body').innerText()).slice(-1000)}; ` +
+          `browserErrors=${JSON.stringify(browserErrors)}; failedHttpResponses=${JSON.stringify(failedHttpResponses)}`,
+        );
+      }
       for (const route of roleAccess[staff.role]) {
         await page.goto(route);
         await page.waitForLoadState('domcontentloaded');
         await expect(page.locator('body')).toContainText(/./);
       }
-      expect(browserErrors, `${staff.role} produced unexpected browser errors`).toEqual([]);
+      await Promise.all(responseDiagnostics);
+      expect(
+        { browserErrors, failedHttpResponses },
+        `${staff.role} produced unexpected browser/network errors`,
+      ).toEqual({ browserErrors: [], failedHttpResponses: [] });
     });
   }
 

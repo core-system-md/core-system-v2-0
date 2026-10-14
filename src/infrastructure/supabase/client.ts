@@ -41,7 +41,7 @@ export async function savePatientIntakePage(
   page: number,
   payload: Json,
 ) {
-  const rpc = supabase.rpc as unknown as (
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
     fn: string,
     args: { p_session_id: string; p_page: number; p_payload: Json },
   ) => ReturnType<typeof supabase.rpc>;

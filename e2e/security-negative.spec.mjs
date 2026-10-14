@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { spawnSync } from 'node:child_process';
 import { E2E_STAFF, E2E_LICENSE_KEY } from './fixtures/staff.mjs';
 
 const protectedRoutes = ['/admin', '/doctor', '/reception', '/super-admin'];
@@ -30,6 +31,13 @@ async function loginAs(page, staff) {
 }
 
 test.describe('security negative browser suite', () => {
+  test.beforeAll(() => {
+    const env = { ...process.env, E2E_ALLOW_MUTATION: 'true' };
+    const reset = spawnSync('node', ['e2e/reset.mjs'], { stdio: 'inherit', env });
+    if (reset.status !== 0) throw new Error('[E2E] security suite reset failed');
+    const seed = spawnSync('node', ['e2e/seed.mjs'], { stdio: 'inherit', env });
+    if (seed.status !== 0) throw new Error('[E2E] security suite seed failed');
+  });
   test('anonymous users cannot open any protected base route', async ({ page }) => {
     for (const route of protectedRoutes) {
       await reset(page);
