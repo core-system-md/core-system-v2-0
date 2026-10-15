@@ -129,72 +129,12 @@ try {
   runFile(resolve(fixtureDir, 'login-behavior.sql'), 'correct/wrong PIN behavioral check');
   console.log('[rotation-rehearsal] PASS: pgcrypto $2a$ hash accepts the correct synthetic PIN and rejects the wrong PIN in both login stubs.');
 
-  // Generate a true $2b$ hash at runtime. Only the hash is inserted into a private
-  // temporary SQL file; neither it nor its synthetic PIN is printed.
+  // Build a real $2b$ hash at runtime. Temporary SQL files have mode 0600 and are
+  // removed at exit; neither the synthetic PIN nor generated hashes are logged.
   tempDir = await mkdtemp(resolve(tmpdir(), 'mdcore-rotation-rehearsal-'));
   const { syntheticPin, hash: runtimeHash } = createRealBcrypt2bHash();
-  const normalizedHash = '$2a  let rejectBcrypt2bSql = await readFile(resolve(fixtureDir, 'reject-bcrypt-2b.sql'), 'utf8');
-  rejectBcrypt2bSql = rejectBcrypt2bSql.replaceAll(
-    '\\ir ./contracts.sql',
-    '\\ir ' + resolve(fixtureDir, 'contracts.sql'),
-  );
-  rejectBcrypt2bSql = rejectBcrypt2bSql.replaceAll(
-    '\\ir ../../../supabase/runbooks/prepare_credential_rotation.sql',
-    '\\ir ' + resolve(repoRoot, 'supabase/runbooks/prepare_credential_rotation.sql'),
-  );
-  rejectBcrypt2bSql = rejectBcrypt2bSql.replaceAll(
-    '\\ir ../../../supabase/runbooks/apply_credential_rotation.sql',
-    '\\ir ' + resolve(repoRoot, 'supabase/runbooks/apply_credential_rotation.sql'),
-  );
-  if (!rejectBcrypt2bSql.includes('__RUNTIME_BCRYPT_2B_HASH__')) {
-    throw new Error('The $2b$ test template placeholder is missing.');
-  }
-  rejectBcrypt2bSql = rejectBcrypt2bSql.split('__RUNTIME_BCRYPT_2B_HASH__').join(runtimeHash);
-  const bcrypt2bFile = resolve(tempDir, 'reject-bcrypt-2b.sql');
-  await writeFile(bcrypt2bFile, rejectBcrypt2bSql, { encoding: 'utf8', mode: 0o600 });
-  expectFailure(
-    bcrypt2bFile,
-    'hash is not an accepted $2a$ bcrypt hash',
-    'real $2b$ staged-hash rejection',
-  );
-  assertBooleanFile(resolve(fixtureDir, 'assert-original-state.sql'), '$2b$ rejection rollback');
-  console.log('[rotation-rehearsal] PASS: runtime-generated $2b$ hash rejected at preflight; tenant, staff and session state unchanged.');
+  const normalizedHash = '$2a$' + runtimeHash.slice(4);
 
-  expectFailure(
-    resolve(fixtureDir, 'reject-mixed-hash-plaintext.sql'),
-    'FIX-002 is not verified',
-    'mixed hash/plaintext contract rejection',
-  );
-  assertBooleanFile(resolve(fixtureDir, 'assert-original-state.sql'), 'mixed-contract rollback');
-  console.log('[rotation-rehearsal] PASS: overload with both hash reference and plaintext comparison is rejected; state unchanged.');
-
-  expectFailure(
-    resolve(fixtureDir, 'reject-incomplete-stage.sql'),
-    'Staged user count does not match',
-    'incomplete staging rejection',
-  );
-  assertBooleanFile(resolve(fixtureDir, 'assert-original-state.sql'), 'incomplete-stage rollback');
-  console.log('[rotation-rehearsal] PASS: incomplete user stage is rejected; state unchanged.');
-
-  expectFailure(
-    resolve(fixtureDir, 'reject-postflight-mismatch.sql'),
-    'Postflight failed: one or more staged users do not match',
-    'postflight mismatch rollback',
-  );
-  assertBooleanFile(resolve(fixtureDir, 'assert-original-state.sql'), 'postflight mismatch rollback');
-  console.log('[rotation-rehearsal] PASS: postflight mismatch rolls back PIN, license and session updates.');
-
-  runFile(resolve(fixtureDir, 'apply-twice.sql'), 'idempotent double apply');
-  assertBooleanFile(resolve(fixtureDir, 'assert-final-state.sql'), 'final rotated fixture state');
-  console.log('[rotation-rehearsal] PASS: apply executed twice; second-run snapshots unchanged; active tenant sessions soft-revoked.');
-  console.log('[rotation-rehearsal] PASS: all assertions completed; no credential values were printed.');
-} catch (error) {
-  console.error('[rotation-rehearsal] FAILED: ' + (error instanceof Error ? error.message : 'unknown failure'));
-  process.exitCode = 1;
-} finally {
-  if (tempDir) await rm(tempDir, { recursive: true, force: true });
-}
- + runtimeHash.slice(4);
   let normalizedProbeSql = await readFile(resolve(fixtureDir, 'bcrypt-normalized-login.sql'), 'utf8');
   normalizedProbeSql = normalizedProbeSql
     .split('__RUNTIME_SYNTHETIC_PIN__').join(syntheticPin)
@@ -203,6 +143,7 @@ try {
   await writeFile(normalizedProbeFile, normalizedProbeSql, { encoding: 'utf8', mode: 0o600 });
   runFile(normalizedProbeFile, 'normalized external bcrypt behavioural probe');
   console.log('[rotation-rehearsal] PASS: runtime-generated $2b$ hash normalized to $2a$ verifies the correct PIN and rejects the wrong PIN on PostgreSQL major ' + major + '.');
+
   let rejectBcrypt2bSql = await readFile(resolve(fixtureDir, 'reject-bcrypt-2b.sql'), 'utf8');
   rejectBcrypt2bSql = rejectBcrypt2bSql.replaceAll(
     '\\ir ./contracts.sql',
@@ -219,7 +160,7 @@ try {
   if (!rejectBcrypt2bSql.includes('__RUNTIME_BCRYPT_2B_HASH__')) {
     throw new Error('The $2b$ test template placeholder is missing.');
   }
-  rejectBcrypt2bSql = rejectBcrypt2bSql.replace('__RUNTIME_BCRYPT_2B_HASH__', runtimeHash);
+  rejectBcrypt2bSql = rejectBcrypt2bSql.split('__RUNTIME_BCRYPT_2B_HASH__').join(runtimeHash);
   const bcrypt2bFile = resolve(tempDir, 'reject-bcrypt-2b.sql');
   await writeFile(bcrypt2bFile, rejectBcrypt2bSql, { encoding: 'utf8', mode: 0o600 });
   expectFailure(
