@@ -25,7 +25,10 @@ export function findDefaultCredentialReferences(path, content) {
     if (demoLicense.test(line)) {
       findings.push({ path, line: index + 1, kind: 'demo license key' });
     }
-    if (pinContext.test(line) && fourDigitScalar.test(line)) {
+    const contextWindow = lines
+      .slice(Math.max(0, index - 2), Math.min(lines.length, index + 3))
+      .join('\n');
+    if (pinContext.test(contextWindow) && fourDigitScalar.test(line)) {
       findings.push({ path, line: index + 1, kind: 'four-digit PIN literal' });
     }
   }
