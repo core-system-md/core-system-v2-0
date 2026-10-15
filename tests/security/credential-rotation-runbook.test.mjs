@@ -67,7 +67,7 @@ describe('credential rotation runbook safety contract', () => {
     expect(runbook).toMatch(/correct synthetic PIN/i);
     expect(runbook).toMatch(/wrong PIN/i);
     expect(runbook).toMatch(/trim\(p_pin\)/i);
-    expect(runbook).toMatch(/::text casts/i);
+    expect(runbook).toMatch(/::text.*casts/i);
   });
 
   it('soft-revokes tenant sessions and checks revocation in postflight', () => {
