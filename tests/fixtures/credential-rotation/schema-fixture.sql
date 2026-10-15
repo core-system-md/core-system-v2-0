@@ -58,7 +58,7 @@ DECLARE
 BEGIN
   -- Recommended hash producer for this rehearsal: pgcrypto bcrypt via crypt().
   v_hash := extensions.crypt(v_synthetic_sample, extensions.gen_salt('bf', 12));
-  IF v_hash !~ '^\$22a\$[0-9]{2}\$[./A-Za-z0-9]{53}$' THEN
+  IF v_hash !~ '^\$2a\$[0-9]{2}\$[./A-Za-z0-9]{53}$' THEN
     RAISE EXCEPTION 'pgcrypto produced an unexpected bcrypt hash format.';
   END IF;
   IF extensions.crypt(v_synthetic_sample, v_hash) IS DISTINCT FROM v_hash THEN
