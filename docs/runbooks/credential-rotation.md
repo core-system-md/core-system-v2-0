@@ -11,6 +11,7 @@ Never run it on production until FIX-002 is merged and verified and the owner ha
 - Confirm the stored hash format matches the existing bcrypt-style contract and verify function. Do not guess or change the hash format in this task.
 - Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`.
 - Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding; never interpolate credentials into SQL strings or paste them into a SQL editor.
 - The current repository's legacy `hash_pin` helper uses PostgreSQL `pgcrypto` `crypt()` with bcrypt (`bf`). For the isolated rehearsal, the recommended producer is `extensions.crypt(pin, extensions.gen_salt('bf', 12))`; verify with `extensions.crypt(input_pin, stored_hash) = stored_hash`. The rehearsal asserts the exact bcrypt prefix emitted by the installed PostgreSQL's `pgcrypto` (the documented Blowfish variant is `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
 
 **Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration.
