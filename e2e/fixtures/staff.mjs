@@ -1,3 +1,5 @@
+// ISOLATED E2E ONLY — synthetic role credentials for the fixed local test tenant.
+// Never reuse fixture values in shared or production environments.
 export const E2E_STAFF = [
   {
     role: 'super_admin',
