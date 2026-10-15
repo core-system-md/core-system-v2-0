@@ -1,31 +1,41 @@
-# CORE SYSTEM v2.0 — Test Checklist
+# CORE SYSTEM v2.1 — Test Checklist
 
-## ✅ Build
-- [ ] `npx tsc --noEmit` → 0 errors
+## Environment prerequisites
+- [ ] Use a disposable local Supabase instance or a dedicated isolated Supabase branch.
+- [ ] Provision test staff credentials and the tenant license out-of-band for this run.
+- [ ] Never store real PINs, license keys, tokens, or personal data in this checklist or CI logs.
+- [ ] Confirm E2E mutation scripts are limited to the isolated E2E tenant before running them.
+
+## Build
+- [ ] `npx tsc -b` → 0 errors
 - [ ] `npm run build` → success
 
-## ✅ Database
-- [ ] `license_key` updated to `DEMO-LICENSE-2024`
-- [ ] `master_tenants` has active tenant
-- [ ] `clinic_users` has 3 staff members
-- [ ] `clinic_visit_sessions` has data
+## Database
+- [ ] `master_tenants` has the isolated active tenant with a privately provisioned license.
+- [ ] `clinic_users` has the expected test staff rows, provisioned without repository-shipped PINs.
+- [ ] `clinic_visit_sessions` has isolated test data.
 
-## ✅ Auth
-- [ ] /login loads with dark theme
-- [ ] PIN login with `1234` (Admin) → success
-- [ ] PIN login with `5678` (Doctor) → success
-- [ ] PIN login with `0000` (Reception) → success
-- [ ] JWT contains `user_metadata.tenant_id`
-- [ ] Logout button works
+## Auth
+- [ ] `/login` loads with the expected theme.
+- [ ] PIN login succeeds using credentials provisioned for this isolated run (admin).
+- [ ] PIN login succeeds using credentials provisioned for this isolated run (doctor).
+- [ ] PIN login succeeds using credentials provisioned for this isolated run (receptionist).
+- [ ] JWT/session contains the expected tenant context.
+- [ ] Logout button works.
 
-## ✅ Data
-- [ ] /reception shows Queue (not empty)
-- [ ] Queue items have SLA colors
-- [ ] Queue items show patient names
-- [ ] Realtime updates work
+## Data
+- [ ] `/reception` shows queue data from the isolated tenant.
+- [ ] Queue items have SLA colors.
+- [ ] Queue items show only synthetic test patients.
+- [ ] Realtime updates work.
 
-## ✅ UI
-- [ ] Sidebar shows clinic name
-- [ ] Sidebar shows user name + role
-- [ ] Mobile responsive works
-- [ ] All routes load without 404
+## UI and role regression
+- [ ] Sidebar shows the isolated clinic name.
+- [ ] Sidebar shows the signed-in user and role.
+- [ ] Mobile responsive layout works.
+- [ ] All role-permitted routes load without 404.
+- [ ] Verify `/admin`, `/doctor`, `/reception`, and `/super-admin` against the permission matrix.
+
+## Cleanup
+- [ ] Run the E2E soft-reset only against the isolated E2E tenant.
+- [ ] Confirm no production database, production deployment, or production environment setting was touched.

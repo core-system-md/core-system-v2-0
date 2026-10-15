@@ -39,6 +39,8 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+      - name: Check for repository-shipped default credentials
+        run: npm run check:default-credentials
 
       - name: Start isolated Supabase
         run: supabase start
@@ -81,6 +83,8 @@ jobs:
           node --check tools/test-execution-setup.mjs
           node --check tools/test-execution-runner.mjs
           node --check tools/migration-validation.mjs
+          node --check tools/default-credential-guard.mjs
+          node --check tools/check-default-credentials.mjs
           node --check e2e/run-full.mjs
           node --check e2e/reconcile.mjs
           node --check e2e/role-routes.spec.mjs
@@ -119,3 +123,54 @@ jobs:
           name: test-execution-plan
           path: test-execution-plan.json
           if-no-files-found: error
+  credential-rotation-rehearsal:
+    name: Isolated credential rotation SQL rehearsal (PostgreSQL ${{ matrix.major }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - major: '16'
+            image: postgres:16.15
+          - major: '17'
+            image: postgres:17
+    services:
+      postgres:
+        image: ${{ matrix.image }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install PostgreSQL client and isolated bcrypt test tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client python3-bcrypt
+
+      - name: Verify rehearsal source file is tracked
+        run: git ls-files --error-unmatch tools/rehearse-credential-rotation.mjs
+
+      - name: Run schema-only rotation rehearsal (does not run migration 012)
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: postgres
+          PGDATABASE: postgres
+          EXPECTED_PG_MAJOR: ${{ matrix.major }}
+        run: npm run test:rotation-rehearsal
