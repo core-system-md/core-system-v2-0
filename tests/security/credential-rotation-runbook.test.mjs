@@ -5,6 +5,7 @@ const preparation = readFileSync(new URL('../../supabase/runbooks/prepare_creden
 const apply = readFileSync(new URL('../../supabase/runbooks/apply_credential_rotation.sql', import.meta.url), 'utf8');
 const runbook = readFileSync(new URL('../../docs/runbooks/credential-rotation.md', import.meta.url), 'utf8');
 const bcrypt2bFixture = readFileSync(new URL('../../tests/fixtures/credential-rotation/reject-bcrypt-2b.sql', import.meta.url), 'utf8');
+const normalizedBcryptFixture = readFileSync(new URL('../../tests/fixtures/credential-rotation/bcrypt-normalized-login.sql', import.meta.url), 'utf8');
 const loginBehavior = readFileSync(new URL('../../tests/fixtures/credential-rotation/login-behavior.sql', import.meta.url), 'utf8');
 const schemaFixture = readFileSync(new URL('../../tests/fixtures/credential-rotation/schema-fixture.sql', import.meta.url), 'utf8');
 
@@ -68,6 +69,10 @@ describe('credential rotation runbook safety contract', () => {
     expect(runbook).toMatch(/wrong PIN/i);
     expect(runbook).toMatch(/trim\(p_pin\)/i);
     expect(runbook).toMatch(/::text.*casts/i);
+    expect(normalizedBcryptFixture).toContain('__RUNTIME_SYNTHETIC_PIN__');
+    expect(normalizedBcryptFixture).toContain('__RUNTIME_BCRYPT_2A_HASH__');
+    expect(normalizedBcryptFixture).toMatch(/extensions\.crypt\(v_pin, v_hash\)/);
+    expect(normalizedBcryptFixture).toMatch(/synthetic incorrect normalization probe/);
   });
 
   it('soft-revokes tenant sessions and checks revocation in postflight', () => {
