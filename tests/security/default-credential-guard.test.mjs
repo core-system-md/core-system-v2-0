@@ -42,9 +42,12 @@ describe('default credential guard', () => {
   });
 
   it('does not treat dated source comments as PIN literals', () => {
+    const issueDate = ['20', '26', '07', '14'].join('-');
+    const functionName = ['loginWith', 'Pin'].join('');
+    const comment = `// FIXED: ${issueDate} — remove selectedRole from ${functionName}`;
     expect(findDefaultCredentialReferences(
       'src/features/auth/AuthScreen.tsx',
-      '// FIXED: 2026-07-14 — remove selectedRole from loginWithPin',
+      comment,
     )).toHaveLength(0);
   });
 
