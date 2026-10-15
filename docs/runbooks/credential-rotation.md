@@ -14,9 +14,255 @@
 
 ## Hash generation compatibility
 
-The repository's legacy `hash_pin` helper uses PostgreSQL `pgcrypto` `crypt()` with bcrypt (`bf`). For the isolated rehearsal, use `extensions.crypt(pin, extensions.gen_salt('bf', 12))` and verify with `extensions.crypt(input_pin, stored_hash) = stored_hash`.
+The recommended producer for staged hashes is PostgreSQL `pgcrypto`: `extensions.crypt(pin, extensions.gen_salt('bf', 12))`. Only a hash verified against the intended PIN with `extensions.crypt(input_pin, stored_hash) = stored_hash` may be staged. If another producer emits a `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
 
-The rehearsal verifies that the installed PostgreSQL `pgcrypto` build emits the expected `$2a$` bcrypt prefix for `gen_salt('bf', 12)` and confirms `crypt()` accepts that generated hash. This rehearsal does not certify hashes produced by unrelated external libraries, including the `$2b$` variant. FIX-002 must establish the production hash producer, verifier, and cost parameter are compatible before rotation.
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash, normalize its prefix to `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ before staging only after the compatibility probe below passes; never stage a raw `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash.
+
+The rehearsal verifies that each tested PostgreSQL major emits the expected `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+The recommended producer for staged hashes is PostgreSQL `pgcrypto`: `extensions.crypt(pin, extensions.gen_salt('bf', 12))`. Only a hash verified against the intended PIN with `extensions.crypt(input_pin, stored_hash) = stored_hash` may be staged. If another producer emits a `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash, normalize its prefix to `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ before staging only after the compatibility probe below passes; never stage a raw `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash.
+
+ prefix for `gen_salt('bf', 12)`, and that `crypt()` accepts it. It also generates a real `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+The recommended producer for staged hashes is PostgreSQL `pgcrypto`: `extensions.crypt(pin, extensions.gen_salt('bf', 12))`. Only a hash verified against the intended PIN with `extensions.crypt(input_pin, stored_hash) = stored_hash` may be staged. If another producer emits a `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash, normalize its prefix to `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ before staging only after the compatibility probe below passes; never stage a raw `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash.
+
+ hash at runtime and asserts the rotation preflight rejects it without changing fixture data. Do not assume PostgreSQL `crypt()` will verify `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+The recommended producer for staged hashes is PostgreSQL `pgcrypto`: `extensions.crypt(pin, extensions.gen_salt('bf', 12))`. Only a hash verified against the intended PIN with `extensions.crypt(input_pin, stored_hash) = stored_hash` may be staged. If another producer emits a `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash, normalize its prefix to `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ before staging only after the compatibility probe below passes; never stage a raw `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash.
+
+; normalize before staging only if the behavioural probe succeeds for the exact hash and target PostgreSQL major. FIX-002 must confirm the production producer, verifier, and cost parameter are compatible.
 
 ## Explicit exclusions — tracked in FIX-002
 
@@ -28,6 +274,293 @@ This FIX-001 rotation changes only the staged staff PIN hash and legacy PIN fiel
 - Git history: this task removes references from current tracked files but does not rewrite public commit history or force-push rewritten commits.
 
 These exclusions are tracked under FIX-002. Any legacy password cleanup, audit-history policy, Supabase Auth account rotation, or Git-history remediation must be planned and approved separately. Do not include such actions implicitly in this runbook.
+
+## FIX-002 login verification gate
+
+After FIX-002 replaces the production login functions in the isolated rehearsal database, run a behavioural test through each replaced `create_pin_session` overload:
+
+1. A correct synthetic PIN whose staged hash was generated by the approved producer must authenticate successfully.
+2. A wrong PIN for the same tenant and staff account must fail authentication.
+3. Repeat against each supported login overload and assert neither test changes credentials or bypasses rate limits/RLS.
+
+The fixture's current stub contract runs correct-PIN and wrong-PIN checks against a `pgcrypto`-generated `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+The recommended producer for staged hashes is PostgreSQL `pgcrypto`: `extensions.crypt(pin, extensions.gen_salt('bf', 12))`. Only a hash verified against the intended PIN with `extensions.crypt(input_pin, stored_hash) = stored_hash` may be staged. If another producer emits a `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash, normalize its prefix to `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ before staging only after the compatibility probe below passes; never stage a raw `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash.
+
+The rehearsal verifies that each tested PostgreSQL major emits the expected `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+The recommended producer for staged hashes is PostgreSQL `pgcrypto`: `extensions.crypt(pin, extensions.gen_salt('bf', 12))`. Only a hash verified against the intended PIN with `extensions.crypt(input_pin, stored_hash) = stored_hash` may be staged. If another producer emits a `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash, normalize its prefix to `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ before staging only after the compatibility probe below passes; never stage a raw `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash.
+
+ prefix for `gen_salt('bf', 12)`, and that `crypt()` accepts it. It also generates a real `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+The recommended producer for staged hashes is PostgreSQL `pgcrypto`: `extensions.crypt(pin, extensions.gen_salt('bf', 12))`. Only a hash verified against the intended PIN with `extensions.crypt(input_pin, stored_hash) = stored_hash` may be staged. If another producer emits a `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash, normalize its prefix to `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ before staging only after the compatibility probe below passes; never stage a raw `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash.
+
+ hash at runtime and asserts the rotation preflight rejects it without changing fixture data. Do not assume PostgreSQL `crypt()` will verify `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+The recommended producer for staged hashes is PostgreSQL `pgcrypto`: `extensions.crypt(pin, extensions.gen_salt('bf', 12))`. Only a hash verified against the intended PIN with `extensions.crypt(input_pin, stored_hash) = stored_hash` may be staged. If another producer emits a `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash, normalize its prefix to `$2a# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ before staging only after the compatibility probe below passes; never stage a raw `$2b# CORE SYSTEM v2.1 — Credential Rotation Runbook (FIX-001)
+
+**Status: PREPARED — NOT EXECUTED.** This is an operational runbook, not an automatic migration. Never run it on production until FIX-002 is merged and verified and the owner has given explicit written approval for the production rotation.
+
+## Scope and prerequisites
+
+- Rotate credentials for one explicitly selected tenant only.
+- Use a disposable local PostgreSQL database or an approved isolated database branch for rehearsal.
+- Confirm every `public.create_pin_session` overload uses the hashed PIN contract and contains no plaintext comparison against `pin_code`. The apply script enforces this gate.
+- Confirm the new login contract accepts the approved PIN length and the stored hash format is compatible with the function that verifies it.
+- Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`; verify `public.pin_sessions` has `tenant_id` and `deleted_at`.
+- Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- Populate staging tables through a trusted database client using parameter binding. Never interpolate credentials into SQL strings or paste them into a SQL editor.
+
+## Hash generation compatibility
+
+ hash.
+
+; normalize before staging only if the behavioural probe succeeds for the exact hash and target PostgreSQL major. FIX-002 must confirm the production producer, verifier, and cost parameter are compatible.
+
+## Explicit exclusions — tracked in FIX-002
+
+This FIX-001 rotation changes only the staged staff PIN hash and legacy PIN field, the tenant license key, and live PIN sessions. It does **not** clean or rotate the following:
+
+- `public.clinic_users.password`: the legacy password column is left unchanged.
+- `public.pin_attempt_log.attempted_pin`: historical attempt values are retained; this runbook does not purge or rewrite audit history.
+- Supabase Auth email/password accounts: users, password hashes, identities, and existing Supabase Auth sessions are outside this PIN/license rotation.
+- Git history: this task removes references from current tracked files but does not rewrite public commit history or force-push rewritten commits.
+
+ hash. FIX-002 must repeat this against the actual replaced login functions before rotation is authorized.
+
+The SQL definition regex in the rotation preflight is a **first gate, not proof of safe PIN verification**. Expressions involving `::text` casts, `trim(p_pin)`, or copying the input into a local variable can evade its simple plaintext-comparison pattern. FIX-002 must include code review plus the behavioural checks above; do not rely on the regex alone.
 
 ## Generate credentials outside the repository
 
