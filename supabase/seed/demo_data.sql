@@ -1,3 +1,5 @@
+-- ISOLATED LOCAL DEMO DATA ONLY. Never apply to production or a shared environment.
+-- Staff credentials must be provisioned out-of-band after the applicable auth contract is installed.
 -- Demo clinic: 1 tenant, 2 users, 3 patients, 3 procedures, 1 room
 
 BEGIN;
@@ -9,9 +11,9 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO clinic_users (id, tenant_id, email, full_name, full_name_ar, role, employee_code, pin_code, is_active)
 VALUES 
-('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'admin@demo.jo', 'Ahmad Admin', 'أحمد الأدمن', 'clinic_admin', 'ADM001', '1234', TRUE),
-('cccccccc-cccc-cccc-cccc-cccccccccccc', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'doctor@demo.jo', 'Dr. Sara', 'د. سارة', 'doctor', 'DOC001', '5678', TRUE),
-('dddddddd-dddd-dddd-dddd-dddddddddddd', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'reception@demo.jo', 'Lina Reception', 'لينا الاستقبال', 'receptionist', 'REC001', '0000', TRUE)
+('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'admin@demo.jo', 'Ahmad Admin', 'أحمد الأدمن', 'clinic_admin', 'ADM001', NULL, TRUE),
+('cccccccc-cccc-cccc-cccc-cccccccccccc', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'doctor@demo.jo', 'Dr. Sara', 'د. سارة', 'doctor', 'DOC001', NULL, TRUE),
+('dddddddd-dddd-dddd-dddd-dddddddddddd', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'reception@demo.jo', 'Lina Reception', 'لينا الاستقبال', 'receptionist', 'REC001', NULL, TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO clinic_rooms (id, tenant_id, name, code, is_active, capacity)
