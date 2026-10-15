@@ -76,7 +76,7 @@ try {
     "SELECT (to_regclass('public.master_tenants') IS NULL " +
       "AND to_regclass('public.clinic_users') IS NULL " +
       "AND to_regclass('public.pin_sessions') IS NULL " +
-      "AND to_regclass('public.rotation_rehearsal_state') IS NULL)::text;",
+      "AND to_regclass('public.rotation_rehearsal_state') IS NULL);",
     'empty-database safety check',
   );
   if (!emptyDatabase) {
