@@ -39,7 +39,7 @@ describe('credential rotation runbook safety contract', () => {
     expect(stagedHashLine).not.toContain('[ab]');
     expect(apply).toContain('hash is not an accepted $2a$ bcrypt hash');
     expect(bcrypt2bFixture).toContain('__RUNTIME_BCRYPT_2B_HASH__');
-    expect(runbook).toMatch(/never stage a raw `$2b$` hash/i);
+    expect(runbook).toContain('Never stage a raw `$2b$` hash');
   });
 
   it('rejects a mixed hashed/plaintext function contract even if hash is referenced', () => {
