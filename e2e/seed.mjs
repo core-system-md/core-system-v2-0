@@ -1,18 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 import { E2E_PATIENTS, E2E_SESSION_IDS } from './fixtures/patients.mjs';
-import { E2E_LICENSE_KEY, E2E_STAFF, E2E_TENANT_ID } from './fixtures/staff.mjs';
+import { E2E_LICENSE_KEY, E2E_STAFF } from './fixtures/staff.mjs';
+import { assertIsolatedE2ETarget } from './assert-isolated-target.mjs';
 
 for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
   if (!process.env[key]) throw new Error(`[E2E] Missing required environment variable: ${key}`);
 }
 if (process.env.E2E_ALLOW_MUTATION !== 'true') throw new Error('[E2E] Refusing mutation. Set E2E_ALLOW_MUTATION=true explicitly.');
-const baseUrl = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:4173';
-if (/^https:\/\//i.test(baseUrl) && process.env.E2E_ALLOW_PRODUCTION !== 'true') throw new Error('[E2E] HTTPS target rejected without explicit production approval.');
+const { tenantId, baseUrl } = assertIsolatedE2ETarget();
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const tenantId = process.env.E2E_TENANT_ID ?? E2E_TENANT_ID;
 
 const { error: tenantError } = await supabase.from('master_tenants').upsert({
   id: tenantId,
