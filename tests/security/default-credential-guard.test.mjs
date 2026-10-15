@@ -18,6 +18,13 @@ describe('default credential guard', () => {
     expect(JSON.stringify(findings)).not.toContain(pinOne);
   });
 
+  it('detects a default PIN stored in a camelCase variable', () => {
+    expect(findDefaultCredentialReferences(
+      'src/auth.ts',
+      `const defaultPin = '${pinTwo}';`,
+    )).toHaveLength(1);
+  });
+
   it('detects each documented four-digit default used in PIN context', () => {
     for (const pin of [pinOne, pinTwo, pinThree]) {
       expect(findDefaultCredentialReferences('TEST_CHECKLIST.md', `PIN login with ${pin}`)).toHaveLength(1);
