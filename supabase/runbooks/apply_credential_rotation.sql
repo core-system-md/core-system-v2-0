@@ -15,6 +15,7 @@ DECLARE
   v_stage_users BIGINT;
   v_active_users BIGINT;
   v_hash_aware_functions BIGINT;
+  v_plaintext_functions BIGINT;
   v_total_functions BIGINT;
   v_function_def TEXT;
 BEGIN
@@ -118,21 +119,31 @@ BEGIN
     RAISE EXCEPTION 'One or more active users are missing from the rotation stage.';
   END IF;
 
-  -- FIX-002 must change every public.create_pin_session overload to verify
-  -- pin_hash (directly or through verify_pin_hash) before this script can proceed.
+  -- FIX-002 must make every create_pin_session overload hash-aware and
+  -- remove every plaintext pin_code = p_pin comparison.
+  -- Catch qualified and unqualified comparisons in either operand order.
+  WITH function_contracts AS (
+    SELECT pg_get_functiondef(p.oid) AS definition
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'create_pin_session'
+  )
   SELECT count(*),
          count(*) FILTER (
-           WHERE pg_get_functiondef(p.oid) ILIKE '%pin_hash%'
-              OR pg_get_functiondef(p.oid) ILIKE '%verify_pin_hash%'
+           WHERE definition ILIKE '%pin_hash%'
+              OR definition ILIKE '%verify_pin_hash%'
+         ),
+         count(*) FILTER (
+           WHERE definition ~* '([[:alnum:]_]+\\.)?pin_code[[:space:]]*=[[:space:]]*p_pin([[:space:]]|$)|p_pin[[:space:]]*=[[:space:]]*([[:alnum:]_]+\\.)?pin_code'
          )
-    INTO v_total_functions, v_hash_aware_functions
-  FROM pg_proc p
-  JOIN pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'public'
-    AND p.proname = 'create_pin_session';
+    INTO v_total_functions, v_hash_aware_functions, v_plaintext_functions
+  FROM function_contracts;
 
-  IF v_total_functions = 0 OR v_hash_aware_functions <> v_total_functions THEN
-    RAISE EXCEPTION 'FIX-002 is not verified: every create_pin_session overload must use the hashed PIN contract.';
+  IF v_total_functions = 0
+     OR v_hash_aware_functions <> v_total_functions
+     OR v_plaintext_functions > 0 THEN
+    RAISE EXCEPTION 'FIX-002 is not verified: every create_pin_session overload must use the hashed PIN contract and must not compare pin_code to the input PIN.';
   END IF;
 
   SELECT pg_get_functiondef(p.oid)
@@ -188,6 +199,16 @@ WHERE t.id = s.tenant_id
   AND t.deleted_at IS NULL
   AND t.license_key IS DISTINCT FROM s.new_license_key;
 
+-- Revoke any currently live PIN sessions for this tenant without deleting rows.
+UPDATE public.pin_sessions ps
+SET deleted_at = NOW()
+WHERE ps.tenant_id = (
+    SELECT tenant_id
+    FROM pg_temp.mdcore_rotation_license_stage
+    LIMIT 1
+  )
+  AND ps.deleted_at IS NULL;
+
 DO $postflight$
 DECLARE
   v_tenant_id UUID;
@@ -219,6 +240,15 @@ BEGIN
       AND t.deleted_at IS NULL
   ) THEN
     RAISE EXCEPTION 'Postflight failed: tenant license does not match the staged value.';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.pin_sessions ps
+    WHERE ps.tenant_id = v_tenant_id
+      AND ps.deleted_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Postflight failed: one or more live PIN sessions remain for the rotated tenant.';
   END IF;
 END;
 $postflight$;
