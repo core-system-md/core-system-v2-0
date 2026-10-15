@@ -3,7 +3,6 @@ CREATE OR REPLACE FUNCTION public.verify_pin_hash(p_tenant_id UUID, p_pin TEXT)
 RETURNS SETOF public.clinic_users
 LANGUAGE sql
 STABLE
-SECURITY DEFINER
 SET search_path = ''
 AS $verify$
   SELECT u.*
@@ -18,7 +17,6 @@ CREATE OR REPLACE FUNCTION public.create_pin_session(p_tenant_id UUID, p_pin TEX
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
-SECURITY DEFINER
 SET search_path = ''
 AS $pin_only$
   SELECT EXISTS (
@@ -30,7 +28,6 @@ CREATE OR REPLACE FUNCTION public.create_pin_session(p_tenant_id UUID, p_employe
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
-SECURITY DEFINER
 SET search_path = ''
 AS $employee_pin$
   SELECT EXISTS (
@@ -44,7 +41,6 @@ CREATE OR REPLACE FUNCTION public.validate_license(p_license_key TEXT)
 RETURNS SETOF public.master_tenants
 LANGUAGE sql
 STABLE
-SECURITY DEFINER
 SET search_path = ''
 AS $license$
   SELECT t.*
