@@ -135,7 +135,7 @@ BEGIN
               OR definition ILIKE '%verify_pin_hash%'
          ),
          count(*) FILTER (
-           WHERE definition ~* '([[:alnum:]_]+\\.)?pin_code[[:space:]]*=[[:space:]]*p_pin([[:space:]]|$)|p_pin[[:space:]]*=[[:space:]]*([[:alnum:]_]+\\.)?pin_code'
+           WHERE definition ~* '([[:alnum:]_]+\.)?pin_code[[:space:]]*=[[:space:]]*p_pin([[:space:]]|$)|p_pin[[:space:]]*=[[:space:]]*([[:alnum:]_]+\.)?pin_code'
          )
     INTO v_total_functions, v_hash_aware_functions, v_plaintext_functions
   FROM function_contracts;
