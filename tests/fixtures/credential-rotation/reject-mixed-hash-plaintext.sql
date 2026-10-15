@@ -1,6 +1,6 @@
 -- Expected to fail before changing any rows.
 CREATE OR REPLACE FUNCTION public.create_pin_session(p_tenant_id UUID, p_pin TEXT)
-RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+RETURNS BOOLEAN LANGUAGE sql STABLE SET search_path = ''
 AS $bad$
   SELECT EXISTS (
     SELECT 1 FROM public.clinic_users u
