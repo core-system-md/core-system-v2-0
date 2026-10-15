@@ -87,7 +87,7 @@ BEGIN
      AND u.deleted_at IS NULL
     WHERE u.id IS NULL
        OR s.pin_length < 6
-       OR s.pin_hash !~ '^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$'
+       OR s.pin_hash !~ '^\$2[ab]\$[0-9]{2}\$[./A-Za-z0-9]{53}$'
   ) THEN
     RAISE EXCEPTION 'A staged staff row is invalid or does not match an active, non-deleted user in the target tenant.';
   END IF;
