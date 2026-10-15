@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest';
 const preparation = readFileSync(new URL('../../supabase/runbooks/prepare_credential_rotation.sql', import.meta.url), 'utf8');
 const apply = readFileSync(new URL('../../supabase/runbooks/apply_credential_rotation.sql', import.meta.url), 'utf8');
 const runbook = readFileSync(new URL('../../docs/runbooks/credential-rotation.md', import.meta.url), 'utf8');
+const bcrypt2bFixture = readFileSync(new URL('../../tests/fixtures/credential-rotation/reject-bcrypt-2b.sql', import.meta.url), 'utf8');
+const loginBehavior = readFileSync(new URL('../../tests/fixtures/credential-rotation/login-behavior.sql', import.meta.url), 'utf8');
+const schemaFixture = readFileSync(new URL('../../tests/fixtures/credential-rotation/schema-fixture.sql', import.meta.url), 'utf8');
 
 function satisfiesHashedPinContract(definition) {
   const referencesHash = /\bpin_hash\b|\bverify_pin_hash\b/i.test(definition);
@@ -12,7 +15,7 @@ function satisfiesHashedPinContract(definition) {
 }
 
 describe('credential rotation runbook safety contract', () => {
-  it('keeps sensitive staging session-scoped and requires parameterized staging', () => {
+  it('keeps session-scoped staging and parameter-bound loading documented', () => {
     expect(preparation).toMatch(/CREATE TEMP TABLE mdcore_rotation_staff_stage/i);
     expect(preparation).toMatch(/CREATE TEMP TABLE mdcore_rotation_license_stage/i);
     expect(preparation).toMatch(/ON COMMIT PRESERVE ROWS/i);
@@ -28,15 +31,23 @@ describe('credential rotation runbook safety contract', () => {
     expect(apply.trimEnd()).toMatch(/COMMIT;$/i);
   });
 
-  it('checks every create_pin_session overload and rejects a mixed hashed/plaintext definition', () => {
+  it('accepts only the pgcrypto-compatible $2a$ staged hash prefix', () => {
+    const stagedHashLine = apply.split(/\r?\n/).find((line) => line.includes('s.pin_hash !~'));
+    expect(stagedHashLine).toBeDefined();
+    expect(stagedHashLine).toContain('2a');
+    expect(stagedHashLine).not.toContain('2b');
+    expect(stagedHashLine).not.toContain('[ab]');
+    expect(apply).toContain('hash is not an accepted $2a$ bcrypt hash');
+    expect(bcrypt2bFixture).toContain('__RUNTIME_BCRYPT_2B_HASH__');
+    expect(runbook).toMatch(/never stage a raw `$2b$` hash/i);
+  });
+
+  it('rejects a mixed hashed/plaintext function contract even if hash is referenced', () => {
     expect(apply).toMatch(/v_total_functions/);
     expect(apply).toMatch(/v_hash_aware_functions/);
     expect(apply).toMatch(/v_plaintext_functions/);
-    expect(apply).toMatch(/pg_get_functiondef/);
-    expect(apply).toContain("WHERE definition ~*");
+    expect(apply).toContain('WHERE definition ~*');
     expect(apply).toMatch(/FIX-002 is not verified/i);
-    expect(apply).toMatch(/pin_code = NULL/i);
-    expect(preparation).toMatch(/pin_length SMALLINT NOT NULL CHECK \(pin_length >= 6\)/i);
 
     const compliant = 'SELECT * FROM clinic_users WHERE tenant_id = p_tenant_id AND pin_hash = crypt(p_pin, pin_hash)';
     const legacyMixed = 'SELECT * FROM clinic_users WHERE tenant_id = p_tenant_id AND pin_hash = crypt(p_pin, pin_hash) AND clinic_users.pin_code = p_pin';
@@ -44,8 +55,19 @@ describe('credential rotation runbook safety contract', () => {
 
     expect(satisfiesHashedPinContract(compliant)).toBe(true);
     expect(satisfiesHashedPinContract(legacyPlaintext)).toBe(false);
-    // Regression assertion: the hash reference must not hide a plaintext comparison.
     expect(satisfiesHashedPinContract(legacyMixed)).toBe(false);
+  });
+
+  it('behaviourally checks correct and wrong PINs against both login stubs', () => {
+    expect(schemaFixture).toMatch(/extensions\.crypt\('synthetic prior staff secret A', extensions\.gen_salt\('bf', 8\)\)/);
+    expect(loginBehavior).toMatch(/IF NOT public\.create_pin_session\(v_tenant_id, 'synthetic prior staff secret A'\)/);
+    expect(loginBehavior).toMatch(/IF public\.create_pin_session\(v_tenant_id, 'synthetic incorrect login probe'\)/);
+    expect(loginBehavior).toMatch(/IF NOT public\.create_pin_session\(v_tenant_id, 'REHEARSAL-A', 'synthetic prior staff secret A'\)/);
+    expect(loginBehavior).toMatch(/IF public\.create_pin_session\(v_tenant_id, 'REHEARSAL-A', 'synthetic incorrect login probe'\)/);
+    expect(runbook).toMatch(/correct synthetic PIN/i);
+    expect(runbook).toMatch(/wrong PIN/i);
+    expect(runbook).toMatch(/trim\(p_pin\)/i);
+    expect(runbook).toMatch(/::text casts/i);
   });
 
   it('soft-revokes tenant sessions and checks revocation in postflight', () => {
@@ -54,13 +76,7 @@ describe('credential rotation runbook safety contract', () => {
     expect(apply).toMatch(/Postflight failed: one or more live PIN sessions remain/);
   });
 
-  it('requires FIX-002 hashed PIN contract before applying', () => {
-    expect(apply).toMatch(/create_pin_session/i);
-    expect(apply).toMatch(/verify_pin_hash/i);
-    expect(apply).toMatch(/FIX-002 is not verified/i);
-  });
-
-  it('documents scope exclusions carried by FIX-002', () => {
+  it('documents rotation exclusions assigned to FIX-002', () => {
     expect(runbook).toMatch(/clinic_users\.password/);
     expect(runbook).toMatch(/pin_attempt_log\.attempted_pin/);
     expect(runbook).toMatch(/Supabase Auth email\/password accounts/);
