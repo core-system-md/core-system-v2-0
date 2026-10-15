@@ -104,16 +104,6 @@ export default function AuthScreen() {
     setPinCode('');
   }, [logout, clearError]);
 
-  const handleDevMode = useCallback(async () => {
-    clearError();
-    await validateLicense('DEV-MODE-2026');
-    const result = await loginWithPin('1234');
-    if (result.success) {
-      const devResult = result as { success: true; user: AuthUser };
-      const route = getDefaultRoute(devResult.user.role);
-      navigate(route, { replace: true });
-    }
-  }, [validateLicense, loginWithPin, clearError, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
@@ -132,14 +122,6 @@ export default function AuthScreen() {
             </Alert>
           )}
 
-          {import.meta.env.DEV && step === 1 && (
-            <div className="space-y-2 p-3 bg-accent border border-accent-foreground/20 rounded-lg">
-              <p className="text-xs text-accent-foreground font-bold text-center">🚀 وضع التطوير — تسجيل الدخول الفوري</p>
-              <Button type="button" variant="outline" onClick={handleDevMode} className="w-full text-xs">
-                تسجيل الدخول الفوري (وضع التطوير)
-              </Button>
-            </div>
-          )}
 
           {step === 1 && (
             <form onSubmit={handleLicenseSubmit} className="space-y-4">
