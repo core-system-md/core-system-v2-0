@@ -19,4 +19,4 @@ SELECT (
        FROM public.pin_sessions ps
        JOIN public.rotation_rehearsal_state s ON s.tenant_id = ps.tenant_id
        WHERE ps.deleted_at IS NULL) = 2
-)::text;
+);
