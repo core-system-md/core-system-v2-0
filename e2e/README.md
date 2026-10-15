@@ -5,12 +5,13 @@ This directory contains isolated browser E2E tests and deterministic test-data u
 ## Safety contract
 
 - Test records are identified by the immutable `E2E-PT-` MRN prefix.
-- Seed/reset requires `E2E_TENANT_ID` explicitly; the script never discovers or guesses a tenant.
-- Seed/reset requires `SUPABASE_SERVICE_ROLE_KEY` and therefore must run outside the browser.
+- Seed/reset/reconcile require `E2E_TENANT_ID` to exactly match the immutable fixture tenant ID.
+- The harness accepts only loopback/local Supabase and browser URLs; remote and production targets are rejected.
+- `E2E_ALLOW_PRODUCTION` is not a supported override and cannot enable production access.
+- Seed/reset require `SUPABASE_SERVICE_ROLE_KEY` and must run outside the browser.
 - Mutation is denied unless `E2E_ALLOW_MUTATION=true` is explicitly set.
-- A production URL is rejected unless `E2E_ALLOW_PRODUCTION=true` is explicitly set.
-- Reset uses the project's confirmed soft-delete contract (`deleted_at`), never physical DELETE.
-- No credentials are stored in the repository.
+- Reset uses the confirmed soft-delete contract (`deleted_at`), never physical DELETE.
+- The staff fixtures are synthetic test-only credentials; never reuse them outside the isolated local E2E tenant.
 
 ## Commands
 
