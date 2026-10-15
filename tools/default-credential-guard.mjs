@@ -16,7 +16,7 @@ export function findDefaultCredentialReferences(path, content) {
 
   const findings = [];
   const lines = content.split(/\r?\n/);
-  const pinContext = /\\bpin\\b|pin[_-]?code|p_pin|loginwithpin|default.{0,20}pin|default.{0,20}credential/i;
+  const pinContext = /\bpin\b|pin[_-]?code|p_pin|loginwithpin|default.{0,20}pin|default.{0,20}credential/i;
   const fourDigitScalar = /(?:['"`]\s*\d{4}\s*['"`]|\b\d{4}\b)/;
   const demoLicense = /\bDEMO\s*[-_]\s*LICENSE\s*[-_]\s*\d{4}\b/i;
 
