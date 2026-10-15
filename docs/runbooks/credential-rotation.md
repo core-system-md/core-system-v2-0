@@ -11,6 +11,18 @@ Never run it on production until FIX-002 is merged and verified and the owner ha
 - Confirm the stored hash format matches the existing bcrypt-style contract and verify function. Do not guess or change the hash format in this task.
 - Verify `public.clinic_users` contains `id`, `tenant_id`, `employee_code`, `pin_code`, `pin_hash`, `is_active`, `deleted_at`, and `updated_at`; verify `public.master_tenants` contains `id`, `license_key`, `is_active`, and `deleted_at`.
 - Review database logging configuration before staging data. Do not proceed where statements or bound parameters containing credentials could be captured by query/audit logs.
+- The current repository's legacy `hash_pin` helper uses PostgreSQL `pgcrypto` `crypt()` with bcrypt (`bf`). For the isolated rehearsal, the recommended producer is `extensions.crypt(pin, extensions.gen_salt('bf', 12))`; verify with `extensions.crypt(input_pin, stored_hash) = stored_hash`. The rehearsal asserts the exact bcrypt prefix emitted by the installed PostgreSQL's `pgcrypto` and confirms `crypt()` accepts that generated hash. FIX-002 must confirm the production schema and hashing cost before actual rotation.
+
+## Explicit exclusions — tracked in FIX-002
+
+This FIX-001 rotation changes only the staged staff PIN hash / legacy PIN field, tenant license key, and live PIN sessions. It does **not** clean or rotate the following:
+
+- `public.clinic_users.password`: legacy password column is left unchanged.
+- `public.pin_attempt_log.attempted_pin`: historical attempt values are retained; this runbook does not purge or rewrite the audit history.
+- Supabase Auth email/password accounts: users, password hashes, identities, and existing Auth sessions are outside this PIN/license rotation.
+- Git history: this task removes references from current tracked files but does not rewrite public commit history or force-push rewritten commits.
+
+These exclusions are tracked under FIX-002. Any history remediation, legacy password cleanup, audit-history policy, or Supabase Auth account rotation must be planned and approved separately; do not include such changes in this runbook implicitly.
 
 ## Generate credentials outside the repository
 
@@ -20,15 +32,20 @@ Never run it on production until FIX-002 is merged and verified and the owner ha
 4. Save plaintext PINs and the new license key only in the approved secret manager / secure delivery workflow. Do not write plaintext PINs to a staging file. Create the hash values through the hashing mechanism confirmed by FIX-002; the staging rows contain hashes and PIN lengths only.
 5. Assign each staged PIN to an unambiguous staff row by the verified database user ID and tenant ID. Do not rely only on employee names or email addresses.
 
-## Isolated rehearsal
+## Isolated rehearsal — independent of the full migration chain
 
-1. Start a disposable database using the repository's local Supabase workflow (`supabase start`). Never use the production project URL or production credentials.
-2. Open one privileged database session and run `supabase/runbooks/prepare_credential_rotation.sql` in that same session.
-3. Use a trusted database client with parameter binding to populate the temporary tables `mdcore_rotation_staff_stage` and `mdcore_rotation_license_stage` in that same session. The staff stage schema is: `tenant_id UUID`, `staff_id UUID`, `pin_hash TEXT`, `pin_length SMALLINT`; the license stage schema is: `tenant_id UUID`, `new_license_key TEXT`. Do not place raw PINs in SQL text or persistent staging.
-4. Inspect target tenant and active-staff counts without returning credential values. Verify the stage includes every active, non-deleted user for that one tenant and only that tenant.
-5. Review `supabase/runbooks/apply_credential_rotation.sql` before each rehearsal. It is guarded to stop unless the FIX-002 hashed-PIN contract is present. Execute only on the isolated database after that prerequisite is fulfilled.
-6. Run the apply script twice with the same in-session stage values. The second application must be idempotent (no further row changes), and postflight checks must confirm every staged user's hash is stored, `pin_code` is NULL, and the tenant license matches the staged value. Do not print the values while verifying.
-7. Run the application's migration, build, role-route, and authentication regression suites on the isolated stack. Verify all four roles and their allowed routes. Record command results and sanitized evidence only; never record credentials.
+The repository's full migration replay currently fails at `supabase/migrations/012_rls.sql` because that migration creates functions in the `auth` schema, which the current Supabase local replay environment does not permit. This existing issue is tracked by FIX-005. Do **not** edit migration 012 or use the full migration runner to validate FIX-001's rotation SQL.
+
+Instead, the repository includes a minimal PostgreSQL schema fixture and an isolated rehearsal runner:
+
+1. Create an empty, disposable PostgreSQL database with `pgcrypto` available. Do not point the runner at production, a shared database, or a database containing application tables.
+2. Run `npm run test:rotation-rehearsal` with local connection variables set. The runner refuses non-local `PGHOST` values and refuses to start if `public.master_tenants`, `public.clinic_users`, or `public.pin_sessions` already exist.
+3. The runner creates only a minimal fixture for `master_tenants`, `clinic_users`, `pin_sessions`, and the hashed-contract test RPCs; it enables RLS on the fixture tables and seeds only runtime-generated synthetic rows. It does not apply the full application migration chain.
+4. It verifies the bcrypt hash prefix produced by `pgcrypto` and verifies that `crypt()` accepts that hash; tests that a function definition containing both a hash reference and a plaintext PIN comparison is rejected; tests rejection of an incomplete staff stage; and forces a postflight mismatch to prove the PIN, license, and session updates roll back.
+5. It then executes the apply script twice in one session using the exact same generated staged hashes, compares user/license/session snapshots before and after the second run, and asserts that all existing live PIN sessions for the staged tenant were soft-revoked.
+6. The runner prints only phase outcomes and never returns credential values. It is a disposable rehearsal only; it does not validate the application-wide role routes or replace FIX-005's migration-chain repair.
+
+For a Unix local PostgreSQL service, an example is to run the script as the local database owner with `PGHOST=/var/run/postgresql`, `PGUSER=postgres`, and `PGDATABASE=postgres`. Always select an empty, disposable database. Do not use production connection strings or production credentials.
 
 ## Secure handover
 
