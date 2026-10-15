@@ -39,6 +39,8 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+      - name: Check for repository-shipped default credentials
+        run: npm run check:default-credentials
 
       - name: Start isolated Supabase
         run: supabase start
@@ -81,6 +83,8 @@ jobs:
           node --check tools/test-execution-setup.mjs
           node --check tools/test-execution-runner.mjs
           node --check tools/migration-validation.mjs
+          node --check tools/default-credential-guard.mjs
+          node --check tools/check-default-credentials.mjs
           node --check e2e/run-full.mjs
           node --check e2e/reconcile.mjs
           node --check e2e/role-routes.spec.mjs
