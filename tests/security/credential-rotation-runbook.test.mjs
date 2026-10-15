@@ -27,7 +27,7 @@ describe('credential rotation runbook safety contract', () => {
     expect(apply).toMatch(/verify_pin_hash/i);
     expect(apply).toMatch(/FIX-002 is not verified/i);
     expect(apply).toMatch(/pin_code = NULL/i);
-    expect(apply).toMatch(/pin_length SMALLINT NOT NULL CHECK \(pin_length >= 6\)/i);
+    expect(preparation).toMatch(/pin_length SMALLINT NOT NULL CHECK \(pin_length >= 6\)/i);
   });
 
   it('contains no destructive statements or security bypasses', () => {
