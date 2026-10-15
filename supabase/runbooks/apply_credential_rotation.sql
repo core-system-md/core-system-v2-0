@@ -87,9 +87,9 @@ BEGIN
      AND u.deleted_at IS NULL
     WHERE u.id IS NULL
        OR s.pin_length < 6
-       OR s.pin_hash !~ '^\$2[ab]\$[0-9]{2}\$[./A-Za-z0-9]{53}$'
+       OR s.pin_hash !~ '^\$2a\$[0-9]{2}\$[./A-Za-z0-9]{53}$'
   ) THEN
-    RAISE EXCEPTION 'A staged staff row is invalid or does not match an active, non-deleted user in the target tenant.';
+    RAISE EXCEPTION 'A staged staff row is invalid, does not match an active user, or its hash is not an accepted $2a$ bcrypt hash.';
   END IF;
 
   SELECT count(*)
