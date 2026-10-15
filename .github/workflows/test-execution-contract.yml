@@ -123,3 +123,31 @@ jobs:
           name: test-execution-plan
           path: test-execution-plan.json
           if-no-files-found: error
+  credential-rotation-rehearsal:
+    name: Isolated credential rotation SQL rehearsal
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install temporary PostgreSQL and pgcrypto
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql postgresql-contrib
+
+      - name: Start temporary PostgreSQL
+        run: sudo service postgresql start
+
+      - name: Run schema-only rotation rehearsal (does not run migration 012)
+        run: |
+          sudo -u postgres env \
+            PATH="$PATH" \
+            PGHOST=/var/run/postgresql \
+            PGUSER=postgres \
+            PGDATABASE=postgres \
+            node tools/rehearse-credential-rotation.mjs
