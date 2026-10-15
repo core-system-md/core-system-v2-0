@@ -70,6 +70,10 @@ describe('credential rotation runbook safety contract', () => {
     expect(runbook).toMatch(/trim\(p_pin\)/i);
     expect(runbook).toMatch(/::text.*casts/i);
     expect(normalizedBcryptFixture).toContain('__RUNTIME_SYNTHETIC_PIN__');
+    expect(normalizedBcryptFixture).toContain('__RUNTIME_WRONG_PIN__');
+    expect(normalizedBcryptFixture).toMatch(/public\.create_pin_session\(v_tenant_id, 'REHEARSAL-A', v_pin\)/);
+    expect(normalizedBcryptFixture).toMatch(/public\.create_pin_session\(v_tenant_id, 'REHEARSAL-A', v_wrong_pin\)/);
+    expect(normalizedBcryptFixture).toContain('ROLLBACK;');
     expect(normalizedBcryptFixture).toContain('__RUNTIME_BCRYPT_2A_HASH__');
     expect(normalizedBcryptFixture).toMatch(/extensions\.crypt\(v_pin, v_hash\)/);
     expect(normalizedBcryptFixture).toMatch(/synthetic incorrect normalization probe/);
