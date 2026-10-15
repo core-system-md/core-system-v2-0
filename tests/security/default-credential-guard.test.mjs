@@ -41,6 +41,13 @@ describe('default credential guard', () => {
     expect(JSON.stringify(findings)).not.toContain(demoLicense);
   });
 
+  it('does not treat dated source comments as PIN literals', () => {
+    expect(findDefaultCredentialReferences(
+      'src/features/auth/AuthScreen.tsx',
+      '// FIXED: 2026-07-14 — remove selectedRole from loginWithPin',
+    )).toHaveLength(0);
+  });
+
   it('ignores unrelated UUID substrings when they are not credential values', () => {
     expect(findDefaultCredentialReferences(
       'e2e/fixtures/tenant.mjs',
