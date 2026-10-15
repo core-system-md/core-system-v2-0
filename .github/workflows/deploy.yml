@@ -11,6 +11,8 @@ jobs:
         with:
           node-version: '22'
       - run: npm install
+      - name: Check for repository-shipped default credentials
+        run: npm run check:default-credentials
       - run: npm run build
       - run: npx tsc --noEmit
       - run: corepack enable && corepack pnpm dlx vitest@4.1.11 run tests
