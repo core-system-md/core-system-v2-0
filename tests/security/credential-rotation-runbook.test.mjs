@@ -33,7 +33,7 @@ describe('credential rotation runbook safety contract', () => {
     expect(apply).toMatch(/v_hash_aware_functions/);
     expect(apply).toMatch(/v_plaintext_functions/);
     expect(apply).toMatch(/pg_get_functiondef/);
-    expect(apply).toMatch(/pin_code\[[:space:]\]/i);
+    expect(apply).toMatch(/pin_code\[\[:space:\]\]/i);
     expect(apply).toMatch(/FIX-002 is not verified/i);
     expect(apply).toMatch(/pin_code = NULL/i);
     expect(preparation).toMatch(/pin_length SMALLINT NOT NULL CHECK \(pin_length >= 6\)/i);
