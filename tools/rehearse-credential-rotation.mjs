@@ -72,6 +72,10 @@ function assertBooleanFile(file, label) {
 function createRealBcrypt2bHash() {
   // Runtime-only synthetic PIN. Neither the PIN nor returned hash is logged.
   const syntheticPin = String(randomInt(0, 100_000_000)).padStart(8, '0');
+  let wrongProbePin = String(randomInt(0, 100_000_000)).padStart(8, '0');
+  while (wrongProbePin === syntheticPin) {
+    wrongProbePin = String(randomInt(0, 100_000_000)).padStart(8, '0');
+  }
   const python = [
     'import bcrypt, sys',
     'pin = sys.stdin.buffer.read()',
@@ -89,7 +93,7 @@ function createRealBcrypt2bHash() {
   if (!/^\$2b\$12\$[./A-Za-z0-9]{53}$/.test(hash)) {
     throw new Error('The runtime bcrypt producer did not return a valid $2b$ hash; output suppressed.');
   }
-  return { syntheticPin, hash };
+  return { syntheticPin, wrongProbePin, hash };
 }
 
 let tempDir;
@@ -132,17 +136,19 @@ try {
   // Build a real $2b$ hash at runtime. Temporary SQL files have mode 0600 and are
   // removed at exit; neither the synthetic PIN nor generated hashes are logged.
   tempDir = await mkdtemp(resolve(tmpdir(), 'mdcore-rotation-rehearsal-'));
-  const { syntheticPin, hash: runtimeHash } = createRealBcrypt2bHash();
+  const { syntheticPin, wrongProbePin, hash: runtimeHash } = createRealBcrypt2bHash();
   const normalizedHash = '$2a$' + runtimeHash.slice(4);
 
   let normalizedProbeSql = await readFile(resolve(fixtureDir, 'bcrypt-normalized-login.sql'), 'utf8');
   normalizedProbeSql = normalizedProbeSql
     .split('__RUNTIME_SYNTHETIC_PIN__').join(syntheticPin)
+    .split('__RUNTIME_WRONG_PIN__').join(wrongProbePin)
     .split('__RUNTIME_BCRYPT_2A_HASH__').join(normalizedHash);
   const normalizedProbeFile = resolve(tempDir, 'bcrypt-normalized-login.sql');
   await writeFile(normalizedProbeFile, normalizedProbeSql, { encoding: 'utf8', mode: 0o600 });
   runFile(normalizedProbeFile, 'normalized external bcrypt behavioural probe');
-  console.log('[rotation-rehearsal] PASS: runtime-generated $2b$ hash normalized to $2a$ verifies the correct PIN and rejects the wrong PIN on PostgreSQL major ' + major + '.');
+  assertBooleanFile(resolve(fixtureDir, 'assert-original-state.sql'), 'normalized-hash probe rollback');
+  console.log('[rotation-rehearsal] PASS: runtime-generated $2b$ hash normalized to $2a$ verifies correct and wrong PIN behavior via the login stub on PostgreSQL major ' + major + '; fixture state rolled back.');
 
   let rejectBcrypt2bSql = await readFile(resolve(fixtureDir, 'reject-bcrypt-2b.sql'), 'utf8');
   rejectBcrypt2bSql = rejectBcrypt2bSql.replaceAll(
