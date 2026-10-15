@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { E2E_PATIENTS, E2E_SESSION_IDS, E2E_PREFIX } from './fixtures/patients.mjs';
-import { E2E_STAFF, E2E_TENANT_ID } from './fixtures/staff.mjs';
+import { E2E_STAFF } from './fixtures/staff.mjs';
+import { assertIsolatedE2ETarget } from './assert-isolated-target.mjs';
 
 for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
   if (!process.env[key]) throw new Error(`[E2E] Missing required environment variable: ${key}`);
@@ -9,7 +10,7 @@ for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const tenantId = process.env.E2E_TENANT_ID ?? E2E_TENANT_ID;
+const { tenantId } = assertIsolatedE2ETarget();
 const failures = [];
 
 async function count(table, column, value) {
