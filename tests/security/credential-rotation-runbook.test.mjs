@@ -76,7 +76,7 @@ describe('credential rotation runbook safety contract', () => {
     expect(normalizedBcryptFixture).toContain('ROLLBACK;');
     expect(normalizedBcryptFixture).toContain('__RUNTIME_BCRYPT_2A_HASH__');
     expect(normalizedBcryptFixture).toMatch(/extensions\.crypt\(v_pin, v_hash\)/);
-    expect(normalizedBcryptFixture).toMatch(/synthetic incorrect normalization probe/);
+    expect(normalizedBcryptFixture).toContain('v_wrong_pin');
   });
 
   it('soft-revokes tenant sessions and checks revocation in postflight', () => {
