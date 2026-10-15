@@ -25,10 +25,10 @@ export function findDefaultCredentialReferences(path, content) {
     if (demoLicense.test(line)) {
       findings.push({ path, line: index + 1, kind: 'demo license key' });
     }
-    const codeComment = /\\.(?:ts|tsx|js|jsx|mjs|cjs|sql)$/i.test(path)
-      && /^\\s*(?:\\/\\/|--|\\/\\*|\\*)/.test(line);
+    const codeComment = /\.(?:ts|tsx|js|jsx|mjs|cjs|sql)$/i.test(path)
+      && /^\s*(?:\/\/|--|\/\*|\*)/.test(line);
     const issueDateComment = codeComment
-      && /(?:FIXED|BUG|ISSUE)[^\\n]{0,32}\\b\\d{4}-\\d{2}-\\d{2}\\b/i.test(line);
+      && /(?:FIXED|BUG|ISSUE)[^\n]{0,32}\b\d{4}-\d{2}-\d{2}\b/i.test(line);
     if (!issueDateComment && pinContext.test(line) && fourDigitScalar.test(line)) {
       findings.push({ path, line: index + 1, kind: 'four-digit PIN literal' });
     }
