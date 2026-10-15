@@ -23,9 +23,14 @@ BEGIN
     RAISE EXCEPTION 'Rotation staging tables are missing; run prepare_credential_rotation.sql and load them in this same session.';
   END IF;
 
-  SELECT count(*), min(tenant_id)
-    INTO v_stage_users, v_tenant_id
+  SELECT count(*)
+    INTO v_stage_users
   FROM pg_temp.mdcore_rotation_staff_stage;
+
+  SELECT tenant_id
+    INTO v_tenant_id
+  FROM pg_temp.mdcore_rotation_staff_stage
+  LIMIT 1;
 
   IF v_stage_users = 0 OR v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'Rotation stage must include at least one staff hash.';
