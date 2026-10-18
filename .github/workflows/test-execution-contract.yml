@@ -2,7 +2,7 @@ name: Master Test Execution Contract
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, fix/001-rotate-default-credentials]
   workflow_dispatch:
     inputs:
       base_ref:

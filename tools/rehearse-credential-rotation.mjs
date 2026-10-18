@@ -128,10 +128,19 @@ try {
   console.log('[rotation-rehearsal] PASS: local target is empty before fixture setup.');
 
   runFile(resolve(fixtureDir, 'schema-fixture.sql'), 'minimal schema fixture');
-  console.log('[rotation-rehearsal] PASS: minimal schema and pgcrypto bcrypt generation/verification fixture.');
+  console.log('[rotation-rehearsal] PASS: empty minimal schema, RLS policies, role-update trigger and pgcrypto fixture.');
 
-  runFile(resolve(fixtureDir, 'login-behavior.sql'), 'correct/wrong PIN behavioral check');
-  console.log('[rotation-rehearsal] PASS: pgcrypto $2a$ hash accepts the correct synthetic PIN and rejects the wrong PIN in both login stubs.');
+  runFile(resolve(repoRoot, 'supabase/migrations/20261018123700_fix_002_hash_pins_and_lock_secret_columns.sql'), 'FIX-002 forward migration');
+  console.log('[rotation-rehearsal] PASS: real FIX-002 migration applied in isolated fixture; legacy bad-hash backfill and secret-column postflight passed.');
+
+  runFile(resolve(fixtureDir, 'record-post-fix002-baseline.sql'), 'record post-FIX-002 pre-rotation baseline');
+  console.log('[rotation-rehearsal] PASS: repaired pre-rotation hash snapshot recorded without emitting values.');
+
+  runFile(resolve(fixtureDir, 'login-behavior.sql'), 'real correct/wrong PIN behavioral check');
+  console.log('[rotation-rehearsal] PASS: both real create_pin_session overloads accept correct synthetic PINs, reject wrong PINs, preserve JSON shape, avoid pin_code reads and write only the four-character redaction marker to attempted_pin.');
+
+  runFile(resolve(fixtureDir, 'security-privileges.sql'), 'secret-column and role privilege negative test');
+  console.log('[rotation-rehearsal] PASS: anon cannot read clinic_users or execute validate_pin; authenticated claims for all four app roles can read safe fields but not secrets; staff insert/update policies and role-update trigger remain operational.');
 
   // Build a real $2b$ hash at runtime. Temporary SQL files have mode 0600 and are
   // removed at exit; neither the synthetic PIN nor generated hashes are logged.
@@ -148,7 +157,7 @@ try {
   await writeFile(normalizedProbeFile, normalizedProbeSql, { encoding: 'utf8', mode: 0o600 });
   runFile(normalizedProbeFile, 'normalized external bcrypt behavioural probe');
   assertBooleanFile(resolve(fixtureDir, 'assert-original-state.sql'), 'normalized-hash probe rollback');
-  console.log('[rotation-rehearsal] PASS: runtime-generated $2b$ hash normalized to $2a$ verifies correct and wrong PIN behavior via the login stub on PostgreSQL major ' + major + '; fixture state rolled back.');
+  console.log('[rotation-rehearsal] PASS: runtime-generated $2b$ hash normalized to $2a$ verifies correct and wrong PIN behavior via the real login function on PostgreSQL major ' + major + '; fixture state rolled back.');
 
   let rejectBcrypt2bSql = await readFile(resolve(fixtureDir, 'reject-bcrypt-2b.sql'), 'utf8');
   rejectBcrypt2bSql = rejectBcrypt2bSql.replaceAll(
@@ -204,6 +213,23 @@ try {
   runFile(resolve(fixtureDir, 'apply-twice.sql'), 'idempotent double apply');
   assertBooleanFile(resolve(fixtureDir, 'assert-final-state.sql'), 'final rotated fixture state');
   console.log('[rotation-rehearsal] PASS: apply executed twice; second-run snapshots unchanged; active tenant sessions soft-revoked.');
+
+  runFile(resolve(repoRoot, 'supabase/runbooks/rollback_fix_002_hash_pins_and_lock_secret_columns.sql'), 'manual FIX-002 rollback rehearsal');
+  const rollbackRestored = queryBoolean(
+    "SELECT position('pin_code = p_pin' in lower(pg_get_functiondef('public.create_pin_session(uuid,text)'::regprocedure))) > 0 " +
+      "AND has_table_privilege('anon','public.clinic_users','SELECT') " +
+      "AND has_table_privilege('authenticated','public.clinic_users','SELECT') " +
+      "AND has_function_privilege('anon','public.validate_pin(uuid,text)','EXECUTE') " +
+      "AND has_function_privilege('authenticated','public.validate_pin(uuid,text)','EXECUTE');",
+    'manual rollback restoration check',
+  );
+  if (!rollbackRestored) throw new Error('Manual rollback restoration assertion failed; database output suppressed.');
+  console.log('[rotation-rehearsal] PASS: documented rollback SQL executed on isolated fixture and restored pre-FIX-002 functions/grants; no post-rollback login was performed.');
+
+  // Leave even a local disposable target hardened after proving rollback.
+  runFile(resolve(repoRoot, 'supabase/migrations/20261018123700_fix_002_hash_pins_and_lock_secret_columns.sql'), 'reapply FIX-002 after rollback test');
+  console.log('[rotation-rehearsal] PASS: FIX-002 reapplied after rollback probe; the disposable database remains on the hardened contract.');
+
   console.log('[rotation-rehearsal] PASS: all assertions completed; no credential values were printed.');
 } catch (error) {
   console.error('[rotation-rehearsal] FAILED: ' + (error instanceof Error ? error.message : 'unknown failure'));
