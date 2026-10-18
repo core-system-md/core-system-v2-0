@@ -32,9 +32,9 @@ export function useAuth() {
   }, [store]);
 
   const loginWithPin = useCallback(async (pin: string) => {
-    if (!/^\d{4}$/.test(pin)) { store.setError('PIN must be exactly 4 digits'); return { success: false, error: 'PIN must be exactly 4 digits' }; }
+    if (!/^\d{4,8}$/.test(pin)) { store.setError('PIN must be 4 to 8 digits'); return { success: false, error: 'PIN must be 4 to 8 digits' }; }
     if (import.meta.env.DEV) {
-      const mockUser: AuthUser = { id: 'dev-user', email: null, full_name: 'Dev Doctor', full_name_ar: null, role: 'doctor', tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', employee_code: 'DEV-EMP', pin_code: null, phone: null, specialization: null };
+      const mockUser: AuthUser = { id: 'dev-user', email: null, full_name: 'Dev Doctor', full_name_ar: null, role: 'doctor', tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', employee_code: 'DEV-EMP', phone: null, specialization: null };
       store.login(mockUser, null, null); store.setPinAuthenticated(true); return { success: true, user: mockUser };
     }
     const tenantId = store.tenant_id || store.user?.tenant_id || '';
@@ -46,7 +46,7 @@ export function useAuth() {
       if (error) { store.setError(error.message); store.unauthenticate(); store.incrementPinAttempt(); return { success: false, error: error.message }; }
       const result = data as RpcResult;
       if (!result?.success || !result.session_token) { const msg = result?.error === 'RATE_LIMIT_EXCEEDED' ? 'Too many PIN attempts. Try again later.' : 'Invalid PIN'; store.setError(msg); store.unauthenticate(); store.incrementPinAttempt(); return { success: false, error: msg }; }
-      const authUser: AuthUser = { id: String(result.user_id ?? ''), email: (result.email as string | null) ?? null, full_name: (result.full_name as string) ?? '', full_name_ar: (result.full_name_ar as string | null) ?? null, role: (result.role as AuthUser['role']) || 'receptionist', tenant_id: (result.tenant_id as string) ?? tenantId, employee_code: (result.employee_code as string | null) ?? null, pin_code: null, phone: (result.phone as string | null) ?? null, specialization: (result.specialization as string | null) ?? null };
+      const authUser: AuthUser = { id: String(result.user_id ?? ''), email: (result.email as string | null) ?? null, full_name: (result.full_name as string) ?? '', full_name_ar: (result.full_name_ar as string | null) ?? null, role: (result.role as AuthUser['role']) || 'receptionist', tenant_id: (result.tenant_id as string) ?? tenantId, employee_code: (result.employee_code as string | null) ?? null, phone: (result.phone as string | null) ?? null, specialization: (result.specialization as string | null) ?? null };
       sessionStorage.setItem(PIN_SESSION_STORAGE_KEY, String(result.session_token));
       store.resetPinAttempts(); store.login(authUser, null, null); store.setPinAuthenticated(true);
       return { success: true, user: authUser };
@@ -90,8 +90,7 @@ export function useAuth() {
         role: (profile.role as AuthUser['role']) || 'receptionist',
         tenant_id: profile.tenant_id ?? '',
         employee_code: profile.employee_code ?? null,
-        pin_code: null,
-        phone: profile.phone ?? null,
+                phone: profile.phone ?? null,
         specialization: profile.specialization ?? null,
         avatar_url: refreshed.user.user_metadata?.avatar_url ?? null,
       };

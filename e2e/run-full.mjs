@@ -1,8 +1,25 @@
 import { spawnSync } from 'node:child_process';
+import { randomBytes, randomInt } from 'node:crypto';
+
+const usedPins = new Set();
+function uniqueTestPin() {
+  let pin;
+  do { pin = String(randomInt(0, 10000)).padStart(4, '0'); } while (usedPins.has(pin));
+  usedPins.add(pin);
+  return pin;
+}
+const runtimeEnv = {
+  ...process.env,
+  E2E_RUNTIME_LICENSE_KEY: 'E2E-' + randomBytes(24).toString('hex'),
+  E2E_RUNTIME_PIN_SUPER_ADMIN: uniqueTestPin(),
+  E2E_RUNTIME_PIN_CLINIC_ADMIN: uniqueTestPin(),
+  E2E_RUNTIME_PIN_DOCTOR: uniqueTestPin(),
+  E2E_RUNTIME_PIN_RECEPTIONIST: uniqueTestPin(),
+};
 
 function run(command, args) {
   console.log(`[e2e] ${command} ${args.join(' ')}`);
-  const result = spawnSync(command, args, { stdio: 'inherit', env: process.env });
+  const result = spawnSync(command, args, { stdio: 'inherit', env: runtimeEnv });
   if (result.error) throw result.error;
   return result.status ?? 1;
 }
@@ -12,7 +29,7 @@ let exitCode = 0;
 let seeded = false;
 
 try {
-  const seed = spawnSync('node', ['e2e/seed.mjs'], { stdio: 'inherit', env: mutationEnv });
+  const seed = spawnSync('node', ['e2e/seed.mjs'], { stdio: 'inherit', env: { ...runtimeEnv, ...mutationEnv } });
   if (seed.error) throw seed.error;
   if (seed.status !== 0) exitCode = seed.status ?? 1;
   else seeded = true;
@@ -26,7 +43,7 @@ try {
   }
 } finally {
   if (seeded) {
-    const reset = spawnSync('node', ['e2e/reset.mjs'], { stdio: 'inherit', env: mutationEnv });
+    const reset = spawnSync('node', ['e2e/reset.mjs'], { stdio: 'inherit', env: { ...runtimeEnv, ...mutationEnv } });
     if (reset.error) {
       console.error(`[e2e] cleanup error: ${reset.error.message}`);
       exitCode = exitCode || 1;

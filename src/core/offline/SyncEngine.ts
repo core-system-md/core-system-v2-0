@@ -61,10 +61,32 @@ export const syncEngine = {
     const { table, operation, payload } = mutation;
 
     if (operation === 'create') {
-      const { error } = await (supabase as any).from(table).insert(payload as Record<string, unknown>);
+      const createPayload = payload as Record<string, unknown>;
+      if (table === 'clinic_users') {
+        if ('pin_code' in createPayload || 'password' in createPayload) {
+          throw new Error('Offline clinic_users create cannot transmit legacy secret fields.');
+        }
+        if (createPayload.pin_hash != null && !/^\$2a\$(0[4-9]|[12][0-9]|3[01])\$[./A-Za-z0-9]{53}$/.test(String(createPayload.pin_hash))) {
+          throw new Error('Offline clinic_users create requires an accepted bcrypt PIN hash.');
+        }
+      }
+      if (table === 'pin_attempt_log') {
+        createPayload.attempted_pin = '****';
+      }
+      const { error } = await (supabase as any).from(table).insert(createPayload);
       if (error) throw error;
     } else if (operation === 'update') {
       const { id, ...updates } = payload as Record<string, unknown>;
+      if (table === 'clinic_users') {
+        delete updates.pin_code;
+        delete updates.password;
+        if (updates.pin_hash != null && !/^\$2a\$(0[4-9]|[12][0-9]|3[01])\$[./A-Za-z0-9]{53}$/.test(String(updates.pin_hash))) {
+          throw new Error('Offline clinic_users update requires an accepted bcrypt PIN hash.');
+        }
+      }
+      if (table === 'pin_attempt_log') {
+        updates.attempted_pin = '****';
+      }
       const { error } = await (supabase as any).from(table).update(updates).eq('id', id);
       if (error) throw error;
     } else if (operation === 'delete') {
@@ -88,9 +110,12 @@ export const syncEngine = {
   },
 
   async pullLatest(table: string, tenantId: string): Promise<void> {
+    const selectedColumns = table === 'clinic_users'
+      ? 'id, tenant_id, email, full_name, full_name_ar, role, is_active, last_login_at, created_at, updated_at, employee_code, specialization, phone, deleted_at'
+      : '*';
     const { data, error } = await (supabase as any)
       .from(table)
-      .select('*')
+      .select(selectedColumns)
       .eq('tenant_id', tenantId)
       .order('updated_at', { ascending: false })
       .limit(100);

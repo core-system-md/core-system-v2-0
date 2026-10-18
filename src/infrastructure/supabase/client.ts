@@ -67,36 +67,6 @@ export async function validateLicenseKey(licenseKey: string) {
 }
 
 /**
- * Validate 4-digit PIN for kiosk fast-switch.
- * Constitution §9.6: PIN Auth — 4-digit PIN only.
- * 
- * RPC Signature (EXISTING — DO NOT MODIFY):
- * validate_pin(tenant_id text, pin text)
- * RETURNS TABLE(id uuid, full_name text, role text, tenant_id uuid)
- */
-export async function validatePin(tenantId: string, pinCode: string) {
-  const { data, error } = await supabase
-    .rpc('validate_pin', {
-      p_tenant_id: tenantId,
-      p_pin: pinCode,
-    });
-
-  if (error) throw error;
-  
-  if (!data || (Array.isArray(data) && data.length === 0)) {
-    throw new Error('INVALID_PIN');
-  }
-
-  const user = Array.isArray(data) ? data[0] : data;
-  return ({ ...user, tenant_id: tenantId } as {
-    id: string;
-    full_name: string;
-    role: 'super_admin' | 'clinic_admin' | 'doctor' | 'receptionist';
-    tenant_id: string;
-  });
-}
-
-/**
  * Log PIN attempt for rate limiting and audit trail.
  * Constitution §9.6: staff_id REQUIRED for RLS policy rls_pin_attempts_own
  */
@@ -107,12 +77,14 @@ export async function logPinAttempt(
   success: boolean,
   ipAddress?: string
 ) {
+  // Keep the compatibility argument, but never transmit or persist the PIN.
+  void pinCode;
   const { error } = await supabase
     .from('pin_attempt_log')
     .insert({
       tenant_id: tenantId,
       staff_id: staffId,
-      attempted_pin: pinCode,
+      attempted_pin: '****',
       success,
       ip_address: ipAddress,
       created_at: new Date().toISOString(),

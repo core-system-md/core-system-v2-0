@@ -32,22 +32,29 @@ const { error: tenantError } = await supabase.from('master_tenants').upsert({
 }, { onConflict: 'id' });
 if (tenantError) throw new Error(`[E2E] master_tenants seed failed: ${tenantError.message}`);
 
-const staffRows = E2E_STAFF.map((staff, index) => ({
-  id: `30000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
-  tenant_id: tenantId,
-  email: staff.email,
-  full_name: staff.full_name,
-  full_name_ar: staff.full_name_ar,
-  role: staff.role,
-  employee_code: staff.employee_code,
-  pin_code: staff.pin,
-  is_active: true,
-  deleted_at: null,
-  specialization: staff.role === 'doctor' ? 'E2E Family Medicine' : null,
-}));
+const staffRows = [];
+for (const [index, staff] of E2E_STAFF.entries()) {
+  const { data: pinHash, error: pinHashError } = await supabase.rpc('hash_pin', { p_pin: staff.pin });
+  if (pinHashError || typeof pinHash !== 'string' || !/^\$2a\$(0[4-9]|[12][0-9]|3[01])\$[./A-Za-z0-9]{53}$/.test(pinHash)) {
+    throw new Error(`[E2E] staff PIN hashing RPC failed for synthetic row ${index + 1}`);
+  }
+  staffRows.push({
+    id: `30000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    tenant_id: tenantId,
+    email: staff.email,
+    full_name: staff.full_name,
+    full_name_ar: staff.full_name_ar,
+    role: staff.role,
+    employee_code: staff.employee_code,
+    pin_hash: pinHash,
+    is_active: true,
+    deleted_at: null,
+    specialization: staff.role === 'doctor' ? 'E2E Family Medicine' : null,
+  });
+}
 
 const { error: staffError } = await supabase.from('clinic_users').upsert(staffRows, { onConflict: 'id' });
-if (staffError) throw new Error(`[E2E] clinic_users seed failed: ${staffError.message}`);
+if (staffError) throw new Error('[E2E] clinic_users hashed-staff seed failed.');
 
 const patients = E2E_PATIENTS.map((p) => ({
   id: p.id, tenant_id: tenantId, mrn: p.mrn, full_name: p.full_name, phone: p.phone,

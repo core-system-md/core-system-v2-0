@@ -25,7 +25,6 @@ export interface AuthUser {
   role: 'super_admin' | 'clinic_admin' | 'doctor' | 'receptionist';
   tenant_id: string;
   employee_code?: string | null;
-  pin_code?: string | null;
   phone?: string | null;
   specialization?: string | null;
   avatar_url?: string | null;
@@ -36,6 +35,13 @@ export interface TenantData {
   subscriptionTier: string;
   primaryColor: string;
   logoUrl: string | null;
+}
+
+function stripLegacyPinCode(user: unknown): unknown {
+  if (!user || typeof user !== 'object' || Array.isArray(user)) return user;
+  const safeUser = { ...(user as Record<string, unknown>) };
+  delete safeUser.pin_code;
+  return safeUser;
 }
 
 interface AuthState {
@@ -193,9 +199,20 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-store',
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState) => {
+        const state = (persistedState && typeof persistedState === 'object')
+          ? (persistedState as Record<string, unknown>)
+          : {};
+        return {
+          ...state,
+          user: stripLegacyPinCode(state.user),
+        } as AuthState;
+      },
       partialize: (state) => ({
-        user: state.user,
+        // Defense in depth: even stale runtime objects must not persist a legacy PIN.
+        user: stripLegacyPinCode(state.user) as AuthUser | null,
         supabaseUser: state.supabaseUser,
         session: state.session,
         status: state.status,

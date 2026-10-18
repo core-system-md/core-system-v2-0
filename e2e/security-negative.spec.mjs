@@ -24,7 +24,7 @@ async function loginAs(page, staff) {
   await reset(page);
   await page.getByLabel('مفتاح الترخيص').fill(E2E_LICENSE_KEY);
   await page.getByRole('button', { name: 'التحقق من الترخيص' }).click();
-  await page.getByLabel('رمز PIN (4 أرقام)').fill(staff.pin);
+  await page.getByLabel('رمز PIN (4–8 أرقام)').fill(staff.pin);
   await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
   await expect(page).toHaveURL(new RegExp(`${defaultRoute[staff.role].replace('/', '\\/')}$`));
 }
