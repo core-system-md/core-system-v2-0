@@ -1,13 +1,14 @@
--- Expected to fail before changing any rows.
+-- Expected to fail the rotation preflight and roll back this deliberately unsafe definition.
+BEGIN;
 CREATE OR REPLACE FUNCTION public.create_pin_session(p_tenant_id UUID, p_pin TEXT)
-RETURNS BOOLEAN LANGUAGE sql STABLE SET search_path = ''
+RETURNS jsonb LANGUAGE sql STABLE SET search_path = ''
 AS $bad$
-  SELECT EXISTS (
+  SELECT jsonb_build_object('success', EXISTS (
     SELECT 1 FROM public.clinic_users u
     WHERE u.tenant_id = p_tenant_id
       AND u.pin_hash = extensions.crypt(p_pin, u.pin_hash)
       AND u.pin_code = p_pin
-  )
+  ))
 $bad$;
 
 DO $confirm_bad_definition$
@@ -20,7 +21,7 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Test setup did not create the mixed PIN contract.';
   END IF;
-END;
+END
 $confirm_bad_definition$;
 
 \ir ../../../supabase/runbooks/prepare_credential_rotation.sql

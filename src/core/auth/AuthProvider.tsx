@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         supabase
           .from('clinic_users')
-          .select('*')
+          .select('id, tenant_id, email, full_name, full_name_ar, role, employee_code, phone, specialization')
           .eq('id', user.id)
           .single()
           .then(({ data: profile, error: profileError }) => {
@@ -96,7 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: (profile.role as AuthUser['role']) || 'receptionist',
               tenant_id: profile.tenant_id ?? '',
               employee_code: profile.employee_code ?? null,
-              pin_code: profile.pin_code ?? null,
               phone: profile.phone ?? null,
               specialization: profile.specialization ?? null,
               avatar_url: user.user_metadata?.avatar_url ?? null,
@@ -128,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!store.user) {
         supabase
           .from('clinic_users')
-          .select('*')
+          .select('id, tenant_id, email, full_name, full_name_ar, role, employee_code, phone, specialization')
           .eq('id', session.user.id)
           .single()
           .then(({ data: profile }) => {
@@ -141,8 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: (profile.role as AuthUser['role']) || 'receptionist',
                 tenant_id: profile.tenant_id ?? '',
                 employee_code: profile.employee_code ?? null,
-                pin_code: profile.pin_code ?? null,
-                phone: profile.phone ?? null,
+                  phone: profile.phone ?? null,
                 specialization: profile.specialization ?? null,
                 avatar_url: session.user.user_metadata?.avatar_url ?? null,
               };

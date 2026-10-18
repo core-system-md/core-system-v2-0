@@ -9,6 +9,7 @@ DECLARE
   v_wrong_pin TEXT := '__RUNTIME_WRONG_PIN__';
   v_hash TEXT := '__RUNTIME_BCRYPT_2A_HASH__';
   v_tenant_id UUID;
+  v_result JSONB;
 BEGIN
   IF v_hash !~ '^\$2a\$[0-9]{2}\$[./A-Za-z0-9]{53}$' THEN
     RAISE EXCEPTION 'Normalized hash is not in the accepted $2a$ format.';
@@ -31,12 +32,16 @@ BEGIN
   WHERE tenant_id = v_tenant_id
     AND employee_code = 'REHEARSAL-A';
 
-  IF NOT public.create_pin_session(v_tenant_id, 'REHEARSAL-A', v_pin) THEN
-    RAISE EXCEPTION 'Normalized external hash failed correct-PIN login via the stub.';
+  v_result := public.create_pin_session(v_tenant_id, 'REHEARSAL-A', v_pin);
+  IF v_result->>'success' IS DISTINCT FROM 'true'
+     OR v_result->>'employee_code' IS DISTINCT FROM 'REHEARSAL-A' THEN
+    RAISE EXCEPTION 'Normalized external hash failed correct-PIN login via the real login function.';
   END IF;
 
-  IF public.create_pin_session(v_tenant_id, 'REHEARSAL-A', v_wrong_pin) THEN
-    RAISE EXCEPTION 'Normalized external hash accepted the wrong PIN via the stub.';
+  v_result := public.create_pin_session(v_tenant_id, 'REHEARSAL-A', v_wrong_pin);
+  IF v_result->>'success' IS DISTINCT FROM 'false'
+     OR v_result->>'error' IS DISTINCT FROM 'INVALID_CREDENTIALS' THEN
+    RAISE EXCEPTION 'Normalized external hash accepted the wrong PIN via the real login function.';
   END IF;
 END;
 $normalized_hash_probe$;

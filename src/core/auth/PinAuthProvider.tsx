@@ -58,7 +58,6 @@ export function usePinAuth() {
           role: (sessionResult.role as AuthUser['role']) || 'receptionist',
           tenant_id: sessionResult.tenant_id ?? tenantId,
           employee_code: sessionResult.employee_code ?? employeeCode,
-          pin_code: null,
           phone: sessionResult.phone ?? null,
           specialization: sessionResult.specialization ?? null,
         };

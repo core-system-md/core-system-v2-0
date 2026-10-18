@@ -68,7 +68,7 @@ export default function AuthScreen() {
     e.preventDefault();
     clearError();
     const trimmedPin = pinCode.trim();
-    if (!trimmedPin || trimmedPin.length !== 4) return;
+    if (!trimmedPin || trimmedPin.length < 4 || trimmedPin.length > 8) return;
 
     const result = await loginWithPin(trimmedPin);
 
@@ -92,7 +92,7 @@ export default function AuthScreen() {
   }, [email, password, clearError, loginWithEmail, navigate]);
 
   const handlePinChange = useCallback((value: string) => {
-    const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
+    const digitsOnly = value.replace(/\D/g, '').slice(0, 8);
     setPinCode(digitsOnly);
   }, []);
 
@@ -201,13 +201,13 @@ export default function AuthScreen() {
               {loginMethod === 'pin' && (
                 <form onSubmit={handlePinSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="pin">رمز PIN (4 أرقام)</Label>
+                    <Label htmlFor="pin">رمز PIN (4–8 أرقام)</Label>
                     <Input
                       id="pin"
                       type="password"
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      maxLength={4}
+                      maxLength={8}
                       placeholder="• • • •"
                       value={pinCode}
                       onChange={(e) => handlePinChange(e.target.value)}
@@ -226,7 +226,7 @@ export default function AuthScreen() {
                   <Button
                     type="submit"
                     className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                    disabled={isChecking || pinCode.length !== 4 || isPinLocked}
+                    disabled={isChecking || pinCode.length < 4 || pinCode.length > 8 || isPinLocked}
                   >
                     {isChecking ? 'جاري التحقق...' : 'تسجيل الدخول'}
                   </Button>
